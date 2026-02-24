@@ -10,35 +10,17 @@ Before any agent runs, the user completes a structured onboarding flow that conf
 
 ---
 
-### Why Expo (Universal App) — Not Next.js or Plain React
-
-The goal is to build once and run on web, iOS, and Android — without maintaining separate codebases. Expo's universal app approach achieves this from a single React Native codebase that compiles natively to all three platforms.
-
-Next.js is excellent for web-only but has no path to mobile without a full rewrite. Plain React (Vite) has the same limitation. React Native Web works but requires heavy manual configuration. Expo handles all of this out of the box and is the most production-proven cross-platform option available today.
-
-Given deep iOS and React Native experience, Expo is also the fastest path — the paradigm is already familiar.
-
-**One codebase, three platforms:**
-- Web — compiled via Metro, deployable to Vercel or Cloudflare Pages
-- iOS — native app via EAS Build, submitted to App Store
-- Android — native app via EAS Build, submitted to Play Store
-
----
-
 ### Frontend Stack
 
 | Layer | Tool | Why |
 |---|---|---|
-| Framework | Expo SDK 51+ with Universal App support | One codebase → web + iOS + Android |
-| Navigation | Expo Router (file-based) | Works identically on web and native, like Next.js App Router |
-| Styling | NativeWind (Tailwind for React Native) | Tailwind syntax that compiles correctly on all platforms |
-| State management | Zustand | Lightweight, works on web and native without extra config |
-| API calls | Axios + TanStack Query (React Query) | Works identically across web and native |
-| Auth | Clerk Expo SDK | Handles web OAuth and native OAuth flows out of the box |
-| Secure storage | Expo SecureStore (mobile) + httpOnly cookies (web) | Platform-appropriate token storage — never AsyncStorage |
-| Real-time updates | Expo SSE or WebSocket client | Streams agent task progress live to the UI |
-| Web hosting | Vercel or Cloudflare Pages | Static export from Expo for web deployment |
-| Mobile builds | EAS Build (Expo Application Services) | Managed CI/CD pipeline for App Store and Play Store |
+| Framework | Next.js (App Router) | Fast, production-ready, server-side rendering, easy Vercel deployment |
+| Styling | Tailwind CSS | Rapid UI without custom CSS overhead |
+| State management | Zustand | Lightweight, sufficient for onboarding flow and dashboard state |
+| API calls | Axios + TanStack Query (React Query) | Clean async handling, caching, and request retry |
+| Auth | Clerk Next.js SDK | Drop-in auth with social login and OAuth management |
+| Real-time updates | Server-Sent Events (EventSource API) | Streams agent task progress live to the browser |
+| Hosting | Vercel | One-click deploy, works natively with Next.js |
 
 ---
 
@@ -50,39 +32,19 @@ Given deep iOS and React Native experience, Expo is also the fastest path — th
 | Auth validation | Clerk Python SDK | Validates JWT tokens issued by Clerk on every request |
 | Database | PostgreSQL via Supabase | Stores org config, agent settings, onboarding state |
 | Secrets storage | Supabase Vault or AWS Secrets Manager | OAuth tokens never stored in plain DB columns |
-| Real-time | Server-Sent Events (SSE) via FastAPI | Streams task progress to Expo frontend without polling |
+| Real-time | Server-Sent Events (SSE) via FastAPI | Streams task progress to the Next.js frontend without polling |
 | Task queue | Celery + Redis | Async agent execution — critical for scale |
 | Hosting | Railway or Render (POC) → AWS ECS (scale) | Simple start with a clear path to production scale |
-| API versioning | /v1/ prefix on all routes | Supports independent versioning for web and mobile app releases |
-| Push notifications | Expo Push Notification Service | Notifies mobile users when tasks complete or need input |
-
----
-
-### Platform-Specific Considerations
-
-**OAuth flows on mobile vs web**
-OAuth with GitHub, Jira, and Slack works differently on native mobile than on web. On web, OAuth opens a browser popup. On native, it uses Expo AuthSession which opens a secure in-app browser. The backend token exchange is identical on both — only the frontend initiation differs. Expo AuthSession handles this abstraction cleanly.
-
-**Deep linking after OAuth**
-After OAuth redirects, the app must return correctly on both web (URL path) and mobile (universal link or custom scheme). Expo Router handles this automatically through its universal linking configuration.
-
-**Secure token storage**
-On mobile, auth tokens live in Expo SecureStore — encrypted native keychain. On web, tokens are stored in httpOnly cookies managed by Clerk. Never store tokens in AsyncStorage or localStorage — neither is secure for credentials.
-
-**Push notifications**
-When an agent completes a task or needs clarification, mobile users receive a push notification via Expo Push. Web users receive a browser notification or Slack message. The backend sends to both channels from a single notification service layer.
-
-**Offline handling**
-Mobile users may lose connectivity mid-task. TanStack Query handles request retrying and cache management automatically. Task state is always the source of truth on the backend — the app re-syncs on reconnect without data loss.
+| API versioning | /v1/ prefix on all routes | Supports clean versioning as the product evolves |
 
 ---
 
 ### Connecting Frontend to Backend
 
-Every onboarding step that saves data makes an API call from the Expo app to FastAPI. The backend validates the Clerk JWT on every request, stores configuration, and returns a response. OAuth flows for GitHub, Jira, and Slack are initiated from the Expo app using AuthSession but all token exchange and storage happen on the backend only — never inside the app.
+Every onboarding step that saves data makes an API call from Next.js to FastAPI. The backend validates the Clerk JWT on every request, stores configuration, and returns a response. OAuth flows for GitHub, Jira, and Slack are initiated from the browser but all token exchange and storage happen on the backend only — never in the browser.
 
 ```
-Expo App (web + iOS + Android)
+Next.js (Frontend)
     ↓ POST /v1/onboarding/account      — saves user and org profile
     ↓ POST /v1/onboarding/repo         — saves GitHub repo selection
     ↓ POST /v1/onboarding/jira         — saves Jira workspace config
@@ -96,7 +58,6 @@ Expo App (web + iOS + Android)
     ↓ GET  /v1/dashboard               — loads agent status and task history
     ↓ POST /v1/task                    — submits a new task to the pipeline
     ↓ SSE  /v1/task/:id/stream         — receives real-time progress updates
-    ↓ Push /expo-push                  — receives push notifications on mobile
 
 FastAPI (Backend)
     ↓ Validates Clerk JWT on every request
@@ -104,7 +65,6 @@ FastAPI (Backend)
     ↓ Stores OAuth tokens in Secrets Manager — never in plain DB
     ↓ Queues agent tasks via Celery + Redis
     ↓ Streams progress back via Server-Sent Events
-    ↓ Sends push notifications via Expo Push API
     ↓ Returns confirmation or structured error to frontend
 ```
 
@@ -116,7 +76,6 @@ FastAPI (Backend)
 - What this product does in two sentences
 - Social login via Clerk — Google or GitHub OAuth
 - No forms, no password, no friction
-- Renders natively on mobile and web from the same screen component
 - Backend: creates user and org record on first login via Clerk webhook
 
 **Step 1 — Account Setup**
@@ -126,7 +85,7 @@ FastAPI (Backend)
 
 **Step 2 — Connect Repository**
 - Toggle between GitHub and GitLab
-- OAuth via Expo AuthSession — works on web and native without separate code
+- OAuth button — opens provider permission screen in browser
 - After auth: dropdown to select which repo to connect
 - Shows repo name and last commit date as confirmation it worked
 - Trust signal displayed — "Your agent works in branches only, never touches main"
@@ -134,13 +93,13 @@ FastAPI (Backend)
 
 **Step 3 — Connect Jira**
 - Input field for Jira workspace URL
-- OAuth connect via Expo AuthSession
+- OAuth connect button
 - After auth: dropdown to select which project to link
 - Optional: select which ticket statuses mean "ready for the agent"
 - Backend: POST /v1/onboarding/jira — stores token, saves project key and status mappings
 
 **Step 4 — Connect Slack**
-- OAuth connect via Expo AuthSession
+- OAuth connect button
 - After auth: dropdown to pick notification channel
 - Live preview of what an agent update message will look like in that channel
 - Backend: POST /v1/onboarding/slack — stores token and channel ID
@@ -206,7 +165,29 @@ COMMUNICATION
 - This text is injected into every agent's system prompt as project context
 - Backend: POST /v1/onboarding/context — saves project description
 
-**Step 10 — Agent Reads Your Setup**
+**Step 10 — Shadow Teammate Mode (Placeholder)**
+
+> **[PLACEHOLDER — Design and scope TBD]**
+>
+> During onboarding, the agent observes your existing team's workflow before taking any autonomous action. This "shadow mode" allows the agent to learn patterns, conventions, and working styles from real activity before being given independent tasks.
+>
+> **Potential behaviours to define:**
+> - Agent is added to the Jira project and GitHub repo in read-only mode
+> - Observes open PRs, review comments, commit patterns, and ticket descriptions for a defined period (e.g. one sprint)
+> - Reads past merged PRs to understand what reviewers approve vs. reject
+> - Attends Slack threads and meeting transcripts without posting
+> - Builds an initial Memory pack from observed patterns before the first task is assigned
+> - User sees a "Your agent is learning from your team" progress view during this window
+> - Shadowing period ends when confidence threshold is met or user manually activates the agent
+>
+> **Open questions:**
+> - How long should the shadow period last? User-configurable or fixed?
+> - What is the minimum data needed before the agent is considered "ready"?
+> - Should shadowing be skippable for teams with no existing history?
+> - How do we show the user what the agent has learned in a non-technical way?
+> - Does shadow mode replace or supplement Step 10 (Agent Reads Your Setup)?
+
+**Step 11 — Agent Reads Your Setup**
 - Full-screen animated progress moment — high-value UX beat, invest in this screen
 - Shows the agent getting up to speed in real time:
   - Repo connected and scanned
@@ -214,31 +195,30 @@ COMMUNICATION
   - Velocity and story point patterns identified
   - Slack channel confirmed
   - Capabilities and guardrails saved
+  - Shadow learning complete (if shadow mode ran)
   - Agent is ready
 - Backend: GET /v1/onboarding/status — streams validation events via SSE
-- Any invalid token or failed connection surfaces here — user can tap to go back and fix
+- Any invalid token or failed connection surfaces here — user can click to go back and fix
 
-**Step 11 — Dashboard (Post Onboarding)**
+**Step 12 — Dashboard (Post Onboarding)**
 - Agent name and avatar at the top — feels like a team member, not a settings panel
 - Integration status row — green ticks for everything connected
 - Large plain English task input field front and centre
 - Optional Jira ticket ID field to link the task to an existing ticket
 - Recent task history — what the agent has done, current status, links to PRs
 - Pause agent toggle — suspends the agent without disconnecting integrations
-- Push notification permission prompt on first mobile load
 - Backend: GET /v1/dashboard — returns agent config, task history, integration health
 
 ---
 
 ### Key Frontend Rules
 
-- **OAuth always via Expo AuthSession** — never ask users to paste API keys or tokens. If a service does not support OAuth, show a "Need help? Invite your developer" option instead
+- **OAuth always** — never ask users to paste API keys or tokens. If a service does not support OAuth, show a "Need help? Invite your developer" option instead
 - **Never show code** — no diffs, no file paths, no terminal output anywhere. Always translate to plain English
-- **Progress bar on every step** — 11 steps feels manageable when there is a clear visual indicator. Show step X of 11 throughout
+- **Progress bar on every step** — 12 steps feels manageable when there is a clear visual indicator. Show step X of 12 throughout
 - **Every step skippable where sensible** — only repo connection is truly required to proceed. Everything else has a skip option
 - **Trust signals throughout** — non-technical users are cautious about repo access. Reinforce what the agent can and cannot do at every relevant step
-- **Same component on all platforms** — write each screen once in Expo and test on web, iOS simulator, and Android emulator. Do not fork UI logic per platform unless platform APIs genuinely require it
-- **Offline resilience** — TanStack Query handles retries. Never show a blank screen on connectivity loss — always show cached state with a reconnecting indicator
+- **Server-side rendering for speed** — use Next.js server components for dashboard and task history pages so they load fast without client-side waterfalls
 
 ---
 
@@ -293,7 +273,7 @@ User Task
     ↓
 [ + Memory Agent ]         — runs after completion to record patterns and learnings
     ↓
-Output: PR created → Jira updated → Slack notified → Push sent to mobile
+Output: PR created → Jira updated → Slack notified
 ```
 
 ---
@@ -352,6 +332,7 @@ Immediately after routing, before the Planner or Coder sees anything.
 - Ticket acceptance criteria from Jira if a ticket ID is provided
 - Recent reviewer comments on related code areas
 - Any memory records from previous similar tasks (fed from the Memory Agent)
+- Patterns observed during shadow teammate mode if it ran during onboarding
 
 **Why this matters**
 Without this step, agents reason generically. With it, they reason about your specific codebase. A coder that knows your auth module structure, your component library, and your team's naming conventions produces dramatically better output than one working from scratch.
@@ -360,7 +341,7 @@ Without this step, agents reason generically. With it, they reason about your sp
 - Task description
 - Repo access via GitHub integration
 - Jira ticket ID (optional)
-- Memory store from previous tasks
+- Memory store from previous tasks and shadow mode observations
 
 **Output**
 - A structured context bundle passed to every downstream agent
@@ -397,7 +378,7 @@ After context is built, before clarification or planning begins. Acts as a gate.
 - PR size estimate
 
 **If blocked**
-The task is paused. The user is notified via Slack and push notification with a plain English explanation of why the agent cannot proceed and what human input is needed.
+The task is paused. The user is notified via Slack with a plain English explanation of why the agent cannot proceed and what human input is needed.
 
 **Model used**
 Cheap fast model — rule-based validation with light reasoning.
@@ -421,7 +402,7 @@ After guardrails pass. Only activates when ambiguity is detected — skipped ent
 - Conflicting requirements detected between the task and existing code context
 
 **How it works**
-Rather than asking everything at once, it asks the minimum set of questions needed to proceed. Questions are sent via Slack and push notification in plain English. The task is paused until answers are received.
+Rather than asking everything at once, it asks the minimum set of questions needed to proceed. Questions are sent to the user via Slack in plain English. The task is paused until answers are received.
 
 **Input**
 - Task description
@@ -429,7 +410,7 @@ Rather than asking everything at once, it asks the minimum set of questions need
 - Identified ambiguities
 
 **Output**
-- Set of targeted questions posted to Slack and push notification, or
+- Set of targeted questions posted to Slack, or
 - Confirmation that no clarification is needed and the pipeline can proceed
 
 **Model used**
@@ -692,6 +673,7 @@ After PR is merged or after human reviewer leaves feedback — not blocking the 
 - Pitfalls encountered during the task — build failures, wrong assumptions, retry patterns
 - Convention updates discovered — new patterns found in the codebase
 - Clarification questions that were needed — used to improve future ambiguity detection
+- Observations from shadow teammate mode if active during onboarding
 
 **Traceability**
 Every memory record is linked to its source — the task ID, the PR, the reviewer comment, or the failure log. Nothing is stored as anonymous tribal knowledge.
@@ -718,7 +700,7 @@ When the system cannot safely complete a task — after maximum retries, unresol
 
 1. Execution pauses immediately — no partial commits or broken branches
 2. A plain English summary of the blocker is composed — what was attempted, what failed, what is needed
-3. The user is notified via Slack and mobile push with the summary and specific questions
+3. The user is notified via Slack with the summary and specific questions
 4. Partial progress is preserved — any valid work completed so far is saved and can be resumed
 5. The task sits in a paused state until human input is provided
 
@@ -764,7 +746,7 @@ Context Builder ─────────────────────�
     ↓
 Guardrails Agent ────────────────────────── validates scope and risk
     ↓                                              ↓ if blocked
-Clarification Agent ─────────────────────── resolves ambiguity      → Slack + Push (paused)
+Clarification Agent ─────────────────────── resolves ambiguity      → Slack (paused)
     ↓                                              ↓ if unanswered
 Planner Agent ───────────────────────────── plan + Definition of Done
     ↓
@@ -776,17 +758,17 @@ Execution Verifier ────────────────────�
     ↓ if fails ←──────────────────────────── fix loop (max retries)
     ↓                                              ↓ if max retries
 Reviewer Agent ──────────────────────────── DoD critic pass     → Failure Pathway
-    ↓ if changes ←────────────────────────── revision loop      → Slack + Push (paused)
+    ↓ if changes ←────────────────────────── revision loop      → Slack (paused)
     ↓
 GitHub ──────────────────────────────────── branch + commit + PR
     ↓
 Jira ────────────────────────────────────── status update + PR link
     ↓
-Slack + Push ────────────────────────────── plain English notification to all platforms
+Slack ───────────────────────────────────── plain English notification
     ↓
 Memory Agent ────────────────────────────── write-back (async, non-blocking)
     ↓
-Human reviews and approves PR (web or mobile)
+Human reviews and approves PR
 ```
 
 ---
