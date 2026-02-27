@@ -1,77 +1,217 @@
-# kronode
+# Kronode
 
-Autonomous AI developer tool. Non-technical users connect GitHub, Jira, and Slack — an agent pipeline handles tasks end-to-end.
+Kronode is an autonomous AI developer that lives inside your engineering organization — reading tickets, writing code, opening pull requests, and getting smarter over time.
 
-## Stack
+---
 
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 14 (App Router), Tailwind CSS, Clerk, Zustand |
-| Backend | FastAPI, PostgreSQL, Celery + Redis |
-| Agents | Anthropic Claude (claude-haiku-4-5 / claude-sonnet-4-6 / claude-opus-4-6) |
-| Auth | Clerk |
-| Database | Supabase (PostgreSQL) |
+## Prerequisites
 
-## Quick Start
+Before you begin, make sure you have the following installed:
 
-### Prerequisites
-- Docker + Docker Compose
-- Node.js 20+ and pnpm
-- Python 3.12+ and uv
+| Tool | Version | Purpose |
+|---|---|---|
+| **Node.js** | 18+ | Frontend runtime |
+| **pnpm** | 8+ | Frontend package manager (`npm install -g pnpm`) |
+| **Python** | 3.12+ | Backend runtime |
+| **uv** | latest | Python package manager (`pip install uv`) |
+| **Docker** | latest | Runs PostgreSQL and Redis locally |
 
-### 1. Environment
-```bash
-cp .env.example .env
-# Fill in CLERK_SECRET_KEY, ANTHROPIC_API_KEY, and GitHub OAuth credentials
+---
+
+## Environment Variables
+
+### Frontend (`frontend/.env.local`)
+
+Create a file at `frontend/.env.local` with the following variables:
+
+```
+# Clerk — authentication (get these from https://dashboard.clerk.com)
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_your_publishable_key_here
+CLERK_SECRET_KEY=sk_test_your_secret_key_here
+
+# Clerk redirect URLs
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/onboarding
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/onboarding
+
+# Backend API URL
+NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-### 2. Run with Docker
-```bash
-docker-compose up
+### Backend (`backend/.env`)
+
+Create a file at `backend/.env` with the following variables:
+
+```
+# PostgreSQL connection string
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/kronode
+
+# Redis connection string
+REDIS_URL=redis://localhost:6379/0
+
+# Clerk — used to verify tokens server-side (same secret key as frontend)
+CLERK_SECRET_KEY=sk_test_your_secret_key_here
+
+# CORS — comma-separated list of allowed frontend origins
+CORS_ORIGINS=http://localhost:3000
+
+# OpenAI API key (used by the agent)
+OPENAI_API_KEY=sk-your_openai_api_key_here
+
+# GitHub App credentials (used for opening PRs)
+GITHUB_APP_ID=your_github_app_id
+GITHUB_APP_PRIVATE_KEY=your_github_app_private_key_pem_contents
+
+# Jira OAuth credentials (optional — required for Jira integration)
+JIRA_CLIENT_ID=your_jira_client_id
+JIRA_CLIENT_SECRET=your_jira_client_secret
+
+# Slack bot credentials (optional — required for Slack integration)
+SLACK_BOT_TOKEN=xoxb-your_slack_bot_token
+SLACK_SIGNING_SECRET=your_slack_signing_secret
 ```
 
-Frontend: http://localhost:3000
-Backend API: http://localhost:8000
-API Docs: http://localhost:8000/docs
+---
 
-### 3. Run locally (with Make)
+## Getting Started
 
-```bash
-make install    # install all dependencies (backend + frontend)
-make infra      # start Postgres + Redis via Docker
-make migrate    # run database migrations
-make backend    # start FastAPI on http://localhost:8000
-make worker     # start Celery worker (separate terminal)
-make frontend   # start Next.js on http://localhost:3000
-```
+Follow these steps in order to get the full stack running locally.
 
-Each service runs in its own terminal. Typical dev session:
+### 1. Start infrastructure (PostgreSQL + Redis)
 
 ```bash
-make infra      # once
-make backend    # terminal 1
-make worker     # terminal 2
-make frontend   # terminal 3
+make infra
 ```
+
+This starts PostgreSQL on port `5432` and Redis on port `6379` using Docker Compose.
+
+### 2. Install all dependencies
+
+```bash
+make install
+```
+
+This runs two things:
+- `cd backend && uv sync` — installs Python dependencies
+- `cd frontend && pnpm install` — installs Node dependencies
+
+You can also run each separately:
+
+```bash
+# Backend only
+cd backend && uv sync
+
+# Frontend only
+cd frontend && pnpm install
+```
+
+### 3. Run database migrations
+
+```bash
+make migrate
+```
+
+This applies all Alembic migrations and sets up the database schema. The underlying command is:
+
+```bash
+cd backend && uv run alembic upgrade head
+```
+
+### 4. Start the backend dev server
+
+```bash
+make backend
+```
+
+This starts the FastAPI server at **http://localhost:8000** with hot-reload enabled. The underlying command is:
+
+```bash
+cd backend && uv run uvicorn app.main:app --reload
+```
+
+Verify it is running by visiting http://localhost:8000/health — you should see `{"status": "ok"}`.
+
+### 5. Start the frontend dev server
+
+```bash
+make frontend
+```
+
+This starts the Next.js app at **http://localhost:3000**. The underlying command is:
+
+```bash
+cd frontend && pnpm dev
+```
+
+---
+
+## Background Workers (optional)
+
+Kronode uses Celery for background task processing (e.g. running the AI agent, polling PRs). These are optional for basic local development but required for the agent to execute tickets.
+
+### Start the Celery worker
+
+```bash
+make worker
+```
+
+This starts a Celery worker with auto-reload on Python file changes.
+
+### Start the Celery beat scheduler
+
+```bash
+make beat
+```
+
+This starts the Celery beat scheduler, which handles recurring tasks such as polling pull requests every 60 seconds.
+
+---
+
+## All Makefile Targets
+
+| Command | What it does |
+|---|---|
+| `make infra` | Starts PostgreSQL and Redis via Docker Compose |
+| `make install` | Installs backend (uv) and frontend (pnpm) dependencies |
+| `make migrate` | Runs Alembic database migrations |
+| `make backend` | Starts the FastAPI backend dev server on port 8000 |
+| `make frontend` | Starts the Next.js frontend dev server on port 3000 |
+| `make worker` | Starts the Celery background worker |
+| `make beat` | Starts the Celery beat scheduler |
+
+---
 
 ## Project Structure
 
 ```
 kronode/
-├── frontend/          Next.js app (onboarding, dashboard, task viewer)
-├── backend/           FastAPI app (agent pipeline, API, worker)
-├── docs/
-│   └── plan.md        Full implementation plan
-├── agents.md          System design and agent specifications
+├── backend/          # FastAPI backend (Python 3.12, uv)
+│   ├── app/
+│   │   ├── api/      # Route handlers
+│   │   ├── core/     # Config, database, auth
+│   │   ├── models/   # SQLAlchemy models
+│   │   └── main.py   # FastAPI application entry point
+│   └── alembic/      # Database migration files
+├── frontend/         # Next.js frontend (TypeScript, pnpm)
+│   ├── app/          # Next.js App Router pages
+│   ├── components/   # Shared React components
+│   └── tokens/       # Design system tokens
+├── Makefile          # Developer convenience commands
 └── docker-compose.yml
 ```
 
-## Agent Pipeline
+---
 
-```
-Task → Router → Context Builder → Guardrails → Clarification →
-Planner → Coder → Tester → Verifier → Reviewer →
-GitHub PR + Jira update + Slack notification
-```
+## Tech Stack
 
-See [agents.md](agents.md) for the full specification.
+| Layer | Technology |
+|---|---|
+| Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS |
+| Auth | Clerk |
+| Backend | FastAPI, Python 3.12 |
+| Database | PostgreSQL (async via SQLAlchemy + asyncpg) |
+| Migrations | Alembic |
+| Background jobs | Celery + Redis |
+| Package management | pnpm (frontend), uv (backend) |
+| Local infra | Docker Compose |
