@@ -9,6 +9,7 @@ import { useSSE } from "@/lib/hooks/useSSE";
 import { Badge, statusToBadge } from "@/components/ui/Badge";
 import { Spinner } from "@/components/ui/Spinner";
 import ProgressStream from "./ProgressStream";
+import TopBar from "@/components/TopBar";
 import type { TaskStatus } from "@/lib/types";
 
 const queryClient = new QueryClient();
@@ -45,25 +46,31 @@ function TaskDetail({ taskId }: { taskId: string }) {
   const displayStatus = terminalStatus || task?.status || "queued";
 
   if (isLoading) {
-    return <div className="min-h-screen flex items-center justify-center"><Spinner size="lg" /></div>;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Spinner size="lg" />
+      </div>
+    );
   }
 
   if (!task) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-500 text-sm">
-        Task not found. <Link href="/dashboard" className="ml-2 text-brand-500 underline">Back to dashboard</Link>
+      <div className="min-h-screen flex flex-col">
+        <TopBar backHref="/dashboard" theme="light" />
+        <div className="flex-1 flex items-center justify-center text-gray-500 text-sm">
+          Task not found.{" "}
+          <Link href="/dashboard" className="ml-2 text-brand-500 underline">
+            Back to dashboard
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <TopBar backHref="/dashboard" theme="light" />
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-5">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <Link href="/dashboard" className="text-gray-400 hover:text-gray-600 text-sm">← Dashboard</Link>
-        </div>
-
         {/* Task card */}
         <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
           <div className="flex items-start justify-between gap-3">
@@ -101,7 +108,9 @@ function TaskDetail({ taskId }: { taskId: string }) {
               {task.result.pr_url as string}
             </a>
             {task.result.slack_summary && (
-              <p className="text-sm text-green-700 mt-2">{task.result.slack_summary as string}</p>
+              <p className="text-sm text-green-700 mt-2">
+                {task.result.slack_summary as string}
+              </p>
             )}
           </div>
         )}
