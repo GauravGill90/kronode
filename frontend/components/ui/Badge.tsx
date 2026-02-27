@@ -1,6 +1,6 @@
 import { clsx } from "clsx";
 
-type BadgeVariant = "default" | "success" | "warning" | "error" | "info" | "queued" | "running";
+type BadgeVariant = "default" | "success" | "warning" | "error" | "info" | "queued" | "running" | "waiting" | "review";
 
 interface BadgeProps {
   variant?: BadgeVariant;
@@ -16,6 +16,8 @@ const VARIANT_STYLES: Record<BadgeVariant, React.CSSProperties> = {
   error:   { background: "rgba(239,68,68,0.1)",    color: "#f87171", border: "1px solid rgba(239,68,68,0.2)"   },
   info:    { background: "rgba(59,130,246,0.1)",   color: "#60a5fa", border: "1px solid rgba(59,130,246,0.2)"  },
   running: { background: "rgba(99,102,241,0.12)",  color: "#a5b4fc", border: "1px solid rgba(99,102,241,0.25)" },
+  waiting: { background: "rgba(234,179,8,0.1)",    color: "#fbbf24", border: "1px solid rgba(234,179,8,0.25)"  },
+  review:  { background: "rgba(59,130,246,0.1)",   color: "#38bdf8", border: "1px solid rgba(59,130,246,0.25)" },
 };
 
 export function Badge({ variant = "default", children, className }: BadgeProps) {
@@ -23,7 +25,7 @@ export function Badge({ variant = "default", children, className }: BadgeProps) 
     <span
       className={clsx(
         "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium",
-        variant === "running" && "animate-pulse",
+        (variant === "running" || variant === "waiting") && "animate-pulse",
         className
       )}
       style={VARIANT_STYLES[variant]}
@@ -35,11 +37,13 @@ export function Badge({ variant = "default", children, className }: BadgeProps) 
 
 export function statusToBadge(status: string): BadgeVariant {
   switch (status) {
-    case "done":    return "success";
-    case "failed":  return "error";
-    case "paused":  return "warning";
-    case "running": return "running";
-    case "queued":  return "queued";
-    default:        return "default";
+    case "done":               return "success";
+    case "failed":             return "error";
+    case "paused":             return "warning";
+    case "running":            return "running";
+    case "queued":             return "queued";
+    case "in_review":          return "review";
+    case "waiting_clarification": return "waiting";
+    default:                   return "default";
   }
 }

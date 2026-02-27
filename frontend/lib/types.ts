@@ -1,6 +1,6 @@
 // ── Task types ─────────────────────────────────────────────────────────────────
 
-export type TaskStatus = "queued" | "running" | "done" | "failed" | "paused" | "cancelled";
+export type TaskStatus = "queued" | "running" | "in_review" | "done" | "failed" | "paused" | "cancelled" | "waiting_clarification";
 
 export interface TaskEvent {
   id: number;
@@ -75,6 +75,7 @@ export interface OnboardingStatus {
 
 export interface OnboardingState {
   currentStep: number;
+  agentProfile: { profile_key: string; profile_name: string } | null;
   account: { name: string; company_name: string; role: string } | null;
   repo: { provider: string; repo_url: string; repo_name: string } | null;
   jira: { workspace_url: string; project_key: string; email: string; api_token: string } | null;
@@ -84,4 +85,5 @@ export interface OnboardingState {
   guardrails: { restricted_paths: string[]; max_files_per_task: number; risk_level: string } | null;
   agent: { agent_name: string; agent_avatar: string } | null;
   projectContext: string;
+  codingStandards: string;
 }

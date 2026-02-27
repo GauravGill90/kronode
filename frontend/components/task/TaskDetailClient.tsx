@@ -39,7 +39,7 @@ function TaskDetail({ taskId }: { taskId: string }) {
   const [cancelling, setCancelling] = useState(false);
   const { data: task, isLoading, refetch } = useTask(taskId);
 
-  const isActive = task?.status === "running" || task?.status === "queued";
+  const isActive = task?.status === "running" || task?.status === "queued" || task?.status === "waiting_clarification" || task?.status === "in_review";
 
   async function handleCancel() {
     setCancelling(true);

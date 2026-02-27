@@ -123,7 +123,7 @@ async def cancel_task(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
-    if task.status not in ("queued", "running"):
+    if task.status not in ("queued", "running", "waiting_clarification", "in_review"):
         raise HTTPException(status_code=400, detail=f"Cannot cancel a task with status '{task.status}'")
 
     # Revoke the Celery task — terminate=True sends SIGTERM to the worker process
@@ -155,7 +155,7 @@ async def stream_task(
 
     async def event_generator():
         last_event_id = 0
-        terminal_statuses = {"done", "failed", "paused", "cancelled"}
+        terminal_statuses = {"done", "failed", "paused", "cancelled", "waiting_clarification", "in_review"}
         max_polls = 300  # 5 minutes at 1s intervals
 
         for _ in range(max_polls):

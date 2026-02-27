@@ -132,10 +132,23 @@ Relevant existing files:
                 "incomplete_dod_items": [],
             }
         else:
+            profile_injection = context.get("profile_injection", "")
+            coding_standards = context.get("coding_standards", "")
+
+            parts = []
+            if profile_injection:
+                parts.append(profile_injection)
+            if coding_standards:
+                parts.append(f"--- Team Coding Standards ---\n{coding_standards}")
+            parts.append(SYSTEM_PROMPT)
+            effective_system = "\n\n---\n\n".join(parts)
+
             message = await self.client.messages.create(
                 model="claude-sonnet-4-6",
                 max_tokens=8096,
-                system=SYSTEM_PROMPT,
+                system=[
+                    {"type": "text", "text": effective_system, "cache_control": {"type": "ephemeral"}}
+                ],
                 messages=[{"role": "user", "content": user_message}],
             )
 

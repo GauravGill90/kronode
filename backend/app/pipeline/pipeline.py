@@ -1,8 +1,8 @@
 import asyncio
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, and_ as sa_and
 
 from app.core.database import AsyncSessionLocal
 from app.models.task import Task, TaskEvent
@@ -12,9 +12,9 @@ from app.models.user import User  # noqa: F401 — registers 'users' table in SA
 
 AGENT_CHAIN = [
     "context_builder",
-    "guardrails_agent",
     "clarification_agent",
     "planner_agent",
+    "guardrails_agent",     # runs after planner so it can check files_affected
     "coder_agent",
     "tester_agent",
     "execution_verifier",
@@ -80,6 +80,40 @@ async def run_pipeline(task_id_str: str):
         "slack_bot_token": config.slack_bot_token if config else None,
     }
 
+    # Load agent profile and inject world-class system prompt into context
+    from app.profiles import get_profile
+    profile_key = (config.agent_profile or "fullstack") if config else "fullstack"
+    profile = get_profile(profile_key)
+    context["agent_profile"] = profile_key
+    context["profile_injection"] = profile.SYSTEM_PROMPT_INJECTION
+    context["profile_priority_extensions"] = list(profile.CONTEXT_PRIORITIES)
+
+    # Org coding standards (injected between profile and agent system prompt)
+    context["coding_standards"] = (config.coding_standards or "") if config else ""
+
+    # Check for cached conventions in memory_records (< 7 days old) to skip Haiku extraction
+    cached_conventions = None
+    try:
+        from app.models.memory import MemoryRecord
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(
+                select(MemoryRecord)
+                .where(sa_and(
+                    MemoryRecord.org_id == task.org_id,
+                    MemoryRecord.record_type == "convention",
+                ))
+                .order_by(MemoryRecord.id.desc())
+                .limit(1)
+            )
+            rec = result.scalar_one_or_none()
+            if rec:
+                age = datetime.now(timezone.utc) - rec.created_at.replace(tzinfo=timezone.utc)
+                if age < timedelta(days=7):
+                    cached_conventions = rec.content.get("conventions") if rec.content else None
+    except Exception:
+        pass  # memory_records table may not exist yet — safe to skip
+    context["cached_conventions"] = cached_conventions
+
     # If the task came from a Jira ticket, enrich the description with the full ticket body
     if (
         context.get("jira_ticket_id")
@@ -134,7 +168,19 @@ async def run_pipeline(task_id_str: str):
             await emit_event(task_id, "router", "started", "Analysing task and selecting agents...")
             routing = await router.run(context)
             context["routing"] = routing
-            await emit_event(task_id, "router", "completed", f"Task classified as {routing['complexity']}. Running {len(routing['agents'])} agents.", routing)
+
+            # Simple fast-path: skip context builder and planner for trivial tasks
+            if routing["complexity"] == "simple":
+                routing["agents"] = ["coder_agent", "memory_agent"]
+                await emit_event(
+                    task_id, "router", "completed",
+                    "Simple task — fast path: skipping context builder and planner.", routing,
+                )
+            else:
+                await emit_event(
+                    task_id, "router", "completed",
+                    f"Task classified as {routing['complexity']}. Running {len(routing['agents'])} agents.", routing,
+                )
 
         # Run the selected agent chain
         agent_map = _build_agent_map()
@@ -165,17 +211,40 @@ async def run_pipeline(task_id_str: str):
                     await db.commit()
                 return
 
+            if result.get("waiting"):
+                async with AsyncSessionLocal() as db:
+                    task_obj = await db.get(Task, task_id)
+                    task_obj.status = "waiting_clarification"
+                    task_obj.result = {
+                        "context_snapshot": context,
+                        "thread_ts": result["thread_ts"],
+                        "slack_channel_id": result.get("slack_channel_id"),  # real C0XXXXXXX ID
+                        "questions": result.get("questions", []),
+                        "resume_from": "planner_agent",
+                    }
+                    await db.commit()
+                await emit_event(
+                    task_id, agent_name, "waiting",
+                    "Waiting for Slack clarification...",
+                    {"questions": result.get("questions", [])},
+                )
+                return
+
             await emit_event(task_id, agent_name, "completed", result.get("summary", f"{agent.display_name} complete."), result)
 
         # Notify integrations (Slack + Jira) — non-blocking, errors don't fail pipeline
         await _notify_integrations(task_id, task.description, task.jira_ticket_id, context)
 
-        # Mark done
+        # Mark in_review if a PR was opened (true done happens when PR merges),
+        # otherwise mark done immediately (no-PR tasks like doc edits).
+        coder_result = context.get("coder_agent", {})
+        has_pr = bool(coder_result.get("pr_url"))
         async with AsyncSessionLocal() as db:
             task_obj = await db.get(Task, task_id)
-            task_obj.status = "done"
-            task_obj.result = context.get("coder_agent")
-            task_obj.completed_at = datetime.now(timezone.utc)
+            task_obj.status = "in_review" if has_pr else "done"
+            task_obj.result = coder_result
+            if not has_pr:
+                task_obj.completed_at = datetime.now(timezone.utc)
             await db.commit()
 
     except Exception as exc:
@@ -244,6 +313,94 @@ async def _notify_integrations(
         except Exception as exc:
             import logging
             logging.getLogger(__name__).warning(f"Jira update failed: {exc}")
+
+
+async def resume_pipeline(task_id_str: str, clarification_answer: str) -> None:
+    """Resume a pipeline that was paused at waiting_clarification."""
+    task_id = uuid.UUID(task_id_str)
+
+    async with AsyncSessionLocal() as db:
+        task = await db.get(Task, task_id)
+        if not task or task.status != "waiting_clarification":
+            return
+
+        snapshot = task.result or {}
+        context = snapshot.get("context_snapshot", {})
+        resume_from = snapshot.get("resume_from", "planner_agent")
+
+        task.status = "running"
+        task.result = None
+        await db.commit()
+
+    context["clarification_answer"] = clarification_answer
+
+    await emit_event(
+        task_id, "clarification_agent", "completed",
+        f"Clarification received — resuming from {resume_from}.",
+        {"answer": clarification_answer[:200]},
+    )
+
+    try:
+        agent_map = _build_agent_map()
+        start_idx = AGENT_CHAIN.index(resume_from) if resume_from in AGENT_CHAIN else 0
+        agents_to_run = AGENT_CHAIN[start_idx:]
+
+        routing = context.get("routing", {})
+        selected_agents = routing.get("agents", AGENT_CHAIN)
+
+        for agent_name in agents_to_run:
+            if agent_name not in selected_agents:
+                continue
+            if agent_name not in agent_map:
+                continue
+
+            async with AsyncSessionLocal() as db:
+                current = await db.get(Task, task_id)
+                if current and current.status == "cancelled":
+                    await emit_event(task_id, "pipeline", "failed", "Task cancelled by user")
+                    return
+
+            agent_cls = agent_map[agent_name]
+            agent = agent_cls()
+
+            await emit_event(task_id, agent_name, "started", f"{agent.display_name} starting...")
+            result = await agent.run(context)
+            context[agent_name] = result
+
+            if result.get("blocked"):
+                await emit_event(task_id, agent_name, "failed", result.get("reason", "Blocked"))
+                async with AsyncSessionLocal() as db:
+                    task_obj = await db.get(Task, task_id)
+                    task_obj.status = "paused"
+                    task_obj.error = result.get("reason")
+                    await db.commit()
+                return
+
+            await emit_event(task_id, agent_name, "completed", result.get("summary", f"{agent.display_name} complete."), result)
+
+        task_desc = context.get("description", "")
+        jira_ticket_id = context.get("jira_ticket_id")
+        await _notify_integrations(task_id, task_desc, jira_ticket_id, context)
+
+        coder_result = context.get("coder_agent", {})
+        has_pr = bool(coder_result.get("pr_url"))
+        async with AsyncSessionLocal() as db:
+            from datetime import datetime, timezone
+            task_obj = await db.get(Task, task_id)
+            task_obj.status = "in_review" if has_pr else "done"
+            task_obj.result = coder_result
+            if not has_pr:
+                task_obj.completed_at = datetime.now(timezone.utc)
+            await db.commit()
+
+    except Exception as exc:
+        await emit_event(task_id, "pipeline", "failed", str(exc))
+        async with AsyncSessionLocal() as db:
+            task_obj = await db.get(Task, task_id)
+            task_obj.status = "failed"
+            task_obj.error = str(exc)
+            await db.commit()
+        raise
 
 
 def _build_agent_map() -> dict:

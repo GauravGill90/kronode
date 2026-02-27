@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 
 import anthropic
 
@@ -7,6 +8,27 @@ from app.agents.base import AgentBase
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_json(text: str) -> dict | None:
+    """Try multiple strategies to extract a JSON object from the model response."""
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    stripped = re.sub(r"^```[a-z]*\n?", "", text.strip())
+    stripped = re.sub(r"\n?```$", "", stripped)
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        pass
+    match = re.search(r"\{[\s\S]*\}", text)
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+    return None
 
 SYSTEM_PROMPT = """You are a senior software architect. Your job is to create a detailed implementation plan for a development task.
 
@@ -57,8 +79,14 @@ class PlannerAgent(AgentBase):
         # Send only file paths to the planner (not content) — coder gets the full content
         file_paths = [f["path"] for f in relevant_files] if relevant_files else []
 
-        user_message = f"""Task: {description}
+        clarification = context.get("clarification_answer", "")
+        clarification_block = (
+            f"\nClarification provided by team:\n{clarification}\n"
+            if clarification else ""
+        )
 
+        user_message = f"""Task: {description}
+{clarification_block}
 Project context:
 {project_context}
 
@@ -69,18 +97,33 @@ Conventions:
 {conventions or "none"}
 """
 
+        profile_injection = context.get("profile_injection", "")
+        coding_standards = context.get("coding_standards", "")
+
+        parts = []
+        if profile_injection:
+            parts.append(profile_injection)
+        if coding_standards:
+            parts.append(f"--- Team Coding Standards ---\n{coding_standards}")
+        parts.append(SYSTEM_PROMPT)
+        effective_system = "\n\n---\n\n".join(parts)
+
         message = await self.client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=1024,
-            system=SYSTEM_PROMPT,
+            max_tokens=2048,
+            system=[
+                {"type": "text", "text": effective_system, "cache_control": {"type": "ephemeral"}}
+            ],
             messages=[{"role": "user", "content": user_message}],
         )
 
         raw = message.content[0].text.strip()
-        try:
-            plan = json.loads(raw)
-        except json.JSONDecodeError:
-            logger.warning("PlannerAgent: failed to parse JSON response")
+        if message.stop_reason == "max_tokens":
+            logger.warning("PlannerAgent: response truncated (max_tokens hit) — JSON may be incomplete")
+
+        plan = _extract_json(raw)
+        if plan is None:
+            logger.warning(f"PlannerAgent: failed to parse JSON response. Raw (first 300): {raw[:300]}")
             plan = {
                 "subtasks": [{"order": 1, "description": description, "agent": "coder_agent", "files_affected": []}],
                 "definition_of_done": ["Implementation complete", "No regressions introduced"],

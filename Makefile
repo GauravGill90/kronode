@@ -1,4 +1,4 @@
-.PHONY: infra backend worker frontend install migrate
+.PHONY: infra backend worker beat frontend install migrate
 
 # Start Postgres + Redis
 infra:
@@ -11,6 +11,10 @@ backend:
 # Start Celery worker (with auto-reload on file changes)
 worker:
 	cd backend && uv run watchfiles --filter python "celery -A app.celery_app worker --loglevel=info --pool=solo" app/
+
+# Start Celery beat scheduler (PR polling every 60s)
+beat:
+	cd backend && uv run celery -A app.celery_app beat --loglevel=info
 
 # Start Next.js frontend
 frontend:

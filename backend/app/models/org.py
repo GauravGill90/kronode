@@ -52,9 +52,11 @@ class OnboardingConfig(Base):
     # Step 8 — agent identity
     agent_name: Mapped[str | None] = mapped_column(String(100))
     agent_avatar: Mapped[str | None] = mapped_column(String(100))
+    agent_profile: Mapped[str | None] = mapped_column(String(50))  # web|backend|fullstack|devops|mobile_ios|mobile_android|data
 
-    # Step 9 — project context
+    # Step 9 — project context + org coding standards
     project_context: Mapped[str | None] = mapped_column(Text)
+    coding_standards: Mapped[str | None] = mapped_column(Text)  # org-defined coding standards injected into every task
 
     # GitHub PAT (plain-text for now; will be encrypted in Phase 3 OAuth)
     github_access_token: Mapped[str | None] = mapped_column(Text)

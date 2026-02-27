@@ -10,7 +10,7 @@ from app.schemas.onboarding import (
     AccountPayload, RepoPayload, JiraPayload, JiraTestPayload,
     SlackPayload, SlackTestPayload,
     DocsPayload, CapabilitiesPayload, GuardrailsPayload,
-    AgentPayload, ContextPayload, GitHubTokenPayload, GitHubTokenTestPayload,
+    AgentPayload, AgentProfilePayload, ContextPayload, GitHubTokenPayload, GitHubTokenTestPayload,
     OnboardingStatus, OnboardingConfigOut,
 )
 
@@ -260,6 +260,18 @@ async def save_agent(
     return {"ok": True}
 
 
+@router.post("/agent-profile")
+async def save_agent_profile(
+    payload: AgentProfilePayload,
+    user_data: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _, _, config = await _get_or_create_org(user_data, db)
+    config.agent_profile = payload.profile_key
+    await db.commit()
+    return {"ok": True}
+
+
 @router.post("/context")
 async def save_context(
     payload: ContextPayload,
@@ -268,6 +280,7 @@ async def save_context(
 ):
     _, _, config = await _get_or_create_org(user_data, db)
     config.project_context = payload.project_context
+    config.coding_standards = payload.coding_standards or None
     await db.commit()
     return {"ok": True}
 
@@ -380,6 +393,7 @@ async def get_config(
     return OnboardingConfigOut(
         agent_name=config.agent_name,
         agent_avatar=config.agent_avatar,
+        agent_profile=config.agent_profile,
         repo_url=config.repo_url,
         repo_provider=config.repo_provider,
         repo_name=config.repo_name,
@@ -387,6 +401,7 @@ async def get_config(
         capabilities=config.capabilities,
         guardrails=config.guardrails,
         project_context=config.project_context,
+        coding_standards=config.coding_standards,
         user_name=user.name,
         user_role=user.role,
         company_name=org.name if org.name != "My Organization" else None,

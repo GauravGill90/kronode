@@ -7,6 +7,7 @@ import { useOnboardingStore } from "@/lib/store";
 import type { OnboardingState } from "@/lib/types";
 import {
   saveAgent,
+  saveAgentProfile,
   saveRepo,
   saveGithubToken,
   saveCapabilities,
@@ -87,6 +88,95 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 }
 
 // ─── Modal forms ──────────────────────────────────────────────────────────────
+
+// ─── Agent profile data ────────────────────────────────────────────────────────
+
+export const PROFILE_OPTIONS = [
+  { key: "web",            name: "Web Engineer",             icon: "🌐", chips: ["React", "Next.js", "TypeScript", "Tailwind"] },
+  { key: "backend",        name: "Backend Engineer",          icon: "⚙️",  chips: ["Python", "FastAPI", "PostgreSQL", "Redis"] },
+  { key: "fullstack",      name: "Full-Stack Engineer",       icon: "🔀", chips: ["Next.js", "FastAPI", "TypeScript"] },
+  { key: "devops",         name: "DevOps Engineer",           icon: "🏗️", chips: ["Docker", "Kubernetes", "Terraform", "GH Actions"] },
+  { key: "mobile_ios",     name: "Mobile Engineer (iOS)",     icon: "📱", chips: ["Swift", "SwiftUI", "Combine"] },
+  { key: "mobile_android", name: "Mobile Engineer (Android)", icon: "🤖", chips: ["Kotlin", "Jetpack Compose"] },
+  { key: "data",           name: "Data Engineer",             icon: "📊", chips: ["Python", "dbt", "Airflow", "Snowflake"] },
+];
+
+function AgentProfileForm({ onSave }: { onSave: () => void }) {
+  const { agentProfile, setAgentProfile } = useOnboardingStore();
+  const [selected, setSelected] = useState(agentProfile?.profile_key || "");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSave() {
+    if (!selected) return;
+    setLoading(true);
+    setError("");
+    try {
+      await saveAgentProfile({ profile_key: selected });
+      const found = PROFILE_OPTIONS.find((p) => p.key === selected)!;
+      setAgentProfile({ profile_key: found.key, profile_name: found.name });
+      onSave();
+    } catch {
+      setError("Failed to save. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm" style={{ color: "#64748b" }}>
+        Your agent will be a world-class specialist in this domain. The profile shapes its
+        judgement, conventions, and which files it touches.
+      </p>
+      <div className="space-y-2">
+        {PROFILE_OPTIONS.map((p) => {
+          const isSelected = selected === p.key;
+          return (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => setSelected(p.key)}
+              className="w-full text-left rounded-xl px-4 py-3 transition-all"
+              style={{
+                background: isSelected ? "rgba(99,102,241,0.1)" : "rgba(255,255,255,0.03)",
+                border: `1px solid ${isSelected ? "rgba(99,102,241,0.6)" : "rgba(255,255,255,0.08)"}`,
+              }}
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-xl">{p.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium" style={{ color: isSelected ? "#a5b4fc" : "#e2e8f0" }}>
+                    {p.name}
+                  </div>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {p.chips.map((chip) => (
+                      <span
+                        key={chip}
+                        className="text-xs rounded px-1.5 py-0.5"
+                        style={{
+                          background: "rgba(99,102,241,0.12)",
+                          color: "#94a3b8",
+                        }}
+                      >
+                        {chip}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                {isSelected && (
+                  <span className="text-sm" style={{ color: "#6366f1" }}>✓</span>
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      {error && <p className="text-sm" style={{ color: "#f87171" }}>{error}</p>}
+      <SaveBtn onClick={handleSave} loading={loading} disabled={!selected} label="Set profile" />
+    </div>
+  );
+}
 
 const SUGGESTIONS = ["Forge", "Relay", "Scout", "Hatch", "Stride"];
 const AVATARS = ["🤖", "🛠️", "⚡", "🚀", "🔮", "🧠"];
@@ -585,8 +675,9 @@ function GuardrailsForm({ onSave }: { onSave: () => void }) {
 }
 
 function ContextForm({ onSave }: { onSave: () => void }) {
-  const { agent, projectContext, setProjectContext } = useOnboardingStore();
+  const { agent, projectContext, codingStandards, setProjectContext, setCodingStandards } = useOnboardingStore();
   const [text, setText] = useState(projectContext || "");
+  const [standards, setStandards] = useState(codingStandards || "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const agentName = agent?.agent_name || "Your agent";
@@ -597,8 +688,9 @@ function ContextForm({ onSave }: { onSave: () => void }) {
     setLoading(true);
     setError("");
     try {
-      await saveContext({ project_context: text });
+      await saveContext({ project_context: text, coding_standards: standards });
       setProjectContext(text);
+      setCodingStandards(standards);
       onSave();
     } catch {
       setError("Failed to save. Please try again.");
@@ -632,6 +724,28 @@ function ContextForm({ onSave }: { onSave: () => void }) {
           Add a bit more context — at least a sentence or two.
         </p>
       )}
+      <div>
+        <label className="text-sm font-medium block mb-1.5" style={{ color: "#94a3b8" }}>
+          Team coding standards <span style={{ color: "#475569", fontWeight: 400 }}>(optional)</span>
+        </label>
+        <textarea
+          className="w-full rounded-xl px-4 py-3 text-sm resize-y outline-none"
+          style={{
+            background: "rgba(255,255,255,0.04)",
+            border: "1px solid rgba(99,102,241,0.2)",
+            color: "#e2e8f0",
+            minHeight: "100px",
+          }}
+          placeholder={`e.g. Always use named exports\nPrefer async/await over .then()\nTests go in __tests__/ next to the file being tested`}
+          value={standards}
+          onChange={(e) => setStandards(e.target.value)}
+          onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(99,102,241,0.6)")}
+          onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(99,102,241,0.2)")}
+        />
+        <p className="text-xs mt-1" style={{ color: "#475569" }}>
+          Injected into every agent call between profile and task instructions.
+        </p>
+      </div>
       {error && <p className="text-sm" style={{ color: "#f87171" }}>{error}</p>}
       <SaveBtn onClick={handleSave} loading={loading} disabled={!valid} />
     </div>
@@ -1075,17 +1189,19 @@ function SlackForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void
 // ─── Stage computation ────────────────────────────────────────────────────────
 
 function computeStage(store: OnboardingState): number {
-  if (!store.agent?.agent_name) return 1;
-  if (!store.repo || !store.capabilities) return 2;
-  if (!store.projectContext || store.projectContext.length < 20) return 3;
-  if (!store.guardrails) return 4;
+  if (!store.agentProfile) return 1;                                        // Hired
+  if (!store.agent?.agent_name) return 2;                                   // Orientation
+  if (!store.repo || !store.capabilities) return 3;                         // Training
+  if (!store.projectContext || store.projectContext.length < 20) return 4;  // Shadowing
+  if (!store.guardrails) return 5;                                          // First Task
   if (!store.jira && !store.slack) return 5;
-  return 6;
+  return 6;                                                                  // Autonomy
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const MODAL_TITLES: Record<string, string> = {
+  agent_profile: "Choose specialist role",
   agent: "Name your agent",
   repo: "Connect repository",
   capabilities: "Set capabilities",
@@ -1124,11 +1240,16 @@ export default function OnboardingDashboard({ isSettings = false }: { isSettings
           // Hydrate the Zustand store from the backend so settings survive logout/new sessions
           const res = await getOnboardingConfig();
           const c = res.data;
+          if (c.agent_profile) {
+            const found = PROFILE_OPTIONS.find((p) => p.key === c.agent_profile);
+            if (found) store.setAgentProfile({ profile_key: found.key, profile_name: found.name });
+          }
           if (c.agent_name) store.setAgent({ agent_name: c.agent_name, agent_avatar: c.agent_avatar || "" });
           if (c.repo_url) store.setRepo({ provider: c.repo_provider || "github", repo_url: c.repo_url, repo_name: c.repo_name || "" });
           if (c.capabilities) store.setCapabilities(c.capabilities);
           if (c.guardrails) store.setGuardrails(c.guardrails);
           if (c.project_context) store.setProjectContext(c.project_context);
+          if (c.coding_standards) store.setCodingStandards(c.coding_standards);
           if (c.user_name) store.setAccount({ name: c.user_name, company_name: c.company_name || "", role: c.user_role || "" });
           if (c.jira_workspace_url && c.has_jira_token) {
             store.setJira({ workspace_url: c.jira_workspace_url, project_key: c.jira_project_key || "", email: c.jira_email || "", api_token: "••••••••" });
@@ -1159,6 +1280,14 @@ export default function OnboardingDashboard({ isSettings = false }: { isSettings
   }
 
   const cards = [
+    {
+      id: "agent_profile",
+      icon: "👔",
+      title: "Choose specialist role",
+      description: store.agentProfile?.profile_name ?? "Select the engineering domain your agent works in",
+      required: true,
+      completed: !!store.agentProfile,
+    },
     {
       id: "agent",
       icon: "🤖",
@@ -1312,6 +1441,7 @@ export default function OnboardingDashboard({ isSettings = false }: { isSettings
           <AgentUnderstanding
             agentName={store.agent?.agent_name || null}
             agentAvatar={store.agent?.agent_avatar || null}
+            agentProfile={store.agentProfile?.profile_name || null}
             repoName={store.repo?.repo_name || null}
             capabilities={store.capabilities}
             guardrails={store.guardrails}
@@ -1352,6 +1482,7 @@ export default function OnboardingDashboard({ isSettings = false }: { isSettings
           onClose={() => setOpenCard(null)}
           title={MODAL_TITLES[openCard] || ""}
         >
+          {openCard === "agent_profile" && <AgentProfileForm onSave={() => setOpenCard(null)} />}
           {openCard === "agent" && <AgentForm onSave={() => setOpenCard(null)} />}
           {openCard === "repo" && <RepoForm onSave={() => markSaved("repo")} onFail={() => markFailed("repo")} />}
           {openCard === "capabilities" && <CapabilitiesForm onSave={() => setOpenCard(null)} />}

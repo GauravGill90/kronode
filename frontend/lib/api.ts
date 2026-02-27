@@ -53,7 +53,10 @@ export const saveGuardrails = (data: { restricted_paths: string[]; max_files_per
 export const saveAgent = (data: { agent_name: string; agent_avatar: string }) =>
   api.post("/onboarding/agent", data);
 
-export const saveContext = (data: { project_context: string }) =>
+export const saveAgentProfile = (data: { profile_key: string }) =>
+  api.post("/onboarding/agent-profile", data);
+
+export const saveContext = (data: { project_context: string; coding_standards?: string }) =>
   api.post("/onboarding/context", data);
 
 export const saveGithubToken = (data: { token: string }) =>

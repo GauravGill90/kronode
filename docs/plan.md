@@ -28,22 +28,22 @@ User selects Jira ticket
 
 | Agent | File | Status |
 |-------|------|--------|
-| Task Router | `router_agent.py` | ✅ Working — Haiku, classifies + routes |
-| Context Builder | `context_builder.py` | ✅ Working — fetches tree, selects files, extracts conventions |
-| Guardrails | `guardrails_agent.py` | 🔲 Stub — always passes |
-| Clarification | `clarification_agent.py` | 🔲 Stub — always skips |
-| Planner | `planner_agent.py` | ✅ Working — Sonnet, subtasks + DoD checklist |
-| Coder | `coder_agent.py` | ✅ Working — Sonnet, writes files + opens PR |
-| Tester | `tester_agent.py` | 🔲 Stub — skips test generation |
+| Task Router | `router_agent.py` | ✅ Working — Haiku, classifies + routes; simple fast-path skips context+planner |
+| Context Builder | `context_builder.py` | ✅ Working — deterministic file selection (profile boost + memory boost); Haiku convention extraction with cache |
+| Guardrails | `guardrails_agent.py` | ✅ Working — profile scope + restricted paths + conservative risk cap |
+| Clarification | `clarification_agent.py` | ✅ Working — Haiku ambiguity detection; posts questions to Slack; pauses pipeline; resumes on reply |
+| Planner | `planner_agent.py` | ✅ Working — Sonnet, subtasks + DoD checklist; profile + coding standards injected; prompt caching |
+| Coder | `coder_agent.py` | ✅ Working — Sonnet, writes files + opens PR; profile + coding standards injected; prompt caching |
+| Tester | `tester_agent.py` | ✅ Working — Haiku test gen (profile-aware); commits to PR branch |
 | Execution Verifier | `execution_verifier.py` | 🔲 Stub — always passes |
-| Reviewer | `reviewer_agent.py` | 🔲 Stub — always approves |
-| Memory | `memory_agent.py` | 🔲 Stub — no write-back |
+| Reviewer | `reviewer_agent.py` | ✅ Working — Haiku DoD critic pass; advisory (non-blocking); patterns stored in memory |
+| Memory | `memory_agent.py` | ✅ Working — file_touched, convention, pr_outcome write-back; PR poll via Celery Beat |
 
 ### Service Status
 
 | Service | File | Status |
 |---------|------|--------|
-| GitHub | `github_service.py` | ✅ Working — tree, file fetch, branch, commit, PR |
+| GitHub | `github_service.py` | ✅ Working — tree, file fetch, branch, commit, PR, PR status + reviews, add files to branch |
 | Jira | `jira_service.py` | ✅ Working — fetch tickets, fetch ticket detail (ADF→text), update status, attach PR link |
 | Slack | `slack_service.py` | ✅ Working — post notification with PR link |
 
@@ -75,7 +75,7 @@ User selects Jira ticket
 
 ---
 
-## Milestone 2: Agent Profiles
+## ✅ Milestone 2: Agent Profiles (complete)
 
 Each Kronode agent has a **developer profile** — a specialist identity with a defined tech stack,
 world-class skills injected into its system prompts, and a scoped domain it cannot leave.
@@ -117,9 +117,31 @@ world-class skills injected into its system prompts, and a scoped domain it cann
 **Memory scoping:**
 - `memory_records` gains `agent_profile` column — conventions learned by a Web agent don't bleed into a Backend agent's context
 
+### Org-defined coding standards (gap to fill)
+
+The static profile injects world-class baseline standards. Orgs also have their own conventions
+(internal design tokens, ESLint config, naming patterns, API call patterns). These need a home.
+
+**Implementation:**
+- Add `coding_standards: Text` column to `onboarding_config` (migration 007)
+- Add a "Coding standards" field to the **Project context** onboarding card (textarea, below the
+  existing project description) — prompt: *"Any team-specific conventions, style rules, or patterns
+  your agent must always follow? (e.g. 'use our internal Button component, never raw `<button>`')"*
+- Pipeline injects `coding_standards` between profile injection and agent system prompt:
+  ```
+  [profile SYSTEM_PROMPT_INJECTION]
+  --- Team standards ---
+  [org coding_standards]
+  --- Agent task ---
+  [SYSTEM_PROMPT]
+  ```
+- Memory compounds on top: learned conventions from PRs get appended automatically over time
+
+This gives the agent three layers of standards: universal profile baseline → org custom rules → learned conventions.
+
 ---
 
-## Milestone 3: Cost Reduction
+## ✅ Milestone 3: Cost Reduction (complete)
 
 **Target: < $0.05 per ticket** (currently ~$0.15–0.25)
 
@@ -186,47 +208,119 @@ downgraded without affecting output quality.
 
 ---
 
-## Milestone 4: Memory (The Moat)
+## ✅ Milestone 4: Memory (The Moat) (complete)
 
 Memory is the core product differentiator. Unlike competitors that start fresh every run, Kronode compounds. Each of the approaches below is achievable without LLM calls — deterministic extraction from structured data.
 
-### 3a — Memory Agent (write-back)
-- After successful PR: record conventions observed, files changed, patterns used
-- Store in `memory_records` table (already exists in schema)
-- Record types: `convention`, `file_touched`, `pr_outcome`, `pitfall`
+### M4a — Memory Agent (write-back) ✅
+- After successful PR: writes `file_touched` (one per file), `convention` (fresh extractions only), `pr_outcome` (merged=false, updated by poll job)
+- All deterministic — no LLM calls
 
-### 3b — Context Builder reads Memory
-- Before selecting files, query `memory_records` for this org + profile
-- Inject past conventions into coder system prompt
-- Boost files that have been touched in previous runs for this ticket type
-- This is what makes ticket 10 better than ticket 1
+### M4b — Context Builder reads Memory ✅
+- Queries `memory_records` for `file_touched` records (last 100) before heuristic file selection
+- Previously-touched paths get +2 score boost alongside the profile extension +2 boost
+- Makes ticket 10 better than ticket 1 — files the org has modified before surface higher
 
-### 3c — PR Outcome tracking
-- Poll GitHub API every 10 min for open PRs — check merged / changes requested
-- On merge: write `pr_outcome` memory record, transition Jira to "Done"
-- On changes requested: write `pitfall` record with reviewer comment summary
-
----
-
-## Milestone 5: Smarter Agents
-
-### 4a — Guardrails Agent (enforce profile scope)
-- Read `ALLOWED_DIRS` from active profile — block if coder targets paths outside scope
-- Read `max_files_per_task` from guardrails config — warn if plan exceeds it
-- Check `risk_level` — escalate to clarification if "conservative" + large scope
-
-### 4b — Tester Agent (write tests)
-- Receive coder output (files list)
-- Write unit tests for new/changed functions using the profile's test conventions
-- Add test files to the same PR (append to coder's file list)
-
-### 4c — Reviewer Agent (enforce DoD)
-- Real critic pass against Planner's Definition of Done checklist
-- Flag incomplete items to Slack/Jira comment
+### M4c — PR Outcome polling ✅
+- Celery Beat runs `poll_pr_outcomes` every 10 minutes
+- On merge: sets `pr_outcome.merged=True` + transitions Jira to "Done"
+- On changes requested: writes `pitfall` record with reviewer comment bodies
+- Start beat: `uv run celery -A app.celery_app beat --loglevel=info`
 
 ---
 
-## Milestone 6: OAuth + Secrets
+## ✅ Milestone 5: Smarter Agents (complete)
+
+### M5a — Guardrails Agent ✅
+- Deterministic (no LLM) — runs after planner so it can inspect `files_affected`
+- Checks restricted paths (org config), `ALLOWED_DIRS` + `ALLOWED_EXTENSIONS` (profile), `max_files_per_task`, conservative risk cap
+- Blocks pipeline (`status=paused`) on any violation
+
+### M5b — Tester Agent ✅
+- Haiku LLM generates unit tests profile-aware (Jest/RTL for TS, pytest for Python)
+- Commits test files as a second commit to the same PR branch via `add_files_to_branch`
+- Non-blocking — failure to commit is logged but doesn't halt pipeline
+
+### M5c — Reviewer Agent ✅
+- Haiku LLM does structured DoD critic pass against `planner_agent["definition_of_done"]`
+- Returns `approved`, `dod_review`, `changes_requested`, `verdict`
+- Non-blocking in M5 — advisory only; rejections written to `memory_records` as `pattern` records
+- Three-level JSON fallback prevents parse errors from blocking pipeline
+
+---
+
+## ✅ Milestone 6: Slack Clarification Loop (complete)
+
+When a task description is ambiguous, the clarification agent generates 1-3 specific questions,
+posts them to the org's Slack channel via Block Kit, and pauses the pipeline
+(`status=waiting_clarification`). Celery Beat polls the Slack thread every 30s. When a human
+replies, the pipeline resumes from `planner_agent` with the answer injected into context.
+No Slack Events API webhook required.
+
+### Agent Status
+
+| Agent | Status |
+|-------|--------|
+| Clarification | ✅ Working — Haiku ambiguity detection, Slack post, waiting signal |
+
+### New Beat Tasks
+
+| Task | Schedule |
+|------|----------|
+| `poll_clarifications` | Every 30s — resumes waiting tasks on Slack reply, times out after 24h |
+
+---
+
+## Milestone 7: Clarification Quality Validation
+
+When a human replies to a Slack clarification thread with a non-answer (gibberish, off-topic, emoji-only), the pipeline currently treats it as a valid clarification and proceeds. This milestone adds an answer quality gate.
+
+### Flow
+
+```
+Slack reply detected
+  → Haiku: "Does this reply actually answer the questions asked?"
+      ├─ Yes → resume_pipeline (current behaviour)
+      └─ No  → post follow-up to same Slack thread:
+                 "That doesn't seem to answer the question — could you clarify?"
+               → keep task in waiting_clarification
+               → poll again next cycle (already handles this)
+```
+
+### Implementation
+
+**`task_queue.py` — `_poll_clarifications`**
+
+After detecting replies, before calling `run_resume_pipeline.delay`, add a Haiku quality check:
+
+```python
+QUALITY_PROMPT = """You are checking whether a human reply answers specific clarification questions.
+
+Questions asked: {questions}
+Reply received: {reply}
+
+Respond with JSON only: {"answers_questions": true} or {"answers_questions": false}
+"""
+```
+
+- If `answers_questions: false` → post a polite follow-up to the same thread ts, do NOT queue resume
+- If `answers_questions: true` → queue resume as normal
+- If Haiku call fails → assume valid (non-blocking, fail-open)
+
+**`slack_service.py`** — reuse `post_notification` with `thread_ts` param to reply in-thread (set `thread_ts` in the payload to keep it in the original thread).
+
+### What does "answers" mean?
+
+Haiku checks:
+- Is the reply at least one full sentence?
+- Does it reference any of the topics in the questions?
+- Is it not just an emoji, reaction, or filler word?
+
+A reply of "use Postgres" is valid. "yabadaba doo", "ok", "👍" are not.
+
+---
+
+## Milestone 8: OAuth + Secrets
 
 ### Current state
 - GitHub: manual PAT stored in `onboarding_config.github_access_token`
@@ -241,7 +335,7 @@ Memory is the core product differentiator. Unlike competitors that start fresh e
 
 ---
 
-## Milestone 7: Execution Verifier (E2B sandbox)
+## Milestone 9: Execution Verifier (E2B sandbox)
 - Spin up E2B sandbox with repo contents
 - Run `npm test` / `pytest` / `go test` per profile's test command
 - Parse output: fail → send back to Coder for retry (up to 2 attempts)

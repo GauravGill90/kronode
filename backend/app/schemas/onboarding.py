@@ -63,8 +63,13 @@ class AgentPayload(BaseModel):
     agent_avatar: str
 
 
+class AgentProfilePayload(BaseModel):
+    profile_key: str  # web|backend|fullstack|devops|mobile_ios|mobile_android|data
+
+
 class ContextPayload(BaseModel):
     project_context: str
+    coding_standards: str = ""
 
 
 class GitHubTokenPayload(BaseModel):
@@ -87,6 +92,7 @@ class OnboardingConfigOut(BaseModel):
     # agent
     agent_name: str | None = None
     agent_avatar: str | None = None
+    agent_profile: str | None = None
     # repo
     repo_url: str | None = None
     repo_provider: str | None = None
@@ -95,8 +101,9 @@ class OnboardingConfigOut(BaseModel):
     # capabilities + guardrails (raw JSONB blobs)
     capabilities: dict | None = None
     guardrails: dict | None = None
-    # project context
+    # project context + coding standards
     project_context: str | None = None
+    coding_standards: str | None = None
     # account (from user + org)
     user_name: str | None = None
     user_role: str | None = None

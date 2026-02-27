@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 import re
 
 import anthropic
@@ -12,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 MAX_TOTAL_BYTES = 30_000   # 30 KB total file content sent to Claude
 MAX_FILE_BYTES = 4_000     # 4 KB per individual file
-MAX_FILES_TO_SELECT = 12   # ask Claude to pick at most this many
-MAX_FILES_TO_FETCH = 10    # never fetch more than this (in case Claude over-selects)
+MAX_FILES_TO_SELECT = 12   # max files to select heuristically
+MAX_FILES_TO_FETCH = 10    # never fetch more than this
 
 
 class ContextBuilderAgent(AgentBase):
@@ -26,6 +27,8 @@ class ContextBuilderAgent(AgentBase):
         repo_url = context.get("repo_url", "")
         token = context.get("github_access_token")
         description = context.get("description", "")
+        priority_exts = context.get("profile_priority_extensions", [])
+        cached_conventions = context.get("cached_conventions")
 
         if not repo_url or not token:
             logger.info("[ContextBuilder] No repo URL or token — returning empty bundle")
@@ -37,7 +40,7 @@ class ContextBuilderAgent(AgentBase):
             }
 
         try:
-            return await self._build(repo_url, token, description)
+            return await self._build(repo_url, token, description, priority_exts, cached_conventions, context)
         except Exception as exc:
             logger.warning(f"[ContextBuilder] Failed: {exc}")
             return {
@@ -47,7 +50,15 @@ class ContextBuilderAgent(AgentBase):
                 "repo_structure": "",
             }
 
-    async def _build(self, repo_url: str, token: str, description: str) -> dict:
+    async def _build(
+        self,
+        repo_url: str,
+        token: str,
+        description: str,
+        priority_exts: list[str],
+        cached_conventions: list[str] | None,
+        context: dict,
+    ) -> dict:
         from app.services.github_service import get_repo_tree, get_file_content
 
         # 1. Get full repo file tree
@@ -60,11 +71,41 @@ class ContextBuilderAgent(AgentBase):
                 "repo_structure": "",
             }
 
-        tree_text = "\n".join(all_paths[:2000])  # cap path list for haiku prompt
         repo_structure_summary = _summarise_tree(all_paths)
 
-        # 2. Ask haiku which files are relevant to this task
-        selected_paths = await self._select_files(description, tree_text, all_paths)
+        # 2a. Load previously touched file paths for this org (boosts file selection)
+        from app.core.database import AsyncSessionLocal
+        from app.models.memory import MemoryRecord
+        from sqlalchemy import select as sa_select
+
+        org_id = context.get("org_id")
+        previously_touched: set[str] = set()
+        if org_id:
+            try:
+                async with AsyncSessionLocal() as db:
+                    rows = (await db.execute(
+                        sa_select(MemoryRecord.content)
+                        .where(
+                            MemoryRecord.org_id == org_id,
+                            MemoryRecord.record_type == "file_touched",
+                        )
+                        .order_by(MemoryRecord.id.desc())
+                        .limit(100)
+                    )).scalars().all()
+                    for c in rows:
+                        if isinstance(c, dict) and c.get("path"):
+                            previously_touched.add(c["path"])
+                logger.info(f"[ContextBuilder] {len(previously_touched)} previously-touched paths loaded")
+            except Exception as exc:
+                logger.warning(f"[ContextBuilder] Could not load file_touched records: {exc}")
+
+        # 2b. Deterministic file selection — no LLM call, profile + memory boost applied
+        selected_paths = _heuristic_select(
+            description, all_paths,
+            priority_exts=priority_exts,
+            previously_touched=previously_touched,
+        )
+        logger.info(f"[ContextBuilder] Heuristic selected {len(selected_paths)} files (priority_exts={priority_exts})")
 
         # 3. Fetch file contents concurrently (capped)
         fetch_tasks = [
@@ -86,8 +127,14 @@ class ContextBuilderAgent(AgentBase):
             relevant_files.append({"path": path, "content": content})
             total_bytes += len(content)
 
-        # 4. Extract conventions from the fetched files
-        conventions = await self._extract_conventions(relevant_files, repo_structure_summary)
+        # 4. Use cached conventions if available, otherwise extract via Haiku
+        if cached_conventions:
+            conventions = cached_conventions
+            logger.info(f"[ContextBuilder] Using {len(conventions)} cached conventions — skipping Haiku call")
+        else:
+            conventions = await self._extract_conventions(relevant_files, repo_structure_summary)
+            # Signal to pipeline that we have fresh conventions to cache
+            context["new_conventions"] = conventions
 
         return {
             "summary": (
@@ -99,45 +146,6 @@ class ContextBuilderAgent(AgentBase):
             "conventions": conventions,
             "repo_structure": repo_structure_summary,
         }
-
-    async def _select_files(
-        self, description: str, tree_text: str, all_paths: list[str]
-    ) -> list[str]:
-        """Ask Claude haiku to pick the most relevant files for this task."""
-        prompt = f"""You are selecting files from a codebase that are most relevant to implementing this task:
-
-Task: {description}
-
-Repository file tree:
-{tree_text}
-
-Return a JSON array of up to {MAX_FILES_TO_SELECT} file paths that are most relevant.
-Include: files the task will likely modify, files that show conventions or patterns to follow,
-config files, and any tests related to the area being changed.
-Exclude: documentation, changelogs, and unrelated parts of the codebase.
-
-Respond with a JSON array only. No explanation."""
-
-        try:
-            message = await self.client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=1024,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            raw = message.content[0].text.strip()
-            # Strip markdown if present
-            raw = re.sub(r"^```[a-z]*\n?", "", raw)
-            raw = re.sub(r"\n?```$", "", raw)
-            selected = json.loads(raw)
-            if isinstance(selected, list):
-                # Validate paths exist in the tree
-                path_set = set(all_paths)
-                return [p for p in selected if p in path_set]
-        except Exception as exc:
-            logger.warning(f"[ContextBuilder] File selection failed: {exc}")
-
-        # Fallback: return a simple heuristic selection
-        return _heuristic_select(description, all_paths)
 
     async def _extract_conventions(
         self, files: list[dict], repo_structure: str
@@ -199,19 +207,30 @@ _CONFIG_NAMES = {
 }
 
 
-def _heuristic_select(description: str, paths: list[str]) -> list[str]:
-    """Simple fallback: config files + source files scored by description match."""
-    words = set(description.lower().split())
+def _heuristic_select(
+    description: str,
+    paths: list[str],
+    priority_exts: list[str] = [],
+    previously_touched: set[str] = set(),
+) -> list[str]:
+    """Deterministic file selection: config files + source files scored by description match.
+    priority_exts are given a +2 score boost (from the agent profile CONTEXT_PRIORITIES).
+    previously_touched paths get a +2 score boost (from memory_records)."""
+    desc_words = {w.lower() for w in re.split(r'\W+', description) if len(w) > 3}
     scored: list[tuple[int, str]] = []
     for p in paths:
-        name = p.split("/")[-1]
-        ext = "." + name.rsplit(".", 1)[-1] if "." in name else ""
+        name = os.path.basename(p)
+        ext = os.path.splitext(p)[1]
         score = 0
         if name in _CONFIG_NAMES:
             score += 3
-        if ext in _SOURCE_EXTS:
+        elif ext in _SOURCE_EXTS:
             score += 1
-        if any(w in p.lower() for w in words if len(w) > 3):
+        if priority_exts and ext in priority_exts:
+            score += 2  # profile extension boost
+        if previously_touched and p in previously_touched:
+            score += 2  # memory boost — touched in a previous task
+        if any(w in p.lower() for w in desc_words):
             score += 2
         if score > 0:
             scored.append((score, p))

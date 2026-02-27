@@ -4,6 +4,7 @@ import type { OnboardingState } from "./types";
 
 interface OnboardingStore extends OnboardingState {
   setStep: (step: number) => void;
+  setAgentProfile: (data: OnboardingState["agentProfile"]) => void;
   setAccount: (data: OnboardingState["account"]) => void;
   setRepo: (data: OnboardingState["repo"]) => void;
   setJira: (data: OnboardingState["jira"]) => void;
@@ -13,11 +14,13 @@ interface OnboardingStore extends OnboardingState {
   setGuardrails: (data: OnboardingState["guardrails"]) => void;
   setAgent: (data: OnboardingState["agent"]) => void;
   setProjectContext: (context: string) => void;
+  setCodingStandards: (standards: string) => void;
   reset: () => void;
 }
 
 const initialState: OnboardingState = {
   currentStep: 1,
+  agentProfile: null,
   account: null,
   repo: null,
   jira: null,
@@ -27,6 +30,7 @@ const initialState: OnboardingState = {
   guardrails: null,
   agent: null,
   projectContext: "",
+  codingStandards: "",
 };
 
 export const useOnboardingStore = create<OnboardingStore>()(
@@ -34,6 +38,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
     (set) => ({
       ...initialState,
       setStep: (step) => set({ currentStep: step }),
+      setAgentProfile: (data) => set({ agentProfile: data }),
       setAccount: (data) => set({ account: data }),
       setRepo: (data) => set({ repo: data }),
       setJira: (data) => set({ jira: data }),
@@ -43,6 +48,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
       setGuardrails: (data) => set({ guardrails: data }),
       setAgent: (data) => set({ agent: data }),
       setProjectContext: (context) => set({ projectContext: context }),
+      setCodingStandards: (standards) => set({ codingStandards: standards }),
       reset: () => set(initialState),
     }),
     { name: "kronode-onboarding" }

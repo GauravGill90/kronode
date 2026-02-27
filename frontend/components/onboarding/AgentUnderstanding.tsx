@@ -1,6 +1,7 @@
 interface AgentUnderstandingProps {
   agentName: string | null;
   agentAvatar: string | null;
+  agentProfile: string | null;
   repoName: string | null;
   capabilities: Record<string, Record<string, boolean>> | null;
   guardrails: {
@@ -14,6 +15,7 @@ interface AgentUnderstandingProps {
 export default function AgentUnderstanding({
   agentName,
   agentAvatar,
+  agentProfile,
   repoName,
   capabilities,
   guardrails,
@@ -69,7 +71,7 @@ export default function AgentUnderstanding({
             {agentName || "Unnamed"}
           </div>
           <div className="text-xs" style={{ color: "#334155" }}>
-            Autonomous developer
+            {agentProfile || "Autonomous developer"}
           </div>
         </div>
       </div>
