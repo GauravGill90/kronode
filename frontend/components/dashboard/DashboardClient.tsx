@@ -2,11 +2,12 @@
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useAuth } from "@clerk/nextjs";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import AgentHeader from "./AgentHeader";
 import TaskInput from "./TaskInput";
 import TaskCard from "./TaskCard";
 import IntegrationRow from "./IntegrationRow";
+import WelcomeBanner from "./WelcomeBanner";
 import { Spinner } from "@/components/ui/Spinner";
 import { useDashboard } from "@/lib/hooks/useTasks";
 
@@ -58,6 +59,7 @@ function DashboardInner() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+        <WelcomeBanner userName={data.user_name ?? null} />
         {data.agent && <AgentHeader agent={data.agent} />}
         <IntegrationRow integrations={data.integrations} />
         <TaskInput />

@@ -30,6 +30,7 @@ class TaskSummary(BaseModel):
 
 
 class DashboardOut(BaseModel):
+    user_name: str | None
     agent: AgentConfig | None
     integrations: IntegrationStatus
     recent_tasks: list[TaskSummary]
