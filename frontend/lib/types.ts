@@ -58,6 +58,7 @@ export interface TaskSummary {
 }
 
 export interface DashboardData {
+  user_name: string | null;
   agent: AgentConfig | null;
   integrations: IntegrationStatus;
   recent_tasks: TaskSummary[];

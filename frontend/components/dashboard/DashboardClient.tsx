@@ -7,11 +7,12 @@ import AgentHeader from "./AgentHeader";
 import TaskInput from "./TaskInput";
 import TaskCard from "./TaskCard";
 import IntegrationRow from "./IntegrationRow";
-import JiraTickets from "./JiraTickets";
+import WelcomeBanner from "./WelcomeBanner";
 import { Spinner } from "@/components/ui/Spinner";
 import { useDashboard } from "@/lib/hooks/useTasks";
 import AppShell from "@/components/layout/AppShell";
 import type { JiraTicket } from "@/lib/api";
+import JiraTickets from "./JiraTickets";
 
 const queryClient = new QueryClient();
 
@@ -75,6 +76,7 @@ function DashboardInner() {
   return (
     <AppShell>
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+        <WelcomeBanner userName={data.user_name ?? null} />
         {data.agent && <AgentHeader agent={data.agent} />}
         <IntegrationRow integrations={data.integrations} />
         <TaskInput prefill={prefill} onPrefillConsumed={() => setPrefill(null)} />

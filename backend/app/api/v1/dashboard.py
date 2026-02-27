@@ -22,6 +22,7 @@ async def get_dashboard(
 
     if not user or not user.org_id:
         return DashboardOut(
+            user_name=None,
             agent=None,
             integrations=IntegrationStatus(),
             recent_tasks=[],
@@ -58,6 +59,7 @@ async def get_dashboard(
         )
 
     return DashboardOut(
+        user_name=user.name,
         agent=agent,
         integrations=integrations,
         recent_tasks=[TaskSummary.model_validate(t) for t in tasks],
