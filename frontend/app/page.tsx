@@ -117,29 +117,32 @@ export default function WelcomePage() {
                 border: `1px solid ${colors.border.default}`,
               }}
             >
-              <div className="text-lg mb-1">{icon}</div>
+              <div className="text-xl mb-1">{icon}</div>
               <div
-                className="text-xs font-semibold mb-0.5"
+                className="text-xs font-semibold"
                 style={{ color: colors.text.primary }}
               >
                 {title}
               </div>
-              <div className="text-xs" style={{ color: colors.text.secondary }}>
+              <div
+                className="text-xs mt-0.5"
+                style={{ color: colors.text.muted }}
+              >
                 {desc}
               </div>
             </div>
           ))}
         </div>
 
-        {/* CTA buttons */}
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        {/* CTA */}
+        <div className="space-y-3">
           <SignUpButton mode="modal">
             <button
-              className="px-6 py-3 rounded-xl text-sm font-semibold transition-all"
+              className="w-full py-3 rounded-xl font-semibold text-sm transition-opacity hover:opacity-90"
               style={{
                 background: gradients.brandLogo,
                 color: colors.text.white,
-                boxShadow: `0 0 20px ${colors.glow.primarySoft}`,
+                boxShadow: `0 0 20px ${colors.glow.primary}`,
               }}
             >
               Get started free
@@ -147,11 +150,11 @@ export default function WelcomePage() {
           </SignUpButton>
           <SignInButton mode="modal">
             <button
-              className="px-6 py-3 rounded-xl text-sm font-semibold transition-all"
+              className="w-full py-3 rounded-xl font-semibold text-sm transition-colors"
               style={{
                 background: colors.bg.surface,
-                color: colors.text.primary,
                 border: `1px solid ${colors.border.default}`,
+                color: colors.text.secondary,
               }}
             >
               Sign in
@@ -159,9 +162,11 @@ export default function WelcomePage() {
           </SignInButton>
         </div>
 
-        {/* Footer note */}
-        <p className="text-xs" style={{ color: colors.text.muted }}>
-          No credit card required · Free during beta
+        <p
+          className="text-xs"
+          style={{ color: colors.text.muted }}
+        >
+          By continuing you agree to our Terms of Service and Privacy Policy.
         </p>
       </div>
     </div>
