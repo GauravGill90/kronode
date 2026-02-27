@@ -114,13 +114,27 @@ async def run_pipeline(task_id_str: str):
             _logging.getLogger(__name__).warning(f"[Pipeline] Failed to fetch Jira ticket detail: {exc}")
 
     try:
-        # Step 1: Route the task
-        from app.agents.router_agent import RouterAgent
-        router = RouterAgent()
-        await emit_event(task_id, "router", "started", "Analysing task and selecting agents...")
-        routing = await router.run(context)
-        context["routing"] = routing
-        await emit_event(task_id, "router", "completed", f"Task classified as {routing['complexity']}. Running {len(routing['agents'])} agents.", routing)
+        from app.core.config import settings as _settings
+
+        if _settings.bypass_llm:
+            # Skip all LLM agents — go straight to coder which will use its hardcoded bypass payload
+            await emit_event(task_id, "pipeline", "started", "BYPASS_LLM mode: skipping router/context/planner, running coder only")
+            routing = {"complexity": "bypass", "agents": ["coder_agent"]}
+            context["routing"] = routing
+            context["planner_agent"] = {
+                "subtasks": [{"order": 1, "description": context["description"], "agent": "coder_agent", "files_affected": []}],
+                "definition_of_done": ["PR opened successfully"],
+                "risk_flags": [],
+                "estimated_files": 1,
+            }
+        else:
+            # Step 1: Route the task
+            from app.agents.router_agent import RouterAgent
+            router = RouterAgent()
+            await emit_event(task_id, "router", "started", "Analysing task and selecting agents...")
+            routing = await router.run(context)
+            context["routing"] = routing
+            await emit_event(task_id, "router", "completed", f"Task classified as {routing['complexity']}. Running {len(routing['agents'])} agents.", routing)
 
         # Run the selected agent chain
         agent_map = _build_agent_map()

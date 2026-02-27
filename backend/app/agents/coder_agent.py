@@ -114,32 +114,50 @@ Relevant existing files:
 {files_section}
 """
 
-        message = await self.client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=8096,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_message}],
-        )
-
-        stop_reason = message.stop_reason
-        raw = message.content[0].text.strip()
-        logger.info(f"CoderAgent stop_reason={stop_reason} response_len={len(raw)} chars")
-        if stop_reason == "max_tokens":
-            logger.warning("CoderAgent: response was TRUNCATED (max_tokens hit) — JSON will be incomplete")
-        logger.info(f"CoderAgent raw response (first 500 chars): {raw[:500]}")
-
-        result = _extract_json(raw)
-        if result is None:
-            logger.warning(f"CoderAgent: failed to parse JSON. Full response:\n{raw}")
+        if settings.bypass_llm:
+            logger.info("CoderAgent: BYPASS_LLM=true — skipping LLM, using hardcoded test payload")
+            slug = re.sub(r"[^a-z0-9]+", "-", description[:40].lower()).strip("-")
             result = {
-                "branch_name": "feature/task-implementation",
-                "files": [],
-                "commit_message": f"Implement: {description[:72]}",
-                "pr_title": description[:70],
-                "pr_description": description,
-                "slack_summary": f"Agent completed: {description[:100]}",
-                "incomplete_dod_items": ["JSON parse failed — review agent output manually"],
+                "branch_name": f"feature/bypass-test-{slug}",
+                "files": [
+                    {
+                        "path": "kronode_bypass_test.md",
+                        "content": f"# Kronode bypass test\n\nTask: {description}\n\nThis file was created by the bypass-LLM test mode to verify the GitHub PR pipeline works end-to-end without an LLM call.\n",
+                    }
+                ],
+                "commit_message": f"test: bypass LLM PR test — {description[:60]}",
+                "pr_title": f"[bypass] {description[:70]}",
+                "pr_description": "This PR was opened by Kronode's bypass-LLM test mode. No LLM was involved — the GitHub integration pipeline is being verified.",
+                "slack_summary": f"Bypass test PR opened for: {description[:100]}",
+                "incomplete_dod_items": [],
             }
+        else:
+            message = await self.client.messages.create(
+                model="claude-sonnet-4-6",
+                max_tokens=8096,
+                system=SYSTEM_PROMPT,
+                messages=[{"role": "user", "content": user_message}],
+            )
+
+            stop_reason = message.stop_reason
+            raw = message.content[0].text.strip()
+            logger.info(f"CoderAgent stop_reason={stop_reason} response_len={len(raw)} chars")
+            if stop_reason == "max_tokens":
+                logger.warning("CoderAgent: response was TRUNCATED (max_tokens hit) — JSON will be incomplete")
+            logger.info(f"CoderAgent raw response (first 500 chars): {raw[:500]}")
+
+            result = _extract_json(raw)
+            if result is None:
+                logger.warning(f"CoderAgent: failed to parse JSON. Full response:\n{raw}")
+                result = {
+                    "branch_name": "feature/task-implementation",
+                    "files": [],
+                    "commit_message": f"Implement: {description[:72]}",
+                    "pr_title": description[:70],
+                    "pr_description": description,
+                    "slack_summary": f"Agent completed: {description[:100]}",
+                    "incomplete_dod_items": ["JSON parse failed — review agent output manually"],
+                }
 
         # Attempt to create the PR via GitHub service
         repo_url = context.get("repo_url", "")

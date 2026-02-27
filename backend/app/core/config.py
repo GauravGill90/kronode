@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     backend_url: str = "http://localhost:8000"
     cors_origins: str = "http://localhost:3000"
 
+    # Dev / testing
+    bypass_llm: bool = False  # set BYPASS_LLM=true to skip all LLM calls and test GitHub PR directly
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",")]
