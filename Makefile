@@ -1,0 +1,26 @@
+.PHONY: infra backend worker frontend install migrate
+
+# Start Postgres + Redis
+infra:
+	docker-compose up postgres redis -d
+
+# Start FastAPI backend
+backend:
+	cd backend && uv run uvicorn app.main:app --reload
+
+# Start Celery worker
+worker:
+	cd backend && uv run celery -A app.celery_app worker --loglevel=info
+
+# Start Next.js frontend
+frontend:
+	cd frontend && pnpm dev
+
+# Install all dependencies
+install:
+	cd backend && uv sync
+	cd frontend && pnpm install
+
+# Run database migrations
+migrate:
+	cd backend && uv run alembic upgrade head

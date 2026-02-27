@@ -1,0 +1,986 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
+import { useOnboardingStore } from "@/lib/store";
+import type { OnboardingState } from "@/lib/types";
+import {
+  saveAgent,
+  saveRepo,
+  saveCapabilities,
+  saveGuardrails,
+  saveContext,
+  saveAccount,
+  saveJira,
+  saveSlack,
+  completeOnboarding,
+} from "@/lib/api";
+import StageBar from "./StageBar";
+import SetupCard from "./SetupCard";
+import AgentUnderstanding from "./AgentUnderstanding";
+import Modal from "@/components/ui/Modal";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const inputCls: React.CSSProperties = {
+  background: "rgba(255,255,255,0.04)",
+  border: "1px solid rgba(99,102,241,0.2)",
+  borderRadius: "10px",
+  color: "#e2e8f0",
+  padding: "10px 14px",
+  fontSize: "14px",
+  width: "100%",
+  outline: "none",
+};
+
+function focusBorder(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) {
+  e.currentTarget.style.borderColor = "rgba(99,102,241,0.6)";
+}
+function blurBorder(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) {
+  e.currentTarget.style.borderColor = "rgba(99,102,241,0.2)";
+}
+
+function SaveBtn({
+  onClick,
+  loading,
+  disabled,
+  label = "Save",
+}: {
+  onClick: () => void;
+  loading: boolean;
+  disabled: boolean;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || loading}
+      className="w-full py-3 rounded-xl font-semibold text-white text-sm transition-all mt-5"
+      style={{
+        background:
+          disabled || loading
+            ? "rgba(99,102,241,0.2)"
+            : "linear-gradient(135deg, #6366f1, #a78bfa)",
+        cursor: disabled || loading ? "not-allowed" : "pointer",
+        opacity: loading ? 0.7 : 1,
+      }}
+    >
+      {loading ? "Saving…" : label}
+    </button>
+  );
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <label className="text-sm font-medium block mb-1.5" style={{ color: "#94a3b8" }}>
+      {children}
+    </label>
+  );
+}
+
+// ─── Modal forms ──────────────────────────────────────────────────────────────
+
+const SUGGESTIONS = ["Forge", "Relay", "Scout", "Hatch", "Stride"];
+const AVATARS = ["🤖", "🛠️", "⚡", "🚀", "🔮", "🧠"];
+
+function AgentForm({ onSave }: { onSave: () => void }) {
+  const { agent, setAgent } = useOnboardingStore();
+  const [name, setName] = useState(agent?.agent_name || "");
+  const [avatar, setAvatar] = useState(agent?.agent_avatar || AVATARS[0]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const valid = name.trim().length >= 2;
+
+  async function handleSave() {
+    if (!valid) return;
+    setLoading(true);
+    setError("");
+    try {
+      await saveAgent({ agent_name: name, agent_avatar: avatar });
+      setAgent({ agent_name: name, agent_avatar: avatar });
+      onSave();
+    } catch {
+      setError("Failed to save. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <FieldLabel>Avatar</FieldLabel>
+        <div className="flex gap-2">
+          {AVATARS.map((a) => (
+            <button
+              key={a}
+              type="button"
+              onClick={() => setAvatar(a)}
+              className="w-10 h-10 text-xl rounded-xl transition-all"
+              style={{
+                border: `2px solid ${avatar === a ? "#6366f1" : "rgba(99,102,241,0.2)"}`,
+                background: avatar === a ? "rgba(99,102,241,0.15)" : "transparent",
+              }}
+            >
+              {a}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <FieldLabel>Agent name</FieldLabel>
+        <input
+          style={inputCls}
+          placeholder="e.g. Forge"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onFocus={focusBorder}
+          onBlur={blurBorder}
+        />
+        <div className="flex gap-2 flex-wrap mt-2">
+          <span className="text-xs" style={{ color: "#475569" }}>Suggestions:</span>
+          {SUGGESTIONS.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => setName(s)}
+              className="text-xs underline"
+              style={{ color: "#6366f1" }}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+      {name && (
+        <div
+          className="flex items-center gap-3 rounded-xl p-3"
+          style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.2)" }}
+        >
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+            style={{ background: "rgba(99,102,241,0.2)" }}
+          >
+            {avatar}
+          </div>
+          <div>
+            <div className="text-sm font-semibold" style={{ color: "#e2e8f0" }}>{name}</div>
+            <div className="text-xs" style={{ color: "#64748b" }}>Your autonomous developer</div>
+          </div>
+          <div className="ml-auto w-2 h-2 rounded-full" style={{ background: "#34d399" }} />
+        </div>
+      )}
+      {error && <p className="text-sm" style={{ color: "#f87171" }}>{error}</p>}
+      <SaveBtn onClick={handleSave} loading={loading} disabled={!valid} />
+    </div>
+  );
+}
+
+function RepoForm({ onSave }: { onSave: () => void }) {
+  const { repo, setRepo } = useOnboardingStore();
+  const [provider, setProvider] = useState<"github" | "gitlab">(
+    (repo?.provider as "github" | "gitlab") || "github"
+  );
+  const [repoUrl, setRepoUrl] = useState(repo?.repo_url || "");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const repoName = repoUrl.split("/").slice(-1)[0]?.replace(".git", "") || "";
+  const valid = repoUrl.trim().startsWith("http");
+
+  async function handleSave() {
+    if (!valid) return;
+    setLoading(true);
+    setError("");
+    try {
+      await saveRepo({ provider, repo_url: repoUrl, repo_name: repoName });
+      setRepo({ provider, repo_url: repoUrl, repo_name: repoName });
+      onSave();
+    } catch {
+      setError("Failed to save. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        {(["github", "gitlab"] as const).map((p) => (
+          <button
+            key={p}
+            type="button"
+            onClick={() => setProvider(p)}
+            className="flex-1 py-2 rounded-lg text-sm font-medium capitalize transition-all"
+            style={
+              provider === p
+                ? { background: "linear-gradient(135deg, #6366f1, #a78bfa)", color: "#fff", border: "none" }
+                : { background: "rgba(255,255,255,0.04)", color: "#94a3b8", border: "1px solid rgba(99,102,241,0.2)" }
+            }
+          >
+            {p}
+          </button>
+        ))}
+      </div>
+      <div>
+        <FieldLabel>Repository URL</FieldLabel>
+        <input
+          style={inputCls}
+          placeholder={`https://${provider}.com/your-org/your-repo`}
+          value={repoUrl}
+          onChange={(e) => setRepoUrl(e.target.value)}
+          onFocus={focusBorder}
+          onBlur={blurBorder}
+        />
+      </div>
+      {repoName && (
+        <div
+          className="flex items-center gap-2 text-sm rounded-lg px-3 py-2"
+          style={{ background: "rgba(52,211,153,0.07)", border: "1px solid rgba(52,211,153,0.2)", color: "#34d399" }}
+        >
+          <span>✓</span>
+          <span>Detected: <strong>{repoName}</strong></span>
+        </div>
+      )}
+      <div
+        className="text-xs px-4 py-3 rounded-lg"
+        style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)", color: "#64748b" }}
+      >
+        Your agent only creates branches — it will never push to main or merge pull requests.
+      </div>
+      {error && <p className="text-sm" style={{ color: "#f87171" }}>{error}</p>}
+      <SaveBtn onClick={handleSave} loading={loading} disabled={!valid} />
+    </div>
+  );
+}
+
+const DEFAULT_CAPS = {
+  building: {
+    "Implement UI screens": true,
+    "Build API connections": true,
+    "Write unit tests": true,
+    "Database schema changes": false,
+    "Infrastructure changes": false,
+  },
+  planning: {
+    "Create Epics from documents": true,
+    "Create Jira tickets": true,
+    "Estimate story points": true,
+    "Reprioritise existing backlog": false,
+  },
+  review: {
+    "Create Pull Requests": true,
+    "Review PRs and leave comments": true,
+    "Approve and merge PRs": false,
+  },
+  communication: {
+    "Post Slack progress updates": true,
+    "Ask clarifying questions via Slack": true,
+    "Read meeting transcripts": true,
+    "Join live meetings": false,
+  },
+};
+
+const LOCKED_OFF = new Set(["Approve and merge PRs"]);
+
+function CapabilitiesForm({ onSave }: { onSave: () => void }) {
+  const { capabilities, setCapabilities } = useOnboardingStore();
+  const [caps, setCaps] = useState<typeof DEFAULT_CAPS>(
+    (capabilities as typeof DEFAULT_CAPS) || DEFAULT_CAPS
+  );
+  const [loading, setLoading] = useState(false);
+
+  function toggle(category: string, item: string) {
+    if (LOCKED_OFF.has(item)) return;
+    setCaps((prev) => ({
+      ...prev,
+      [category]: {
+        ...prev[category as keyof typeof prev],
+        [item]: !prev[category as keyof typeof prev][item as keyof (typeof prev)[keyof typeof prev]],
+      },
+    }));
+  }
+
+  const [error, setError] = useState("");
+
+  async function handleSave() {
+    setLoading(true);
+    setError("");
+    try {
+      await saveCapabilities(caps);
+      setCapabilities(caps);
+      onSave();
+    } catch {
+      setError("Failed to save. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <p className="text-sm" style={{ color: "#64748b" }}>
+        You can change these at any time from the dashboard.
+      </p>
+      {Object.entries(caps).map(([category, items]) => (
+        <div key={category}>
+          <h4
+            className="text-xs font-semibold uppercase tracking-wider mb-2"
+            style={{ color: "#475569" }}
+          >
+            {category}
+          </h4>
+          <div className="space-y-1">
+            {Object.entries(items).map(([item, enabled]) => {
+              const locked = LOCKED_OFF.has(item);
+              return (
+                <label
+                  key={item}
+                  className="flex items-center gap-3 p-2.5 rounded-lg"
+                  style={{
+                    cursor: locked ? "not-allowed" : "pointer",
+                    opacity: locked ? 0.45 : 1,
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={enabled}
+                    onChange={() => toggle(category, item)}
+                    disabled={locked}
+                    className="w-4 h-4 rounded"
+                    style={{ accentColor: "#6366f1" }}
+                  />
+                  <span className="text-sm flex-1" style={{ color: "#94a3b8" }}>{item}</span>
+                  {locked && (
+                    <span className="text-xs" style={{ color: "#334155" }}>Human-only</span>
+                  )}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      {error && <p className="text-sm" style={{ color: "#f87171" }}>{error}</p>}
+      <SaveBtn onClick={handleSave} loading={loading} disabled={false} />
+    </div>
+  );
+}
+
+const RISK_LEVELS = [
+  { value: "conservative", label: "Conservative", desc: "Ask before anything non-trivial" },
+  { value: "balanced", label: "Balanced", desc: "Proceed on clear tasks, ask on ambiguous ones" },
+  { value: "aggressive", label: "Aggressive", desc: "Minimise questions, maximise autonomy" },
+];
+
+function GuardrailsForm({ onSave }: { onSave: () => void }) {
+  const { guardrails, setGuardrails } = useOnboardingStore();
+  const [pathInput, setPathInput] = useState("");
+  const [paths, setPaths] = useState<string[]>(
+    guardrails?.restricted_paths || ["/payments", "/auth"]
+  );
+  const [maxFiles, setMaxFiles] = useState(guardrails?.max_files_per_task || 10);
+  const [riskLevel, setRiskLevel] = useState(guardrails?.risk_level || "balanced");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  function addPath() {
+    const p = pathInput.trim();
+    if (p && !paths.includes(p)) {
+      setPaths([...paths, p]);
+      setPathInput("");
+    }
+  }
+
+  async function handleSave() {
+    setLoading(true);
+    setError("");
+    const data = { restricted_paths: paths, max_files_per_task: maxFiles, risk_level: riskLevel };
+    try {
+      await saveGuardrails(data);
+      setGuardrails(data);
+      onSave();
+    } catch {
+      setError("Failed to save. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Restricted paths */}
+      <div>
+        <FieldLabel>Restricted folders and files</FieldLabel>
+        <div className="flex gap-2">
+          <input
+            style={{ ...inputCls, width: "auto", flex: 1 }}
+            placeholder="/payments or /auth/tokens"
+            value={pathInput}
+            onChange={(e) => setPathInput(e.target.value)}
+            onFocus={focusBorder}
+            onBlur={blurBorder}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addPath())}
+          />
+          <button
+            type="button"
+            onClick={addPath}
+            className="px-4 py-2 rounded-lg text-sm font-medium"
+            style={{ background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)", color: "#a5b4fc" }}
+          >
+            Add
+          </button>
+        </div>
+        {paths.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-2">
+            {paths.map((p) => (
+              <span
+                key={p}
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-full"
+                style={{ background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.25)", color: "#f87171" }}
+              >
+                {p}
+                <button
+                  type="button"
+                  onClick={() => setPaths(paths.filter((x) => x !== p))}
+                  className="font-bold hover:opacity-70 ml-0.5"
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Max files */}
+      <div>
+        <FieldLabel>Maximum files changed per task</FieldLabel>
+        <input
+          type="number"
+          min={1}
+          max={50}
+          value={maxFiles}
+          onChange={(e) => setMaxFiles(parseInt(e.target.value) || 10)}
+          style={{ ...inputCls, width: "6rem" }}
+          onFocus={focusBorder}
+          onBlur={blurBorder}
+        />
+      </div>
+
+      {/* Risk level */}
+      <div>
+        <FieldLabel>Risk level</FieldLabel>
+        <div className="space-y-2">
+          {RISK_LEVELS.map((r) => (
+            <label
+              key={r.value}
+              className="flex items-start gap-3 p-3 rounded-lg cursor-pointer"
+              style={{
+                border: `1px solid ${riskLevel === r.value ? "rgba(99,102,241,0.5)" : "rgba(99,102,241,0.15)"}`,
+                background: riskLevel === r.value ? "rgba(99,102,241,0.06)" : "transparent",
+              }}
+            >
+              <input
+                type="radio"
+                name="risk"
+                value={r.value}
+                checked={riskLevel === r.value}
+                onChange={() => setRiskLevel(r.value)}
+                className="mt-0.5"
+                style={{ accentColor: "#6366f1" }}
+              />
+              <div>
+                <div className="text-sm font-medium" style={{ color: "#e2e8f0" }}>{r.label}</div>
+                <div className="text-xs" style={{ color: "#64748b" }}>{r.desc}</div>
+              </div>
+            </label>
+          ))}
+        </div>
+      </div>
+      {error && <p className="text-sm" style={{ color: "#f87171" }}>{error}</p>}
+      <SaveBtn onClick={handleSave} loading={loading} disabled={false} />
+    </div>
+  );
+}
+
+function ContextForm({ onSave }: { onSave: () => void }) {
+  const { agent, projectContext, setProjectContext } = useOnboardingStore();
+  const [text, setText] = useState(projectContext || "");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const agentName = agent?.agent_name || "Your agent";
+  const valid = text.trim().length >= 20;
+
+  async function handleSave() {
+    if (!valid) return;
+    setLoading(true);
+    setError("");
+    try {
+      await saveContext({ project_context: text });
+      setProjectContext(text);
+      onSave();
+    } catch {
+      setError("Failed to save. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm" style={{ color: "#64748b" }}>
+        Plain English — no technical knowledge required. This is injected into every task so{" "}
+        {agentName} builds for your specific product.
+      </p>
+      <textarea
+        className="w-full rounded-xl px-4 py-3 text-sm resize-y outline-none"
+        style={{
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid rgba(99,102,241,0.2)",
+          color: "#e2e8f0",
+          minHeight: "150px",
+        }}
+        placeholder={`What does your product do?\nWhat tech stack are you using? (rough is fine — "I think it's React")\nAnything the agent should never do?`}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onFocus={(e) => (e.currentTarget.style.borderColor = "rgba(99,102,241,0.6)")}
+        onBlur={(e) => (e.currentTarget.style.borderColor = "rgba(99,102,241,0.2)")}
+      />
+      {text.length > 0 && text.length < 20 && (
+        <p className="text-xs" style={{ color: "#475569" }}>
+          Add a bit more context — at least a sentence or two.
+        </p>
+      )}
+      {error && <p className="text-sm" style={{ color: "#f87171" }}>{error}</p>}
+      <SaveBtn onClick={handleSave} loading={loading} disabled={!valid} />
+    </div>
+  );
+}
+
+const ROLES = ["PM", "Founder", "Stakeholder", "Engineer", "Other"];
+
+function ProfileForm({ onSave }: { onSave: () => void }) {
+  const { account, setAccount } = useOnboardingStore();
+  const { user } = useUser();
+  const clerkName = user?.fullName || user?.firstName || "";
+  const [form, setForm] = useState({
+    name: account?.name || clerkName,
+    company_name: account?.company_name || "",
+    role: account?.role || "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const valid = form.name.trim() && form.company_name.trim() && form.role;
+
+  async function handleSave() {
+    if (!valid) return;
+    setLoading(true);
+    setError("");
+    try {
+      await saveAccount(form);
+      setAccount(form);
+      onSave();
+    } catch {
+      setError("Failed to save. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <FieldLabel>Your name</FieldLabel>
+        <input
+          style={{ ...inputCls, color: "#64748b", cursor: "default" }}
+          value={form.name}
+          readOnly
+        />
+        <p className="text-xs mt-1" style={{ color: "#334155" }}>From your sign-in account</p>
+      </div>
+      <div>
+        <FieldLabel>Company name</FieldLabel>
+        <input
+          style={inputCls}
+          placeholder="Acme Inc."
+          value={form.company_name}
+          onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+          onFocus={focusBorder}
+          onBlur={blurBorder}
+        />
+      </div>
+      <div>
+        <FieldLabel>Your role</FieldLabel>
+        <div className="flex flex-wrap gap-2">
+          {ROLES.map((role) => (
+            <button
+              key={role}
+              type="button"
+              onClick={() => setForm({ ...form, role })}
+              className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all"
+              style={
+                form.role === role
+                  ? { background: "linear-gradient(135deg, #6366f1, #a78bfa)", color: "#fff", border: "1px solid transparent" }
+                  : { background: "rgba(255,255,255,0.04)", color: "#94a3b8", border: "1px solid rgba(99,102,241,0.2)" }
+              }
+            >
+              {role}
+            </button>
+          ))}
+        </div>
+      </div>
+      {error && <p className="text-sm" style={{ color: "#f87171" }}>{error}</p>}
+      <SaveBtn onClick={handleSave} loading={loading} disabled={!valid} />
+    </div>
+  );
+}
+
+function JiraForm({ onSave }: { onSave: () => void }) {
+  const { jira, setJira } = useOnboardingStore();
+  const [form, setForm] = useState({
+    workspace_url: jira?.workspace_url || "",
+    project_key: jira?.project_key || "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const valid = form.workspace_url.trim() && form.project_key.trim();
+
+  async function handleSave() {
+    if (!valid) return;
+    setLoading(true);
+    setError("");
+    try {
+      await saveJira(form);
+      setJira(form);
+      onSave();
+    } catch {
+      setError("Failed to save. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm" style={{ color: "#64748b" }}>
+        Your agent will read tickets, update statuses, and link pull requests.
+      </p>
+      <div>
+        <FieldLabel>Jira workspace URL</FieldLabel>
+        <input
+          style={inputCls}
+          placeholder="https://your-team.atlassian.net"
+          value={form.workspace_url}
+          onChange={(e) => setForm({ ...form, workspace_url: e.target.value })}
+          onFocus={focusBorder}
+          onBlur={blurBorder}
+        />
+      </div>
+      <div>
+        <FieldLabel>Project key</FieldLabel>
+        <input
+          style={inputCls}
+          placeholder="e.g. KR or ACME"
+          value={form.project_key}
+          onChange={(e) => setForm({ ...form, project_key: e.target.value.toUpperCase() })}
+          onFocus={focusBorder}
+          onBlur={blurBorder}
+        />
+        <p className="text-xs mt-1.5" style={{ color: "#475569" }}>
+          The short code shown before ticket numbers (e.g. KR-42)
+        </p>
+      </div>
+      {error && <p className="text-sm" style={{ color: "#f87171" }}>{error}</p>}
+      <SaveBtn onClick={handleSave} loading={loading} disabled={!valid} />
+    </div>
+  );
+}
+
+function SlackForm({ onSave }: { onSave: () => void }) {
+  const { agent, slack, setSlack } = useOnboardingStore();
+  const [form, setForm] = useState({
+    channel_id: slack?.channel_id || "",
+    channel_name: slack?.channel_name || "",
+  });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const agentName = agent?.agent_name || "Your agent";
+  const valid = form.channel_name.trim();
+
+  async function handleSave() {
+    if (!valid) return;
+    setLoading(true);
+    setError("");
+    const payload = {
+      channel_id: form.channel_id || form.channel_name,
+      channel_name: form.channel_name,
+    };
+    try {
+      await saveSlack(payload);
+      setSlack(payload);
+      onSave();
+    } catch {
+      setError("Failed to save. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm" style={{ color: "#64748b" }}>
+        {agentName} will post progress updates here so your team stays informed.
+      </p>
+      <div>
+        <FieldLabel>Slack channel name</FieldLabel>
+        <input
+          style={inputCls}
+          placeholder="#dev-updates"
+          value={form.channel_name}
+          onChange={(e) => setForm({ ...form, channel_name: e.target.value })}
+          onFocus={focusBorder}
+          onBlur={blurBorder}
+        />
+      </div>
+      {form.channel_name && (
+        <div
+          className="rounded-xl p-4 space-y-2"
+          style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.15)" }}
+        >
+          <p className="text-xs uppercase tracking-wide" style={{ color: "#475569" }}>
+            Preview in {form.channel_name}
+          </p>
+          <div className="flex items-start gap-3">
+            <div
+              className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: "linear-gradient(135deg, #6366f1, #a78bfa)" }}
+            >
+              <span className="text-white text-xs font-bold">K</span>
+            </div>
+            <div>
+              <span className="text-sm font-semibold" style={{ color: "#e2e8f0" }}>{agentName}</span>
+              <p className="text-sm mt-0.5" style={{ color: "#94a3b8" }}>
+                ✅ PR opened:{" "}
+                <span style={{ color: "#a5b4fc" }}>Add forgot password screen #42</span>
+                {" "}— ready for your review.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      {error && <p className="text-sm" style={{ color: "#f87171" }}>{error}</p>}
+      <SaveBtn onClick={handleSave} loading={loading} disabled={!valid} />
+    </div>
+  );
+}
+
+// ─── Stage computation ────────────────────────────────────────────────────────
+
+function computeStage(store: OnboardingState): number {
+  if (!store.agent?.agent_name) return 1;
+  if (!store.repo || !store.capabilities) return 2;
+  if (!store.projectContext || store.projectContext.length < 20) return 3;
+  if (!store.guardrails) return 4;
+  if (!store.jira && !store.slack) return 5;
+  return 6;
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+const MODAL_TITLES: Record<string, string> = {
+  agent: "Name your agent",
+  repo: "Connect repository",
+  capabilities: "Set capabilities",
+  guardrails: "Set guardrails",
+  context: "Project context",
+  profile: "Your profile",
+  jira: "Connect Jira",
+  slack: "Connect Slack",
+};
+
+export default function OnboardingDashboard() {
+  const store = useOnboardingStore();
+  const router = useRouter();
+  const { user } = useUser();
+  const firstName = user?.firstName || user?.fullName?.split(" ")[0] || "";
+  const [openCard, setOpenCard] = useState<string | null>(null);
+  const [launching, setLaunching] = useState(false);
+
+  const currentStage = computeStage(store);
+  const allDone = currentStage === 6;
+
+  async function handleLaunch() {
+    setLaunching(true);
+    try { await completeOnboarding(); } catch {}
+    store.reset();
+    router.push("/dashboard");
+  }
+
+  const cards = [
+    {
+      id: "agent",
+      icon: "🤖",
+      title: "Name your agent",
+      description: "Give your AI developer a name and avatar",
+      required: true,
+      completed: !!store.agent?.agent_name,
+    },
+    {
+      id: "repo",
+      icon: "🔗",
+      title: "Connect GitHub",
+      description: "Point to the repo your agent will work in",
+      required: true,
+      completed: !!store.repo,
+    },
+    {
+      id: "capabilities",
+      icon: "⚡",
+      title: "Set capabilities",
+      description: "Choose what your agent is allowed to do",
+      required: true,
+      completed: !!store.capabilities,
+    },
+    {
+      id: "guardrails",
+      icon: "🛡️",
+      title: "Set guardrails",
+      description: "Define limits and off-limits paths",
+      required: true,
+      completed: !!store.guardrails,
+    },
+    {
+      id: "context",
+      icon: "📝",
+      title: "Project context",
+      description: "Describe your project in plain English",
+      required: true,
+      completed: store.projectContext.length >= 20,
+    },
+    {
+      id: "profile",
+      icon: "👤",
+      title: "Your profile",
+      description: "Name, company, and role",
+      required: false,
+      completed: !!store.account,
+    },
+    {
+      id: "jira",
+      icon: "🏷️",
+      title: "Connect Jira",
+      description: "Let your agent read and update tickets",
+      required: false,
+      completed: !!store.jira,
+    },
+    {
+      id: "slack",
+      icon: "💬",
+      title: "Connect Slack",
+      description: "Get progress updates in your channel",
+      required: false,
+      completed: !!store.slack,
+    },
+  ];
+
+  // Assign incrementing index to non-completed cards
+  let pendingIdx = 0;
+  const cardsWithIdx = cards.map((card) => ({
+    ...card,
+    index: card.completed ? 0 : ++pendingIdx,
+  }));
+
+  return (
+    <>
+      <div className="space-y-8">
+        {/* Header */}
+        <div>
+          <p className="text-sm font-medium mb-1" style={{ color: "#6366f1" }}>
+            {firstName ? `Welcome, ${firstName}!` : "Welcome!"}
+          </p>
+          <h1 className="text-2xl font-bold" style={{ color: "#e2e8f0" }}>
+            Meet your new teammate
+          </h1>
+          <p className="text-sm mt-1" style={{ color: "#64748b" }}>
+            Set up your AI developer in any order. Complete required sections to launch.
+          </p>
+        </div>
+
+        {/* Stage bar */}
+        <StageBar currentStage={currentStage} />
+
+        {/* Grid + sidebar */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Cards */}
+          <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {cardsWithIdx.map((card) => (
+              <SetupCard
+                key={card.id}
+                icon={card.icon}
+                title={card.title}
+                description={card.description}
+                status={card.completed ? "completed" : card.required ? "pending" : "optional"}
+                index={card.index}
+                onClick={() => setOpenCard(card.id)}
+              />
+            ))}
+          </div>
+
+          {/* Sidebar */}
+          <AgentUnderstanding
+            agentName={store.agent?.agent_name || null}
+            agentAvatar={store.agent?.agent_avatar || null}
+            repoName={store.repo?.repo_name || null}
+            capabilities={store.capabilities}
+            guardrails={store.guardrails}
+            projectContext={store.projectContext}
+          />
+        </div>
+
+        {/* Launch CTA */}
+        {allDone && (
+          <button
+            onClick={handleLaunch}
+            disabled={launching}
+            className="w-full py-4 rounded-xl font-semibold text-white text-sm transition-all"
+            style={{
+              background: "linear-gradient(135deg, #6366f1, #a78bfa)",
+              boxShadow: "0 0 30px rgba(99,102,241,0.35)",
+              opacity: launching ? 0.7 : 1,
+              cursor: launching ? "not-allowed" : "pointer",
+            }}
+          >
+            {launching ? "Launching…" : "Launch kronode →"}
+          </button>
+        )}
+
+        {/* Progress hint when not done */}
+        {!allDone && (
+          <p className="text-xs text-center" style={{ color: "#334155" }}>
+            {cards.filter((c) => c.required && !c.completed).length} required{" "}
+            {cards.filter((c) => c.required && !c.completed).length === 1 ? "section" : "sections"} remaining
+          </p>
+        )}
+      </div>
+
+      {/* Modal */}
+      {openCard && (
+        <Modal
+          open
+          onClose={() => setOpenCard(null)}
+          title={MODAL_TITLES[openCard] || ""}
+        >
+          {openCard === "agent" && <AgentForm onSave={() => setOpenCard(null)} />}
+          {openCard === "repo" && <RepoForm onSave={() => setOpenCard(null)} />}
+          {openCard === "capabilities" && <CapabilitiesForm onSave={() => setOpenCard(null)} />}
+          {openCard === "guardrails" && <GuardrailsForm onSave={() => setOpenCard(null)} />}
+          {openCard === "context" && <ContextForm onSave={() => setOpenCard(null)} />}
+          {openCard === "profile" && <ProfileForm onSave={() => setOpenCard(null)} />}
+          {openCard === "jira" && <JiraForm onSave={() => setOpenCard(null)} />}
+          {openCard === "slack" && <SlackForm onSave={() => setOpenCard(null)} />}
+        </Modal>
+      )}
+    </>
+  );
+}
