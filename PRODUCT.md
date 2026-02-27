@@ -50,6 +50,45 @@ Kronode is not bought as software. It is hired as a teammate. It comes out of he
 - **Proactive not reactive** — a great teammate doesn't wait to be told what to do.
 - **Honest about limitations** — the agent flags its own uncertainty rather than proceeding with false confidence.
 
+## Agent Profiles
+
+Kronode is not a single generic agent. When an organisation hires Kronode they select a **developer profile** — a specialist with a defined tech stack, a scoped domain of knowledge, and world-class skills within that domain. The agent's scope is enforced: it will not write mobile code if hired as a backend engineer, just as a human specialist wouldn't.
+
+### Available Profiles
+
+| Profile | Stack | Scope |
+|---------|-------|-------|
+| **Web Engineer** | React / Next.js / TypeScript / Tailwind / REST | Frontend components, routing, state, API integration |
+| **Backend Engineer** | Python / FastAPI / PostgreSQL / Redis / Celery | APIs, data models, background jobs, auth |
+| **Mobile Engineer (iOS)** | Swift / SwiftUI / Xcode / Combine | iOS screens, navigation, local storage, API calls |
+| **Mobile Engineer (Android)** | Kotlin / Jetpack Compose / Android SDK | Android screens, viewmodels, Room, API calls |
+| **Full-Stack Engineer** | Next.js + FastAPI or Rails or Node | End-to-end features across frontend and backend |
+| **DevOps Engineer** | Docker / Kubernetes / Terraform / GitHub Actions / AWS | CI/CD pipelines, infra-as-code, deployments, monitoring |
+| **Data Engineer** | Python / dbt / Airflow / Snowflake / Spark | Pipelines, transformations, data models, orchestration |
+
+### How Profiles Work
+
+**At hire (onboarding):** The team selects the profile that matches the open role. The profile sets:
+- The system prompt injected into every agent in the pipeline — written as if the agent is a world-class specialist in that stack
+- The guardrails scope — which directories and file types the agent is allowed to touch
+- The context builder priorities — which file extensions and patterns to treat as relevant
+- The router's complexity thresholds — what "simple" vs "complex" means for that stack
+
+**Specialisation over time:** Memory records are profile-scoped. A Web Engineer Kronode accumulates React conventions, component patterns, and reviewer preferences specific to frontend work. This specialisation compounds faster than a generic agent would.
+
+**World-class skill injection:** Each profile's system prompt is written to embed the highest standards of that discipline — not just syntax knowledge but engineering judgement. For example:
+- Web profile: accessibility, Core Web Vitals, component composition, performance
+- Backend profile: idempotency, schema migrations, query optimisation, error handling patterns
+- DevOps profile: least-privilege IAM, immutable infra, rollback safety, secret management
+
+**Scope enforcement:** Guardrails Agent reads the active profile and blocks work outside the declared domain. A DevOps agent will decline to modify application code. A Mobile agent will not touch backend services. This matches how real teams work — specialists stay in their lane.
+
+### Multi-Profile Orgs
+
+Larger organisations can hire multiple Kronode agents simultaneously, each with a different profile. They share the same Jira and Slack integration but operate in separate guardrailed domains. A ticket tagged `platform` goes to the DevOps agent; a ticket tagged `web` goes to the Web Engineer.
+
+---
+
 ## North Star Metrics
 
 1. **Time to first merged PR** — proves fast onboarding

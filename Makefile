@@ -8,9 +8,9 @@ infra:
 backend:
 	cd backend && uv run uvicorn app.main:app --reload
 
-# Start Celery worker
+# Start Celery worker (with auto-reload on file changes)
 worker:
-	cd backend && uv run celery -A app.celery_app worker --loglevel=info
+	cd backend && uv run watchfiles --filter python "celery -A app.celery_app worker --loglevel=info --pool=solo" app/
 
 # Start Next.js frontend
 frontend:

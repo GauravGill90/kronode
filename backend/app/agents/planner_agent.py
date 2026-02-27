@@ -54,18 +54,24 @@ class PlannerAgent(AgentBase):
         relevant_files = context_bundle.get("relevant_files", [])
         conventions = context_bundle.get("conventions", [])
 
+        # Send only file paths to the planner (not content) — coder gets the full content
+        file_paths = [f["path"] for f in relevant_files] if relevant_files else []
+
         user_message = f"""Task: {description}
 
 Project context:
 {project_context}
 
-Relevant files found: {relevant_files or "none"}
-Conventions: {conventions or "none"}
+Relevant files (paths only):
+{file_paths or "none"}
+
+Conventions:
+{conventions or "none"}
 """
 
         message = await self.client.messages.create(
-            model="claude-opus-4-6",
-            max_tokens=2048,
+            model="claude-sonnet-4-6",
+            max_tokens=1024,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_message}],
         )

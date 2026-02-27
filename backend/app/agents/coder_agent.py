@@ -116,12 +116,16 @@ Relevant existing files:
 
         message = await self.client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=16000,
+            max_tokens=8096,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_message}],
         )
 
+        stop_reason = message.stop_reason
         raw = message.content[0].text.strip()
+        logger.info(f"CoderAgent stop_reason={stop_reason} response_len={len(raw)} chars")
+        if stop_reason == "max_tokens":
+            logger.warning("CoderAgent: response was TRUNCATED (max_tokens hit) — JSON will be incomplete")
         logger.info(f"CoderAgent raw response (first 500 chars): {raw[:500]}")
 
         result = _extract_json(raw)

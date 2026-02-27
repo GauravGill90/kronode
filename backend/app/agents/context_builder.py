@@ -10,10 +10,10 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-MAX_TOTAL_BYTES = 50_000   # 50 KB total file content sent to Claude
-MAX_FILE_BYTES = 6_000     # 6 KB per individual file
-MAX_FILES_TO_SELECT = 20   # ask Claude to pick at most this many
-MAX_FILES_TO_FETCH = 15    # never fetch more than this (in case Claude over-selects)
+MAX_TOTAL_BYTES = 30_000   # 30 KB total file content sent to Claude
+MAX_FILE_BYTES = 4_000     # 4 KB per individual file
+MAX_FILES_TO_SELECT = 12   # ask Claude to pick at most this many
+MAX_FILES_TO_FETCH = 10    # never fetch more than this (in case Claude over-selects)
 
 
 class ContextBuilderAgent(AgentBase):
