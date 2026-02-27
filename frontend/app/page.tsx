@@ -57,7 +57,7 @@ export default function WelcomePage() {
           </div>
           <div>
             <h1
-              className="text-4xl font-bold tracking-tight"
+              className="text-6xl font-bold tracking-tight"
               style={{
                 background: gradients.brandText,
                 WebkitBackgroundClip: "text",
@@ -119,12 +119,15 @@ export default function WelcomePage() {
             >
               <div className="text-lg mb-1">{icon}</div>
               <div
-                className="text-xs font-semibold mb-0.5"
+                className="text-xs font-semibold"
                 style={{ color: colors.text.primary }}
               >
                 {title}
               </div>
-              <div className="text-xs" style={{ color: colors.text.secondary }}>
+              <div
+                className="text-xs mt-0.5"
+                style={{ color: colors.text.muted }}
+              >
                 {desc}
               </div>
             </div>
@@ -135,34 +138,25 @@ export default function WelcomePage() {
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <SignUpButton mode="modal">
             <button
-              className="px-6 py-3 rounded-xl text-sm font-semibold transition-all"
-              style={{
-                background: gradients.brandLogo,
-                color: colors.text.white,
-                boxShadow: `0 0 20px ${colors.glow.primarySoft}`,
-              }}
+              className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90"
+              style={{ background: gradients.brandLogo }}
             >
               Get started free
             </button>
           </SignUpButton>
           <SignInButton mode="modal">
             <button
-              className="px-6 py-3 rounded-xl text-sm font-semibold transition-all"
+              className="px-6 py-2.5 rounded-lg text-sm font-medium transition-colors hover:border-opacity-60"
               style={{
                 background: colors.bg.surface,
-                color: colors.text.primary,
                 border: `1px solid ${colors.border.default}`,
+                color: colors.text.secondary,
               }}
             >
               Sign in
             </button>
           </SignInButton>
         </div>
-
-        {/* Footer note */}
-        <p className="text-xs" style={{ color: colors.text.muted }}>
-          No credit card required · Free during beta
-        </p>
       </div>
     </div>
   );
