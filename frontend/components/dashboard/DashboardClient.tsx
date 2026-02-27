@@ -7,8 +7,11 @@ import AgentHeader from "./AgentHeader";
 import TaskInput from "./TaskInput";
 import TaskCard from "./TaskCard";
 import IntegrationRow from "./IntegrationRow";
+import JiraTickets from "./JiraTickets";
 import { Spinner } from "@/components/ui/Spinner";
 import { useDashboard } from "@/lib/hooks/useTasks";
+import AppShell from "@/components/layout/AppShell";
+import type { JiraTicket } from "@/lib/api";
 
 const queryClient = new QueryClient();
 
@@ -33,42 +36,59 @@ function TokenSync() {
 
 function DashboardInner() {
   const { data, isLoading } = useDashboard();
+  const [prefill, setPrefill] = useState<{ description: string; jiraId: string } | null>(null);
+
+  function handleTicketSelect(ticket: JiraTicket) {
+    setPrefill({ description: ticket.summary, jiraId: ticket.id });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Spinner size="lg" />
-      </div>
+      <AppShell>
+        <div className="min-h-[80vh] flex items-center justify-center">
+          <Spinner size="lg" />
+        </div>
+      </AppShell>
     );
   }
 
   if (!data?.onboarding_complete) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <p className="text-gray-600">Complete setup to get started.</p>
-          <a href="/onboarding/1" className="inline-block bg-brand-500 text-white px-5 py-2.5 rounded-xl text-sm font-medium">
-            Finish setup
-          </a>
+      <AppShell>
+        <div className="min-h-[80vh] flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <p className="text-sm" style={{ color: "#64748b" }}>Complete setup to get started.</p>
+            <a
+              href="/onboarding"
+              className="inline-block text-white px-5 py-2.5 rounded-xl text-sm font-semibold"
+              style={{ background: "linear-gradient(135deg, #6366f1, #a78bfa)" }}
+            >
+              Finish setup
+            </a>
+          </div>
         </div>
-      </div>
+      </AppShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <AppShell>
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
         {data.agent && <AgentHeader agent={data.agent} />}
         <IntegrationRow integrations={data.integrations} />
-        <TaskInput />
+        <TaskInput prefill={prefill} onPrefillConsumed={() => setPrefill(null)} />
+        <JiraTickets onSelect={handleTicketSelect} />
         <div className="space-y-3">
           {data.recent_tasks.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">No tasks yet. Give your agent something to build.</p>
+            <p className="text-sm text-center py-8" style={{ color: "#475569" }}>
+              No tasks yet. Give your agent something to build.
+            </p>
           ) : (
             data.recent_tasks.map((task) => <TaskCard key={task.id} task={task} />)
           )}
         </div>
       </div>
-    </div>
+    </AppShell>
   );
 }

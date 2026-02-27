@@ -2,7 +2,7 @@ interface SetupCardProps {
   icon: string;
   title: string;
   description: string;
-  status: "completed" | "pending" | "optional";
+  status: "completed" | "pending" | "optional" | "failed";
   index?: number;
   onClick: () => void;
 }
@@ -18,6 +18,8 @@ export default function SetupCard({
   const borderColor =
     status === "completed"
       ? "rgba(52,211,153,0.35)"
+      : status === "failed"
+      ? "rgba(239,68,68,0.35)"
       : status === "optional"
       ? "rgba(255,255,255,0.08)"
       : "rgba(99,102,241,0.2)";
@@ -27,17 +29,23 @@ export default function SetupCard({
       onClick={onClick}
       className="w-full text-left p-4 rounded-xl transition-all group"
       style={{
-        background: "rgba(255,255,255,0.02)",
+        background: status === "failed" ? "rgba(239,68,68,0.04)" : "rgba(255,255,255,0.02)",
         border: `1px solid ${borderColor}`,
       }}
       onMouseEnter={(e) => {
         (e.currentTarget as HTMLButtonElement).style.borderColor =
-          status === "completed" ? "rgba(52,211,153,0.6)" : "rgba(99,102,241,0.45)";
-        (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.04)";
+          status === "completed"
+            ? "rgba(52,211,153,0.6)"
+            : status === "failed"
+            ? "rgba(239,68,68,0.6)"
+            : "rgba(99,102,241,0.45)";
+        (e.currentTarget as HTMLButtonElement).style.background =
+          status === "failed" ? "rgba(239,68,68,0.07)" : "rgba(255,255,255,0.04)";
       }}
       onMouseLeave={(e) => {
         (e.currentTarget as HTMLButtonElement).style.borderColor = borderColor;
-        (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.02)";
+        (e.currentTarget as HTMLButtonElement).style.background =
+          status === "failed" ? "rgba(239,68,68,0.04)" : "rgba(255,255,255,0.02)";
       }}
     >
       <div className="flex items-start gap-3">
@@ -48,15 +56,21 @@ export default function SetupCard({
             background:
               status === "completed"
                 ? "rgba(52,211,153,0.1)"
+                : status === "failed"
+                ? "rgba(239,68,68,0.1)"
                 : "rgba(99,102,241,0.1)",
             border:
               status === "completed"
                 ? "1px solid rgba(52,211,153,0.3)"
+                : status === "failed"
+                ? "1px solid rgba(239,68,68,0.3)"
                 : "1px solid rgba(99,102,241,0.2)",
           }}
         >
           {status === "completed" ? (
             <span style={{ color: "#34d399" }}>✓</span>
+          ) : status === "failed" ? (
+            <span style={{ color: "#f87171" }}>✗</span>
           ) : (
             icon
           )}
@@ -76,6 +90,14 @@ export default function SetupCard({
                 Done
               </span>
             )}
+            {status === "failed" && (
+              <span
+                className="text-xs px-1.5 py-0.5 rounded-full"
+                style={{ background: "rgba(239,68,68,0.1)", color: "#f87171" }}
+              >
+                Connection failed
+              </span>
+            )}
             {status === "optional" && (
               <span
                 className="text-xs px-1.5 py-0.5 rounded-full"
@@ -93,7 +115,7 @@ export default function SetupCard({
               </span>
             )}
           </div>
-          <p className="text-xs mt-0.5" style={{ color: "#64748b" }}>
+          <p className="text-xs mt-0.5" style={{ color: status === "failed" ? "#ef4444" : "#64748b" }}>
             {description}
           </p>
         </div>
@@ -101,9 +123,9 @@ export default function SetupCard({
         {/* Arrow hint */}
         <span
           className="text-xs opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5"
-          style={{ color: "#6366f1" }}
+          style={{ color: status === "failed" ? "#f87171" : "#6366f1" }}
         >
-          {status === "completed" ? "Edit" : "Set up"} →
+          {status === "completed" ? "Edit" : status === "failed" ? "Retry" : "Set up"} →
         </span>
       </div>
     </button>

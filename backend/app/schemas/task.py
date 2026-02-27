@@ -25,6 +25,7 @@ class TaskOut(BaseModel):
     id: uuid.UUID
     description: str
     status: str
+    jira_ticket_id: str | None = None
     result: dict[str, Any] | None
     error: str | None
     created_at: datetime

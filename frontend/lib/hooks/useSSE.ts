@@ -12,6 +12,9 @@ export function useSSE({ taskId, onTerminal }: UseSSEOptions) {
   const [events, setEvents] = useState<TaskEvent[]>([]);
   const [connected, setConnected] = useState(false);
   const esRef = useRef<EventSource | null>(null);
+  // Keep onTerminal in a ref so changing the callback never re-triggers the effect
+  const onTerminalRef = useRef(onTerminal);
+  onTerminalRef.current = onTerminal;
 
   useEffect(() => {
     if (!taskId) return;
@@ -19,7 +22,6 @@ export function useSSE({ taskId, onTerminal }: UseSSEOptions) {
     const token = (window as Window & { __clerkToken?: string }).__clerkToken || "";
     const url = `${process.env.NEXT_PUBLIC_BACKEND_URL}/v1/task/${taskId}/stream`;
 
-    // EventSource doesn't support custom headers — pass token as query param
     const es = new EventSource(`${url}?token=${encodeURIComponent(token)}`);
     esRef.current = es;
 
@@ -29,7 +31,7 @@ export function useSSE({ taskId, onTerminal }: UseSSEOptions) {
       try {
         const data = JSON.parse(e.data);
         if (data.type === "terminal") {
-          onTerminal?.(data.status);
+          onTerminalRef.current?.(data.status);
           es.close();
           setConnected(false);
           return;
@@ -49,7 +51,7 @@ export function useSSE({ taskId, onTerminal }: UseSSEOptions) {
       es.close();
       esRef.current = null;
     };
-  }, [taskId, onTerminal]);
+  }, [taskId]); // onTerminal intentionally excluded — accessed via ref
 
   return { events, connected };
 }

@@ -13,17 +13,22 @@ export default function IntegrationRow({ integrations }: { integrations: Integra
       {INTEGRATIONS.map(({ key, label }) => {
         const connected = integrations[key];
         return (
-          <span
+          <a
             key={key}
-            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium ${
+            href="/settings"
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full font-medium transition-all"
+            style={
               connected
-                ? "bg-green-50 text-green-700 border-green-200"
-                : "bg-gray-50 text-gray-400 border-gray-200"
-            }`}
+                ? { background: "rgba(52,211,153,0.08)", color: "#34d399", border: "1px solid rgba(52,211,153,0.2)" }
+                : { background: "rgba(255,255,255,0.03)", color: "#475569", border: "1px solid rgba(255,255,255,0.06)" }
+            }
           >
-            <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-green-500" : "bg-gray-300"}`}></span>
+            <span
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ background: connected ? "#34d399" : "#334155" }}
+            ></span>
             {label}
-          </span>
+          </a>
         );
       })}
     </div>

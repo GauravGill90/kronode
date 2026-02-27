@@ -7,9 +7,11 @@ from app.core.database import get_db
 from app.models.org import Organization, OnboardingConfig
 from app.models.user import User
 from app.schemas.onboarding import (
-    AccountPayload, RepoPayload, JiraPayload, SlackPayload,
+    AccountPayload, RepoPayload, JiraPayload, JiraTestPayload,
+    SlackPayload, SlackTestPayload,
     DocsPayload, CapabilitiesPayload, GuardrailsPayload,
-    AgentPayload, ContextPayload, OnboardingStatus,
+    AgentPayload, ContextPayload, GitHubTokenPayload, GitHubTokenTestPayload,
+    OnboardingStatus, OnboardingConfigOut,
 )
 
 router = APIRouter()
@@ -68,6 +70,7 @@ async def save_repo(
     _, _, config = await _get_or_create_org(user_data, db)
     config.repo_url = payload.repo_url
     config.repo_provider = payload.provider
+    config.repo_name = payload.repo_name
     await db.commit()
     return {"ok": True}
 
@@ -81,9 +84,50 @@ async def save_jira(
     _, _, config = await _get_or_create_org(user_data, db)
     config.jira_workspace_url = payload.workspace_url
     config.jira_project_key = payload.project_key
+    config.jira_email = payload.email
+    config.jira_api_token = payload.api_token
     config.jira_status_mappings = payload.status_mappings
     await db.commit()
     return {"ok": True}
+
+
+@router.post("/test-jira")
+async def test_jira(
+    payload: JiraTestPayload,
+    user_data: dict = Depends(get_current_user),
+):
+    """Validate Jira credentials and confirm the project key exists."""
+    import httpx
+    import base64
+
+    creds = base64.b64encode(f"{payload.email}:{payload.api_token}".encode()).decode()
+    headers = {
+        "Authorization": f"Basic {creds}",
+        "Accept": "application/json",
+    }
+    base = payload.workspace_url.rstrip("/")
+
+    async with httpx.AsyncClient() as client:
+        # 1. Verify credentials by fetching current user
+        me_resp = await client.get(f"{base}/rest/api/3/myself", headers=headers)
+        if me_resp.status_code == 401:
+            return {"ok": False, "error": "Invalid email or API token"}
+        if not me_resp.is_success:
+            return {"ok": False, "error": f"Could not reach Jira at {base}"}
+
+        display_name = me_resp.json().get("displayName", payload.email)
+
+        # 2. Confirm the project key exists and is accessible
+        proj_resp = await client.get(f"{base}/rest/api/3/project/{payload.project_key}", headers=headers)
+        if proj_resp.status_code == 404:
+            return {"ok": False, "error": f"Project '{payload.project_key}' not found — check the key (e.g. KR, ACME)"}
+        if proj_resp.status_code == 403:
+            return {"ok": False, "error": f"No access to project '{payload.project_key}'"}
+        if not proj_resp.is_success:
+            return {"ok": False, "error": "Could not verify project key"}
+
+        project_name = proj_resp.json().get("name", payload.project_key)
+        return {"ok": True, "user": display_name, "project": project_name}
 
 
 @router.post("/slack")
@@ -95,8 +139,75 @@ async def save_slack(
     _, _, config = await _get_or_create_org(user_data, db)
     config.slack_channel_id = payload.channel_id
     config.slack_channel_name = payload.channel_name
+    config.slack_bot_token = payload.bot_token
     await db.commit()
     return {"ok": True}
+
+
+@router.post("/test-slack")
+async def test_slack(
+    payload: SlackTestPayload,
+    user_data: dict = Depends(get_current_user),
+):
+    """Validate a Slack bot token and confirm it can see the given channel."""
+    import httpx
+    headers = {"Authorization": f"Bearer {payload.bot_token}"}
+
+    async with httpx.AsyncClient() as client:
+        # 1. Validate the token itself
+        auth_resp = await client.post("https://slack.com/api/auth.test", headers=headers)
+        auth_data = auth_resp.json()
+        if not auth_data.get("ok"):
+            return {"ok": False, "error": auth_data.get("error", "Invalid bot token")}
+
+        # 2. Try to resolve the channel name — skip if channels:read scope is missing
+        channel = payload.channel_name.lstrip("#")
+        list_resp = await client.get(
+            "https://slack.com/api/conversations.list",
+            headers=headers,
+            params={"exclude_archived": "true", "limit": 200},
+        )
+        list_data = list_resp.json()
+
+        if list_data.get("ok"):
+            # channels:read is available — verify the channel actually exists
+            channels = list_data.get("channels", [])
+            match = next((c for c in channels if c["name"] == channel), None)
+            if not match:
+                return {"ok": False, "error": f"Channel #{channel} not found — invite the bot first: /invite @{auth_data.get('user', 'YourApp')}"}
+
+        # 3. Send a test message to confirm chat:write works
+        msg_resp = await client.post(
+            "https://slack.com/api/chat.postMessage",
+            headers={**headers, "Content-Type": "application/json"},
+            json={
+                "channel": f"#{channel}",
+                "blocks": [
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": (
+                                ":white_check_mark: *Kronode connected successfully!*\n"
+                                "Your agent will post progress updates here after each task run — "
+                                "PR links, status changes, and summaries."
+                            ),
+                        },
+                    }
+                ],
+                "text": "✅ Kronode connected successfully!",
+            },
+        )
+        msg_data = msg_resp.json()
+        if not msg_data.get("ok"):
+            err = msg_data.get("error", "unknown")
+            if err == "not_in_channel":
+                return {"ok": False, "error": f"Bot is not in #{channel} — run /invite @{auth_data.get('user', 'YourApp')} in Slack"}
+            if err == "channel_not_found":
+                return {"ok": False, "error": f"Channel #{channel} not found — check the name and that the bot is invited"}
+            return {"ok": False, "error": f"Could not post to #{channel}: {err}"}
+
+        return {"ok": True, "workspace": auth_data.get("team"), "bot": auth_data.get("user")}
 
 
 @router.post("/docs")
@@ -161,6 +272,59 @@ async def save_context(
     return {"ok": True}
 
 
+@router.post("/github-token")
+async def save_github_token(
+    payload: GitHubTokenPayload,
+    user_data: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _, _, config = await _get_or_create_org(user_data, db)
+    config.github_access_token = payload.token
+    await db.commit()
+    return {"ok": True}
+
+
+@router.post("/test-github-token")
+async def test_github_token(
+    payload: GitHubTokenTestPayload,
+    user_data: dict = Depends(get_current_user),
+):
+    """Validate a GitHub PAT and confirm it has access to the given repo."""
+    import httpx
+    import re
+
+    headers = {
+        "Authorization": f"Bearer {payload.token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+    async with httpx.AsyncClient() as client:
+        # 1. Validate token — get the authenticated user
+        user_resp = await client.get("https://api.github.com/user", headers=headers)
+        if user_resp.status_code == 401:
+            return {"ok": False, "error": "Invalid token — make sure it starts with ghp_ and hasn't expired"}
+        if not user_resp.is_success:
+            return {"ok": False, "error": "Could not reach GitHub API"}
+        login = user_resp.json().get("login", "")
+
+        # 2. Extract owner/repo from URL and verify access
+        match = re.search(r"github\.com[/:]([^/]+)/([^/\.]+)", payload.repo_url)
+        if not match:
+            return {"ok": False, "error": "Could not parse repo URL — expected https://github.com/owner/repo"}
+        owner, repo = match.group(1), match.group(2)
+
+        repo_resp = await client.get(f"https://api.github.com/repos/{owner}/{repo}", headers=headers)
+        if repo_resp.status_code == 404:
+            return {"ok": False, "error": f"Repo {owner}/{repo} not found — check the URL and that the token has 'repo' scope"}
+        if repo_resp.status_code == 403:
+            return {"ok": False, "error": "Token doesn't have access to this repo — add 'repo' scope"}
+        if not repo_resp.is_success:
+            return {"ok": False, "error": "Could not verify repo access"}
+
+        return {"ok": True, "login": login, "repo": f"{owner}/{repo}"}
+
+
 @router.post("/complete")
 async def complete_onboarding(
     user_data: dict = Depends(get_current_user),
@@ -203,4 +367,34 @@ async def get_status(
         completed=completed,
         current_step=step,
         agent_name=config.agent_name,
+    )
+
+
+@router.get("/config", response_model=OnboardingConfigOut)
+async def get_config(
+    user_data: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the full onboarding config so the frontend can hydrate its store."""
+    user, org, config = await _get_or_create_org(user_data, db)
+    return OnboardingConfigOut(
+        agent_name=config.agent_name,
+        agent_avatar=config.agent_avatar,
+        repo_url=config.repo_url,
+        repo_provider=config.repo_provider,
+        repo_name=config.repo_name,
+        has_github_token=bool(config.github_access_token),
+        capabilities=config.capabilities,
+        guardrails=config.guardrails,
+        project_context=config.project_context,
+        user_name=user.name,
+        user_role=user.role,
+        company_name=org.name if org.name != "My Organization" else None,
+        jira_workspace_url=config.jira_workspace_url,
+        jira_project_key=config.jira_project_key,
+        jira_email=config.jira_email,
+        has_jira_token=bool(config.jira_api_token),
+        slack_channel_id=config.slack_channel_id,
+        slack_channel_name=config.slack_channel_name,
+        has_slack_token=bool(config.slack_bot_token),
     )

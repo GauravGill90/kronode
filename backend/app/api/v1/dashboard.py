@@ -51,7 +51,7 @@ async def get_dashboard(
                 guardrails=config.guardrails,
             )
         integrations = IntegrationStatus(
-            github=bool(config.repo_url),
+            github=bool(config.repo_url and config.github_access_token),
             jira=bool(config.jira_project_key),
             slack=bool(config.slack_channel_id),
             docs=bool(config.docs_provider),

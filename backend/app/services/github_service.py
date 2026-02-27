@@ -27,6 +27,76 @@ def _parse_repo(repo_url: str) -> tuple[str, str]:
     return parts[-2], parts[-1]
 
 
+# Extensions to skip — binaries, lock files, generated assets
+_SKIP_EXTENSIONS = {
+    ".png", ".jpg", ".jpeg", ".gif", ".svg", ".ico", ".webp",
+    ".pdf", ".zip", ".tar", ".gz", ".woff", ".woff2", ".ttf", ".eot",
+    ".mp4", ".mp3", ".wav", ".ogg",
+    ".lock", ".sum",            # package-lock.json, go.sum, etc.
+    ".min.js", ".min.css",      # minified
+}
+_SKIP_DIRS = {
+    "node_modules", ".git", "dist", "build", ".next", "__pycache__",
+    ".venv", "venv", ".env", "coverage", ".turbo",
+}
+
+
+def _should_skip(path: str) -> bool:
+    parts = path.split("/")
+    if any(p in _SKIP_DIRS for p in parts[:-1]):
+        return True
+    lower = path.lower()
+    return any(lower.endswith(ext) for ext in _SKIP_EXTENSIONS)
+
+
+async def get_repo_tree(repo_url: str, token: str) -> list[str]:
+    """Return a list of all file paths in the default branch (excluding binaries/generated)."""
+    owner, repo = _parse_repo(repo_url)
+    headers = _auth_headers(token)
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        # Get default branch
+        resp = await client.get(f"{GITHUB_API}/repos/{owner}/{repo}", headers=headers)
+        resp.raise_for_status()
+        default_branch = resp.json()["default_branch"]
+
+        # Get full recursive tree
+        resp = await client.get(
+            f"{GITHUB_API}/repos/{owner}/{repo}/git/trees/{default_branch}?recursive=1",
+            headers=headers,
+        )
+        resp.raise_for_status()
+        tree = resp.json().get("tree", [])
+
+    paths = [
+        item["path"]
+        for item in tree
+        if item["type"] == "blob" and not _should_skip(item["path"])
+    ]
+    return paths
+
+
+async def get_file_content(repo_url: str, path: str, token: str) -> str | None:
+    """Fetch and decode a single file from the repo. Returns None on error."""
+    owner, repo = _parse_repo(repo_url)
+    headers = _auth_headers(token)
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        resp = await client.get(
+            f"{GITHUB_API}/repos/{owner}/{repo}/contents/{path}",
+            headers=headers,
+        )
+        if resp.status_code != 200:
+            return None
+        data = resp.json()
+        if data.get("encoding") != "base64" or not data.get("content"):
+            return None
+        try:
+            return base64.b64decode(data["content"]).decode("utf-8", errors="replace")
+        except Exception:
+            return None
+
+
 async def create_pull_request(
     repo_url: str,
     branch_name: str,

@@ -7,6 +7,7 @@ from sqlalchemy import select
 from app.core.database import AsyncSessionLocal
 from app.models.task import Task, TaskEvent
 from app.models.org import OnboardingConfig
+from app.models.user import User  # noqa: F401 — registers 'users' table in SA metadata so FK resolution works in worker
 
 
 AGENT_CHAIN = [
@@ -65,10 +66,52 @@ async def run_pipeline(task_id_str: str):
         "org_id": task.org_id,
         "project_context": config.project_context if config else "",
         "repo_url": config.repo_url if config else "",
+        "github_access_token": config.github_access_token if config else None,
         "guardrails": config.guardrails if config else {},
         "capabilities": config.capabilities if config else {},
         "agent_name": config.agent_name if config else "Agent",
+        # Jira
+        "jira_workspace_url": config.jira_workspace_url if config else None,
+        "jira_project_key": config.jira_project_key if config else None,
+        "jira_email": config.jira_email if config else None,
+        "jira_api_token": config.jira_api_token if config else None,
+        # Slack
+        "slack_channel_id": config.slack_channel_id if config else None,
+        "slack_bot_token": config.slack_bot_token if config else None,
     }
+
+    # If the task came from a Jira ticket, enrich the description with the full ticket body
+    if (
+        context.get("jira_ticket_id")
+        and context.get("jira_workspace_url")
+        and context.get("jira_email")
+        and context.get("jira_api_token")
+    ):
+        try:
+            from app.services.jira_service import fetch_ticket_detail
+            ticket = await fetch_ticket_detail(
+                workspace_url=context["jira_workspace_url"],
+                email=context["jira_email"],
+                api_token=context["jira_api_token"],
+                ticket_id=context["jira_ticket_id"],
+            )
+            if ticket:
+                summary = ticket["summary"]
+                body = ticket["description"].strip()
+                context["jira_ticket"] = ticket
+                # Build a rich description the agents can use
+                context["description"] = (
+                    f"[{context['jira_ticket_id']}] {summary}"
+                    + (f"\n\n{body}" if body else "")
+                )
+                await emit_event(
+                    task_id, "pipeline", "started",
+                    f"Loaded Jira ticket {context['jira_ticket_id']}: {summary}",
+                    {"ticket_url": ticket["url"]},
+                )
+        except Exception as exc:
+            import logging as _logging
+            _logging.getLogger(__name__).warning(f"[Pipeline] Failed to fetch Jira ticket detail: {exc}")
 
     try:
         # Step 1: Route the task
@@ -84,6 +127,13 @@ async def run_pipeline(task_id_str: str):
         for agent_name in routing["agents"]:
             if agent_name not in agent_map:
                 continue
+
+            # Cancellation check — user may have cancelled between agents
+            async with AsyncSessionLocal() as db:
+                current = await db.get(Task, task_id)
+                if current and current.status == "cancelled":
+                    await emit_event(task_id, "pipeline", "failed", "Task cancelled by user")
+                    return
 
             agent_cls = agent_map[agent_name]
             agent = agent_cls()
@@ -103,6 +153,9 @@ async def run_pipeline(task_id_str: str):
 
             await emit_event(task_id, agent_name, "completed", result.get("summary", f"{agent.display_name} complete."), result)
 
+        # Notify integrations (Slack + Jira) — non-blocking, errors don't fail pipeline
+        await _notify_integrations(task_id, task.description, task.jira_ticket_id, context)
+
         # Mark done
         async with AsyncSessionLocal() as db:
             task_obj = await db.get(Task, task_id)
@@ -119,6 +172,64 @@ async def run_pipeline(task_id_str: str):
             task_obj.error = str(exc)
             await db.commit()
         raise
+
+
+async def _notify_integrations(
+    task_id: uuid.UUID,
+    description: str,
+    jira_ticket_id: str | None,
+    context: dict,
+) -> None:
+    """
+    Fire-and-forget notifications to Slack and Jira after a successful pipeline run.
+    Errors are logged but never raise — they must not fail the pipeline.
+    """
+    coder_result = context.get("coder_agent", {})
+    pr_url = coder_result.get("pr_url")
+    branch = coder_result.get("branch_name", "N/A")
+    agent_name = context.get("agent_name", "Agent")
+
+    # ── Slack ──────────────────────────────────────────────────────────────────
+    slack_token = context.get("slack_bot_token")
+    slack_channel = context.get("slack_channel_id")
+    if slack_token and slack_channel:
+        try:
+            from app.services.slack_service import post_notification
+            pr_line = f" — <{pr_url}|View PR>" if pr_url else ""
+            message = f"✅ *{agent_name}* finished: _{description[:120]}_{pr_line}"
+            blocks = [
+                {
+                    "type": "section",
+                    "text": {"type": "mrkdwn", "text": message},
+                },
+                {
+                    "type": "context",
+                    "elements": [{"type": "mrkdwn", "text": f"Branch: `{branch}`  •  Task: `{task_id}`"}],
+                },
+            ]
+            await post_notification(channel_id=slack_channel, message=message, bot_token=slack_token, blocks=blocks)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning(f"Slack notification failed: {exc}")
+
+    # ── Jira ───────────────────────────────────────────────────────────────────
+    jira_workspace = context.get("jira_workspace_url")
+    jira_email = context.get("jira_email")
+    jira_token = context.get("jira_api_token")
+    if jira_workspace and jira_email and jira_token and jira_ticket_id:
+        try:
+            from app.services.jira_service import update_ticket_status
+            await update_ticket_status(
+                workspace_url=jira_workspace,
+                email=jira_email,
+                api_token=jira_token,
+                ticket_id=jira_ticket_id,
+                status="In Review",
+                pr_url=pr_url,
+            )
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning(f"Jira update failed: {exc}")
 
 
 def _build_agent_map() -> dict:

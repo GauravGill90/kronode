@@ -1,53 +1,92 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/Button";
 import { useCreateTask } from "@/lib/hooks/useTasks";
 
-export default function TaskInput() {
+interface Props {
+  prefill?: { description: string; jiraId: string } | null;
+  onPrefillConsumed?: () => void;
+}
+
+export default function TaskInput({ prefill, onPrefillConsumed }: Props) {
   const router = useRouter();
   const [description, setDescription] = useState("");
   const [jiraId, setJiraId] = useState("");
-  const [showJira, setShowJira] = useState(false);
   const { mutateAsync, isPending } = useCreateTask();
 
-  const valid = description.trim().length >= 5;
+  useEffect(() => {
+    if (prefill) {
+      setDescription(prefill.description);
+      setJiraId(prefill.jiraId);
+      onPrefillConsumed?.();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill]);
+
+  function handleClear() {
+    setJiraId("");
+    setDescription("");
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!valid) return;
+    if (!jiraId) return;
     const result = await mutateAsync({
       description: description.trim(),
-      jira_ticket_id: jiraId.trim() || undefined,
+      jira_ticket_id: jiraId.trim(),
     });
     router.push(`/task/${result.task_id}`);
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-200 p-5 space-y-3">
-      <label className="block text-sm font-medium text-gray-700">What should your agent build?</label>
-      <textarea
-        className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder-gray-400 min-h-[80px] resize-none focus:outline-none focus:ring-2 focus:ring-brand-500"
-        placeholder="Add a forgot password screen that sends a reset email via the existing SendGrid integration."
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-      />
-      {showJira ? (
-        <input
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
-          placeholder="Jira ticket ID e.g. KR-42 (optional)"
-          value={jiraId}
-          onChange={(e) => setJiraId(e.target.value)}
-        />
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-2xl p-5 space-y-3"
+      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(99,102,241,0.15)" }}
+    >
+      {jiraId ? (
+        /* Ticket selected */
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium" style={{ color: "#94a3b8" }}>Assigned ticket</span>
+            <button
+              type="button"
+              onClick={handleClear}
+              className="text-xs transition-colors"
+              style={{ color: "#475569" }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#94a3b8"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "#475569"; }}
+            >
+              ✕ Clear
+            </button>
+          </div>
+          <div
+            className="rounded-xl px-4 py-3 space-y-1"
+            style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.2)" }}
+          >
+            <span className="text-xs font-mono font-semibold" style={{ color: "#6366f1" }}>{jiraId}</span>
+            <p className="text-sm" style={{ color: "#e2e8f0" }}>{description}</p>
+          </div>
+          <button
+            type="submit"
+            disabled={isPending}
+            className="w-full py-3 rounded-xl font-semibold text-white text-sm transition-all"
+            style={{
+              background: isPending ? "rgba(99,102,241,0.2)" : "linear-gradient(135deg, #6366f1, #a78bfa)",
+              cursor: isPending ? "not-allowed" : "pointer",
+              opacity: isPending ? 0.7 : 1,
+            }}
+          >
+            {isPending ? "Sending…" : "Send to agent →"}
+          </button>
+        </div>
       ) : (
-        <button type="button" className="text-xs text-gray-400 hover:text-gray-600" onClick={() => setShowJira(true)}>
-          + Link a Jira ticket
-        </button>
+        /* No ticket selected */
+        <p className="text-sm text-center py-2" style={{ color: "#475569" }}>
+          Select a ticket from the backlog below to assign it to your agent.
+        </p>
       )}
-      <Button type="submit" size="lg" className="w-full" loading={isPending} disabled={!valid}>
-        Send to agent
-      </Button>
     </form>
   );
 }

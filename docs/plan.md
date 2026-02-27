@@ -1,234 +1,180 @@
-# Kronode — Full-Stack Scaffold Plan
+# Kronode — Implementation Plan
 
-## Context
-Building from a blank slate (only agents.md + README exist). The goal is a full scaffold with a working end-to-end core pipeline (Task Router → Planner → Coder) and stubs for all other agents, plus a complete frontend and backend structure.
-
-**Decisions:** Flat layout (`frontend/` + `backend/` at root), pnpm, uv, Next.js 14 App Router, FastAPI, Clerk auth, Supabase/PostgreSQL, Celery + Redis.
-
----
-
-## Directory Structure
-
-### Root
-```
-kronode/
-├── frontend/
-├── backend/
-├── docker-compose.yml
-├── .env.example
-├── .gitignore
-├── README.md
-└── agents.md
-```
-
-### frontend/
-```
-frontend/
-├── package.json                  (pnpm, Next.js 14, Tailwind, Clerk, Zustand, Axios, TanStack Query)
-├── next.config.js
-├── tailwind.config.ts
-├── tsconfig.json
-├── postcss.config.js
-├── .env.local.example
-├── app/
-│   ├── layout.tsx                (ClerkProvider wrapping)
-│   ├── globals.css
-│   ├── page.tsx                  (Step 0: welcome + Clerk sign-in)
-│   ├── onboarding/
-│   │   ├── layout.tsx            (shared shell: progress bar + nav)
-│   │   └── [step]/
-│   │       └── page.tsx          (dynamic step router, steps 1–11)
-│   ├── dashboard/
-│   │   └── page.tsx              (server component: agent status + task history)
-│   └── task/
-│       └── [id]/
-│           └── page.tsx          (task detail + SSE stream)
-├── components/
-│   ├── ui/                       (Button, Input, Card, Badge, ProgressBar, Spinner)
-│   ├── onboarding/               (Step1Account … Step11ReadingSetup)
-│   ├── dashboard/                (AgentHeader, TaskInput, TaskCard, IntegrationRow)
-│   └── task/                     (ProgressStream, EventLine)
-└── lib/
-    ├── api.ts                    (axios instance with Clerk token injection)
-    ├── store.ts                  (Zustand: onboarding state, agent config)
-    ├── hooks/
-    │   ├── useSSE.ts             (EventSource hook with cleanup)
-    │   └── useTasks.ts           (TanStack Query wrappers)
-    └── types.ts                  (shared TS interfaces matching API schemas)
-```
-
-### backend/
-```
-backend/
-├── pyproject.toml                (uv: fastapi, uvicorn, sqlalchemy, alembic, celery, redis, httpx, anthropic, clerk-backend-api, pydantic-settings)
-├── .env.example
-├── alembic.ini
-├── alembic/
-│   └── versions/
-│       └── 001_initial.py        (users, orgs, onboarding_config, tasks, task_events, memory_records)
-└── app/
-    ├── main.py                   (FastAPI app, CORS, routers mounted, lifespan)
-    ├── celery_app.py             (Celery instance + Redis broker)
-    ├── core/
-    │   ├── config.py             (pydantic-settings: DATABASE_URL, REDIS_URL, CLERK_SECRET_KEY, ANTHROPIC_API_KEY, etc.)
-    │   ├── auth.py               (Clerk JWT validation dependency)
-    │   └── database.py           (async SQLAlchemy engine + session)
-    ├── models/
-    │   ├── user.py
-    │   ├── org.py
-    │   ├── task.py               (Task + TaskEvent)
-    │   └── memory.py
-    ├── schemas/
-    │   ├── onboarding.py         (Pydantic request/response models)
-    │   ├── task.py
-    │   └── dashboard.py
-    ├── api/
-    │   └── v1/
-    │       ├── router.py         (include_router for all sub-routers)
-    │       ├── onboarding.py     (POST /onboarding/* — store config, stubs)
-    │       ├── dashboard.py      (GET /dashboard)
-    │       └── tasks.py          (POST /task, GET /task/{id}, SSE /task/{id}/stream)
-    ├── pipeline/
-    │   ├── pipeline.py           (orchestrator: runs agent chain, emits SSE events)
-    │   └── task_queue.py         (Celery task: run_pipeline.delay(task_id))
-    ├── agents/
-    │   ├── base.py               (AgentBase: abstract run(context) → AgentResult)
-    │   ├── router_agent.py       ✅ WORKING — classifies task, returns ordered agent list
-    │   ├── planner_agent.py      ✅ WORKING — calls Claude API, returns plan + DoD checklist
-    │   ├── coder_agent.py        ✅ WORKING — calls Claude API, returns files + PR metadata
-    │   ├── context_builder.py    🔲 STUB
-    │   ├── guardrails_agent.py   🔲 STUB (always passes)
-    │   ├── clarification_agent.py 🔲 STUB (always says no clarification needed)
-    │   ├── tester_agent.py       🔲 STUB
-    │   ├── execution_verifier.py 🔲 STUB (always passes)
-    │   ├── reviewer_agent.py     🔲 STUB (always approves)
-    │   ├── doc_agent.py          🔲 STUB
-    │   └── memory_agent.py       🔲 STUB
-    └── services/
-        ├── github_service.py     (create branch, commit files, open PR via GitHub API)
-        ├── jira_service.py       (update ticket status — stub for now)
-        └── slack_service.py      (post notification — stub for now)
-```
+## Goal
+An autonomous AI developer — hired as an organisational actor, not a tool.
+The agent picks up Jira tickets, writes code, opens PRs, updates tickets, and notifies Slack.
+Memory is the moat: the agent gets smarter about your team with every ticket.
 
 ---
 
-## Working Agent Logic
+## Current Status
 
-### Task Router (`router_agent.py`)
-- Input: task description string
-- Calls Claude (claude-haiku-4-5) with few-shot prompt
-- Returns: `{ agents: [...], complexity: "simple|medium|complex", steps: int }`
-- Routing rules mirror the table in agents.md
+### ✅ Milestone 1: E2E Jira → PR (complete)
 
-### Planner Agent (`planner_agent.py`)
-- Input: task + context bundle
-- Calls Claude (claude-opus-4-6) with structured system prompt
-- Returns: `{ subtasks: [...], definition_of_done: [...], risk_flags: [...] }`
-- DoD checklist must be a list of strings the Reviewer can check against
+The core loop works end-to-end:
 
-### Coder Agent (`coder_agent.py`)
-- Input: task + plan + DoD + context
-- Calls Claude (claude-sonnet-4-6) with full context
-- Returns: `{ branch_name, files: [{path, content}], commit_message, pr_title, pr_description, slack_summary }`
-- Invokes `github_service.py` to create branch + commit + PR
+```
+User selects Jira ticket
+  → Backend fetches full ticket body (summary + description/ADF)
+  → Router Agent classifies task + selects agents
+  → Context Builder fetches relevant repo files (GitHub API)
+  → Planner Agent creates subtasks + Definition of Done
+  → Coder Agent writes files + opens GitHub PR
+  → Jira ticket transitions to "In Review" + PR linked as remote link
+  → Slack notification posted to configured channel
+```
 
----
+### Agent Status
 
-## API Endpoints (functional on day 1)
+| Agent | File | Status |
+|-------|------|--------|
+| Task Router | `router_agent.py` | ✅ Working — Haiku, classifies + routes |
+| Context Builder | `context_builder.py` | ✅ Working — fetches tree, selects files, extracts conventions |
+| Guardrails | `guardrails_agent.py` | 🔲 Stub — always passes |
+| Clarification | `clarification_agent.py` | 🔲 Stub — always skips |
+| Planner | `planner_agent.py` | ✅ Working — Opus, subtasks + DoD checklist |
+| Coder | `coder_agent.py` | ✅ Working — Sonnet, writes files + opens PR |
+| Tester | `tester_agent.py` | 🔲 Stub — skips test generation |
+| Execution Verifier | `execution_verifier.py` | 🔲 Stub — always passes |
+| Reviewer | `reviewer_agent.py` | 🔲 Stub — always approves |
+| Memory | `memory_agent.py` | 🔲 Stub — no write-back |
+
+### Service Status
+
+| Service | File | Status |
+|---------|------|--------|
+| GitHub | `github_service.py` | ✅ Working — tree, file fetch, branch, commit, PR |
+| Jira | `jira_service.py` | ✅ Working — fetch tickets, fetch ticket detail (ADF→text), update status, attach PR link |
+| Slack | `slack_service.py` | ✅ Working — post notification with PR link |
+
+### Frontend Status
+
+| Page / Component | Status |
+|-----------------|--------|
+| Auth (Clerk) | ✅ Working |
+| Onboarding — card dashboard | ✅ Working — 8 cards, modals, connection tests |
+| Dashboard — Jira backlog | ✅ Working — collapsible ticket list, click to assign |
+| Dashboard — Task input | ✅ Working — ticket-only, prefill from Jira |
+| Task detail — SSE stream | ✅ Working — real-time agent events |
+| Task detail — Cancel | ✅ Working — Celery revoke + DB status |
+
+### API Endpoints
 
 | Method | Path | Status |
 |--------|------|--------|
-| POST | /v1/task | Working — queues pipeline via Celery |
-| GET | /v1/task/{id} | Working — returns status + events |
-| SSE | /v1/task/{id}/stream | Working — streams TaskEvent rows |
-| GET | /v1/dashboard | Working — returns agent config + last 10 tasks |
-| POST | /v1/onboarding/* | Stub — accepts + stores, returns 200 |
+| POST | /v1/task | ✅ Working |
+| GET | /v1/task/{id} | ✅ Working |
+| SSE | /v1/task/{id}/stream | ✅ Working |
+| POST | /v1/task/{id}/cancel | ✅ Working |
+| GET | /v1/dashboard | ✅ Working |
+| POST | /v1/onboarding/* | ✅ Working |
+| GET | /v1/jira/tickets | ✅ Working |
+| POST | /v1/onboarding/test-github-token | ✅ Working |
+| POST | /v1/onboarding/test-jira | ✅ Working |
+| POST | /v1/onboarding/test-slack | ✅ Working |
 
 ---
 
-## Database Schema (Alembic migration 001)
+## Milestone 2: Smarter Agent (next)
 
-- **users** — id, clerk_id, email, name, role, created_at
-- **organizations** — id, name, clerk_org_id, created_at
-- **onboarding_config** — org_id (FK), repo_url, jira_project, slack_channel, capabilities (JSONB), guardrails (JSONB), agent_name, agent_avatar, project_context, completed_at
-- **tasks** — id (UUID), org_id (FK), description, status (queued/running/done/failed/paused), result (JSONB), created_at, completed_at
-- **task_events** — id, task_id (FK), agent_name, event_type, message, payload (JSONB), created_at
-- **memory_records** — id, org_id (FK), task_id (FK), record_type, content (JSONB), source, created_at
+Fill in the stub agents to improve PR quality and reduce hallucination.
 
----
+### 2a — Guardrails Agent (enforce config)
+- Read `restricted_paths` from context — block if coder targets them
+- Read `max_files_per_task` — warn if plan exceeds it
+- Check `risk_level` — escalate to clarification if "conservative" + large scope
 
-## Key Dependencies
+### 2b — Tester Agent (write tests)
+- Receive coder output (files list)
+- Write unit tests for new/changed functions
+- Add test files to the same PR (append to coder's file list)
+- Goal: every PR includes tests
 
-### Frontend (package.json)
-```
-next@14, react@18, typescript, tailwindcss, @clerk/nextjs,
-zustand, axios, @tanstack/react-query, clsx, lucide-react
-```
+### 2c — Memory Agent (write-back)
+- After successful PR: record patterns used, files changed, conventions observed
+- Store in `memory_records` table (already exists in schema)
+- Feed memory into Context Builder on next run (compounding value)
 
-### Backend (pyproject.toml)
-```
-fastapi, uvicorn[standard], sqlalchemy[asyncio], asyncpg,
-alembic, celery[redis], redis, httpx, anthropic,
-clerk-backend-api, pydantic-settings, python-jose, python-multipart
-```
+### 2d — Reviewer Agent (enforce DoD)
+- Real critic pass against Planner's Definition of Done checklist
+- Flag incomplete items to Slack/Jira comment (not block the PR)
 
 ---
 
-## docker-compose.yml Services
-- `postgres` — postgres:16, port 5432
-- `redis` — redis:7-alpine, port 6379
-- `backend` — uvicorn app.main:app --reload, port 8000
-- `worker` — celery -A app.celery_app worker
-- `frontend` — next dev, port 3000
+## Milestone 3: Better Context
+
+### 3a — Smarter file selection in Context Builder
+- Weight files by how often they've been touched in previous tasks (from memory_records)
+- Prefer files in the same module/directory as the ticket's component
+
+### 3b — Jira ticket enrichment
+- Already fetching: summary, description (ADF→text), type, priority, assignee
+- Add: linked issues, comments, acceptance criteria (if in Confluence)
+- Pass `jira_ticket.issue_type` to Router to affect routing ("Bug" vs "Story" vs "Epic")
+
+### 3c — Branch hygiene
+- Slugify branch name from ticket ID: `feature/KR-42-add-payment-screen`
+- Check for existing branches with same ticket ID — avoid duplicates
 
 ---
 
-## Implementation Order
+## Milestone 4: OAuth + Secrets
 
-**Phase 1 — Root + Infrastructure**
-1. Root `.gitignore`, `.env.example`, `docker-compose.yml`, updated `README.md`, `docs/plan.md`
+### Current state
+- GitHub: manual PAT (stored in `onboarding_config.github_access_token`)
+- Jira: manual email + API token
+- Slack: manual bot token
 
-**Phase 2 — Backend Foundation**
-2. `pyproject.toml`, `alembic.ini`
-3. `app/core/` — config, database, auth
-4. `app/models/` — all SQLAlchemy models
-5. `app/schemas/` — all Pydantic schemas
-6. Alembic migration 001
-
-**Phase 3 — Backend API**
-7. `app/main.py` + `app/celery_app.py`
-8. `app/api/v1/` — all route files
-9. `app/pipeline/` — orchestrator + Celery task
-
-**Phase 4 — Agents**
-10. `app/agents/base.py`
-11. Stub all 8 passive agents
-12. Implement Task Router (claude-haiku-4-5)
-13. Implement Planner Agent (claude-opus-4-6)
-14. Implement Coder Agent (claude-sonnet-4-6)
-15. `app/services/github_service.py`
-
-**Phase 5 — Frontend Foundation**
-16. `package.json`, `next.config.js`, `tailwind.config.ts`, `tsconfig.json`
-17. `app/layout.tsx` (ClerkProvider), `globals.css`
-18. `lib/api.ts`, `lib/store.ts`, `lib/types.ts`
-19. `lib/hooks/useSSE.ts`, `lib/hooks/useTasks.ts`
-20. `components/ui/` — 6 base components
-
-**Phase 6 — Frontend Pages**
-21. `app/page.tsx` — Step 0 welcome + Clerk sign-in
-22. `app/onboarding/layout.tsx` + `[step]/page.tsx`
-23. All 11 onboarding step components
-24. `app/dashboard/page.tsx` + dashboard components
-25. `app/task/[id]/page.tsx` + SSE stream component
+### Target
+- GitHub App (OAuth) — scoped to repo, no PAT lifetime issues
+- Jira OAuth 2.0 (3LO)
+- Slack OAuth App install flow
+- Move all secrets to AWS Secrets Manager / HashiCorp Vault
 
 ---
 
-## Verification
-- `docker-compose up` starts all services cleanly
-- POST /v1/task with a plain English task description
-- GET /v1/task/{id}/stream shows SSE events: router → planner → coder
-- GitHub PR is opened in the connected repo
-- Frontend loads at localhost:3000, Clerk sign-in works
-- Onboarding steps 1–11 navigate correctly
-- Dashboard shows submitted task with status
+## Milestone 5: Execution Verifier (E2B sandbox)
+- Spin up E2B sandbox with repo contents
+- Run `npm test` / `pytest` / `go test`
+- Parse output: fail → send back to Coder for retry (up to 2 attempts)
+- Pass → PR gets "tests pass" label
+
+---
+
+## Architecture
+
+### Stack
+- **Frontend**: Next.js 14 App Router, Tailwind, Clerk, Zustand, Axios, TanStack Query — **pnpm**
+- **Backend**: FastAPI, PostgreSQL/Supabase, Celery + Redis, Alembic — **uv**
+- **Agents**: Anthropic SDK — Haiku (routing), Opus (planning), Sonnet (coding)
+- **Layout**: flat (`frontend/` + `backend/` at root, no monorepo tooling)
+
+### Key Files
+| Purpose | Path |
+|---------|------|
+| Pipeline orchestrator | `backend/app/pipeline/pipeline.py` |
+| Celery task | `backend/app/pipeline/task_queue.py` |
+| Agent base | `backend/app/agents/base.py` |
+| GitHub service | `backend/app/services/github_service.py` |
+| Jira service | `backend/app/services/jira_service.py` |
+| Slack service | `backend/app/services/slack_service.py` |
+| Frontend API client | `frontend/lib/api.ts` |
+| Zustand store | `frontend/lib/store.ts` |
+| SSE hook | `frontend/lib/hooks/useSSE.ts` |
+
+### Database Schema
+- **users** — id, clerk_id, email, name, role
+- **organizations** — id, name, clerk_org_id
+- **onboarding_config** — org_id (FK), repo_url, github_access_token, jira_*, slack_*, capabilities (JSONB), guardrails (JSONB), agent_name, agent_avatar, project_context
+- **tasks** — id (UUID), org_id, description, jira_ticket_id, status, result (JSONB), celery_task_id, created_at, completed_at
+- **task_events** — id, task_id, agent_name, event_type, message, payload (JSONB)
+- **memory_records** — id, org_id, task_id, record_type, content (JSONB), source
+
+---
+
+## Product Vision
+- Kronode is an **organisational actor**, not a tool — hired from headcount budget
+- **Memory is the moat** — compounding value vs stateless competitors (Devin, Factory, Sweep)
+- Core promise: second ticket better than first, tenth better than fifth
+- Every feature decision: "does this make the agent smarter about this team over time?"
+- North star metrics: time to first merged PR + PR acceptance rate improvement over time

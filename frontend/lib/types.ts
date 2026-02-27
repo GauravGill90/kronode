@@ -1,6 +1,6 @@
 // ── Task types ─────────────────────────────────────────────────────────────────
 
-export type TaskStatus = "queued" | "running" | "done" | "failed" | "paused";
+export type TaskStatus = "queued" | "running" | "done" | "failed" | "paused" | "cancelled";
 
 export interface TaskEvent {
   id: number;
@@ -8,13 +8,15 @@ export interface TaskEvent {
   event_type: "started" | "progress" | "completed" | "failed" | "terminal";
   message: string;
   payload: Record<string, unknown> | null;
-  ts: string;
+  ts?: string;
+  created_at?: string;
 }
 
 export interface Task {
   id: string;
   description: string;
   status: TaskStatus;
+  jira_ticket_id: string | null;
   result: Record<string, unknown> | null;
   error: string | null;
   created_at: string;
@@ -74,8 +76,8 @@ export interface OnboardingState {
   currentStep: number;
   account: { name: string; company_name: string; role: string } | null;
   repo: { provider: string; repo_url: string; repo_name: string } | null;
-  jira: { workspace_url: string; project_key: string } | null;
-  slack: { channel_id: string; channel_name: string } | null;
+  jira: { workspace_url: string; project_key: string; email: string; api_token: string } | null;
+  slack: { channel_id: string; channel_name: string; bot_token: string } | null;
   docs: { provider: string; scope: string } | null;
   capabilities: Record<string, Record<string, boolean>> | null;
   guardrails: { restricted_paths: string[]; max_files_per_task: number; risk_level: string } | null;

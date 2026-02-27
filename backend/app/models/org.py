@@ -25,15 +25,19 @@ class OnboardingConfig(Base):
     # Step 2 — repo
     repo_url: Mapped[str | None] = mapped_column(String(500))
     repo_provider: Mapped[str | None] = mapped_column(String(50))  # github / gitlab
+    repo_name: Mapped[str | None] = mapped_column(String(255))
 
     # Step 3 — jira
     jira_project_key: Mapped[str | None] = mapped_column(String(100))
     jira_workspace_url: Mapped[str | None] = mapped_column(String(500))
     jira_status_mappings: Mapped[dict | None] = mapped_column(JSONB)
+    jira_email: Mapped[str | None] = mapped_column(String(255))
+    jira_api_token: Mapped[str | None] = mapped_column(Text)
 
     # Step 4 — slack
     slack_channel_id: Mapped[str | None] = mapped_column(String(255))
     slack_channel_name: Mapped[str | None] = mapped_column(String(255))
+    slack_bot_token: Mapped[str | None] = mapped_column(Text)
 
     # Step 5 — docs
     docs_provider: Mapped[str | None] = mapped_column(String(50))  # confluence / gdrive
@@ -51,6 +55,9 @@ class OnboardingConfig(Base):
 
     # Step 9 — project context
     project_context: Mapped[str | None] = mapped_column(Text)
+
+    # GitHub PAT (plain-text for now; will be encrypted in Phase 3 OAuth)
+    github_access_token: Mapped[str | None] = mapped_column(Text)
 
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(

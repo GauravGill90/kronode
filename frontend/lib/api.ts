@@ -26,11 +26,20 @@ export const saveAccount = (data: { name: string; company_name: string; role: st
 export const saveRepo = (data: { provider: string; repo_url: string; repo_name: string }) =>
   api.post("/onboarding/repo", data);
 
-export const saveJira = (data: { workspace_url: string; project_key: string; status_mappings?: Record<string, string> }) =>
+export const saveJira = (data: { workspace_url: string; project_key: string; email: string; api_token: string; status_mappings?: Record<string, string> }) =>
   api.post("/onboarding/jira", data);
 
-export const saveSlack = (data: { channel_id: string; channel_name: string }) =>
+export const testJira = (data: { workspace_url: string; project_key: string; email: string; api_token: string }) =>
+  api.post<{ ok: boolean; error?: string; user?: string; project?: string }>("/onboarding/test-jira", data);
+
+export const saveSlack = (data: { channel_id: string; channel_name: string; bot_token: string }) =>
   api.post("/onboarding/slack", data);
+
+export const testSlack = (data: { bot_token: string; channel_name: string }) =>
+  api.post<{ ok: boolean; error?: string; workspace?: string; bot?: string }>("/onboarding/test-slack", data);
+
+export const testGithubToken = (data: { token: string; repo_url: string }) =>
+  api.post<{ ok: boolean; error?: string; repo?: string; login?: string }>("/onboarding/test-github-token", data);
 
 export const saveDocs = (data: { provider: string; scope: string }) =>
   api.post("/onboarding/docs", data);
@@ -47,11 +56,17 @@ export const saveAgent = (data: { agent_name: string; agent_avatar: string }) =>
 export const saveContext = (data: { project_context: string }) =>
   api.post("/onboarding/context", data);
 
+export const saveGithubToken = (data: { token: string }) =>
+  api.post("/onboarding/github-token", data);
+
 export const completeOnboarding = () =>
   api.post("/onboarding/complete");
 
 export const getOnboardingStatus = () =>
   api.get("/onboarding/status");
+
+export const getOnboardingConfig = () =>
+  api.get("/onboarding/config");
 
 // ── Dashboard ──────────────────────────────────────────────────────────────────
 
@@ -65,3 +80,21 @@ export const createTask = (data: { description: string; jira_ticket_id?: string 
 
 export const getTask = (taskId: string) =>
   api.get(`/task/${taskId}`);
+
+export const cancelTask = (taskId: string) =>
+  api.post(`/task/${taskId}/cancel`);
+
+// ── Jira ───────────────────────────────────────────────────────────────────────
+
+export interface JiraTicket {
+  id: string;
+  summary: string;
+  status: string;
+  status_category: string;
+  assignee: string | null;
+  priority: string | null;
+  url: string;
+}
+
+export const getJiraTickets = () =>
+  api.get<{ tickets: JiraTicket[]; configured: boolean }>("/jira/tickets");

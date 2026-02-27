@@ -1,21 +1,25 @@
 import asyncio
 import json
 import uuid
-from datetime import datetime, timezone
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select
 
 from app.core.auth import get_current_user
 from app.core.database import get_db, AsyncSessionLocal
-from app.models.org import OnboardingConfig
+from app.core.config import settings
 from app.models.task import Task, TaskEvent
 from app.models.user import User
 from app.schemas.task import TaskCreate, TaskCreated, TaskOut, TaskEventOut
 
 router = APIRouter()
+
+# Bearer scheme that returns None instead of raising when header is absent
+_optional_bearer = HTTPBearer(auto_error=False)
 
 
 async def _get_user_org(user_data: dict, db: AsyncSession) -> tuple[User, int]:
@@ -24,6 +28,30 @@ async def _get_user_org(user_data: dict, db: AsyncSession) -> tuple[User, int]:
     if not user or not user.org_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Onboarding not complete")
     return user, user.org_id
+
+
+async def _verify_token_raw(token: str) -> dict:
+    """Verify a raw JWT and return user dict."""
+    from clerk_backend_api.security import verify_token_async, VerifyTokenOptions
+    try:
+        payload = await verify_token_async(
+            token,
+            VerifyTokenOptions(secret_key=settings.clerk_secret_key),
+        )
+        return {"user_id": payload["sub"], "session_id": payload.get("sid", "")}
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+
+
+async def _get_sse_user(
+    token_query: Optional[str] = Query(None, alias="token"),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(_optional_bearer),
+) -> dict:
+    """Auth for SSE — accepts Bearer header OR ?token= query param (EventSource limitation)."""
+    raw = credentials.credentials if credentials else token_query
+    if not raw:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing token")
+    return await _verify_token_raw(raw)
 
 
 @router.post("/task", response_model=TaskCreated, status_code=status.HTTP_202_ACCEPTED)
@@ -46,9 +74,11 @@ async def create_task(
     await db.commit()
     await db.refresh(task)
 
-    # Queue via Celery
+    # Queue via Celery — store the celery task ID for later cancellation
     from app.pipeline.task_queue import run_pipeline
-    run_pipeline.delay(str(task.id))
+    celery_result = run_pipeline.delay(str(task.id))
+    task.celery_task_id = celery_result.id
+    await db.commit()
 
     return TaskCreated(task_id=task.id, status="queued")
 
@@ -78,8 +108,8 @@ async def get_task(
     return task_out
 
 
-@router.get("/task/{task_id}/stream")
-async def stream_task(
+@router.post("/task/{task_id}/cancel")
+async def cancel_task(
     task_id: uuid.UUID,
     user_data: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -93,9 +123,39 @@ async def stream_task(
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
+    if task.status not in ("queued", "running"):
+        raise HTTPException(status_code=400, detail=f"Cannot cancel a task with status '{task.status}'")
+
+    # Revoke the Celery task — terminate=True sends SIGTERM to the worker process
+    if task.celery_task_id:
+        from app.celery_app import celery_app
+        celery_app.control.revoke(task.celery_task_id, terminate=True, signal="SIGTERM")
+
+    task.status = "cancelled"
+    from datetime import datetime, timezone
+    task.completed_at = datetime.now(timezone.utc)
+    await db.commit()
+    return {"ok": True}
+
+
+@router.get("/task/{task_id}/stream")
+async def stream_task(
+    task_id: uuid.UUID,
+    user_data: dict = Depends(_get_sse_user),
+    db: AsyncSession = Depends(get_db),
+):
+    _, org_id = await _get_user_org(user_data, db)
+
+    result = await db.execute(
+        select(Task).where(Task.id == task_id, Task.org_id == org_id)
+    )
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
     async def event_generator():
         last_event_id = 0
-        terminal_statuses = {"done", "failed", "paused"}
+        terminal_statuses = {"done", "failed", "paused", "cancelled"}
         max_polls = 300  # 5 minutes at 1s intervals
 
         for _ in range(max_polls):
@@ -110,8 +170,8 @@ async def stream_task(
                 for event in new_events:
                     data = {
                         "id": event.id,
-                        "agent": event.agent_name,
-                        "type": event.event_type,
+                        "agent_name": event.agent_name,
+                        "event_type": event.event_type,
                         "message": event.message,
                         "payload": event.payload,
                         "ts": event.created_at.isoformat(),

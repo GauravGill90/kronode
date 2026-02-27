@@ -19,8 +19,9 @@ class Task(Base):
     description: Mapped[str] = mapped_column(Text)
     jira_ticket_id: Mapped[str | None] = mapped_column(String(100))
 
-    # queued | running | done | failed | paused
+    # queued | running | done | failed | paused | cancelled
     status: Mapped[str] = mapped_column(String(50), default="queued", index=True)
+    celery_task_id: Mapped[str | None] = mapped_column(String(255))
 
     result: Mapped[dict | None] = mapped_column(JSONB)  # final output from Coder Agent
     error: Mapped[str | None] = mapped_column(Text)

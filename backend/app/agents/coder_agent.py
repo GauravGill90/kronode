@@ -9,6 +9,34 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
+
+def _extract_json(text: str) -> dict | None:
+    """Try multiple strategies to extract a JSON object from Claude's response."""
+    # 1. Direct parse
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # 2. Strip a single markdown fence (```json ... ```)
+    stripped = re.sub(r"^```[a-z]*\n?", "", text.strip())
+    stripped = re.sub(r"\n?```$", "", stripped)
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        pass
+
+    # 3. Find the first { ... } block in the text (handles prose before/after JSON)
+    match = re.search(r"\{[\s\S]*\}", text)
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+
+    return None
+
+
 SYSTEM_PROMPT = """You are an expert software engineer. Your job is to implement code for a given task.
 
 You will receive:
@@ -55,11 +83,26 @@ class CoderAgent(AgentBase):
         dod = plan.get("definition_of_done", [])
         context_bundle = context.get("context_builder", {})
         relevant_files = context_bundle.get("relevant_files", [])
+        conventions = context_bundle.get("conventions", [])
+        repo_structure = context_bundle.get("repo_structure", "")
+
+        # Format relevant files for the prompt
+        files_section = "none — implement fresh"
+        if relevant_files:
+            files_section = "\n\n".join(
+                f"### {f['path']}\n```\n{f['content']}\n```"
+                for f in relevant_files
+            )
 
         user_message = f"""Task: {description}
 
 Project context:
 {project_context}
+
+Repository structure: {repo_structure or "unknown"}
+
+Coding conventions to follow:
+{json.dumps(conventions, indent=2) if conventions else "none extracted"}
 
 Implementation plan:
 {json.dumps(subtasks, indent=2)}
@@ -67,27 +110,23 @@ Implementation plan:
 Definition of Done:
 {json.dumps(dod, indent=2)}
 
-Relevant existing files: {relevant_files or "none — implement fresh"}
+Relevant existing files:
+{files_section}
 """
 
         message = await self.client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=8096,
+            max_tokens=16000,
             system=SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_message}],
         )
 
         raw = message.content[0].text.strip()
+        logger.info(f"CoderAgent raw response (first 500 chars): {raw[:500]}")
 
-        # Strip markdown code blocks if Claude wrapped the response
-        if raw.startswith("```"):
-            raw = re.sub(r"^```[a-z]*\n?", "", raw)
-            raw = re.sub(r"\n?```$", "", raw)
-
-        try:
-            result = json.loads(raw)
-        except json.JSONDecodeError:
-            logger.warning("CoderAgent: failed to parse JSON response")
+        result = _extract_json(raw)
+        if result is None:
+            logger.warning(f"CoderAgent: failed to parse JSON. Full response:\n{raw}")
             result = {
                 "branch_name": "feature/task-implementation",
                 "files": [],
@@ -100,7 +139,8 @@ Relevant existing files: {relevant_files or "none — implement fresh"}
 
         # Attempt to create the PR via GitHub service
         repo_url = context.get("repo_url", "")
-        if repo_url and result.get("files"):
+        github_token = context.get("github_access_token")
+        if repo_url and github_token and result.get("files"):
             try:
                 from app.services.github_service import create_pull_request
                 pr_url = await create_pull_request(
@@ -110,12 +150,17 @@ Relevant existing files: {relevant_files or "none — implement fresh"}
                     commit_message=result["commit_message"],
                     pr_title=result["pr_title"],
                     pr_description=result["pr_description"],
+                    token=github_token,
                 )
                 result["pr_url"] = pr_url
             except Exception as exc:
                 logger.warning(f"CoderAgent: GitHub PR creation failed: {exc}")
                 result["pr_url"] = None
                 result["github_error"] = str(exc)
+        elif repo_url and not github_token:
+            logger.warning("CoderAgent: skipping PR — no GitHub token configured")
+            result["pr_url"] = None
+            result["github_error"] = "No GitHub token configured. Add a PAT in onboarding."
 
         result["summary"] = (
             f"Code written: {len(result.get('files', []))} file(s). "
