@@ -34,23 +34,24 @@ Frontend: http://localhost:3000
 Backend API: http://localhost:8000
 API Docs: http://localhost:8000/docs
 
-### 3. Run locally (without Docker)
+### 3. Run locally (with Make)
 
-**Backend**
 ```bash
-cd backend
-uv sync
-uv run alembic upgrade head
-uv run uvicorn app.main:app --reload
-# In a second terminal:
-uv run celery -A app.celery_app worker --loglevel=info
+make install    # install all dependencies (backend + frontend)
+make infra      # start Postgres + Redis via Docker
+make migrate    # run database migrations
+make backend    # start FastAPI on http://localhost:8000
+make worker     # start Celery worker (separate terminal)
+make frontend   # start Next.js on http://localhost:3000
 ```
 
-**Frontend**
+Each service runs in its own terminal. Typical dev session:
+
 ```bash
-cd frontend
-pnpm install
-pnpm dev
+make infra      # once
+make backend    # terminal 1
+make worker     # terminal 2
+make frontend   # terminal 3
 ```
 
 ## Project Structure
