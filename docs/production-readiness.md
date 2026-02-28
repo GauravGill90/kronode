@@ -996,3 +996,276 @@ confluence_include_labels: Mapped[list[str]] = mapped_column(ARRAY(Text), defaul
 13. PR author is `kronode[bot]`, not a human user
 14. Jira ticket transitions appear as the OAuth app, not `alice@company.com`
 15. Removing a human from the org doesn't break any automation
+
+---
+
+## T4 (continued) — Large Codebase Navigation
+
+### 25. Intelligent Context Retrieval for Large Repos
+
+**Problem:** Cloning a real-world repo (50k+ files, millions of tokens) and feeding it to
+the LLM is impossible. Naive approaches (keyword grep, reading random files) miss critical
+context. The `context_builder` must find the 10–15 most relevant files out of thousands
+in under 2 seconds without reading every file.
+
+**Three-stage retrieval pipeline (recommended for Kronode):**
+
+```
+Stage 1 — Import graph (free, <100ms)
+   task description → extract mentioned identifiers/modules
+   → BFS through import graph from likely entry points
+   → 30–50 candidate files
+
+Stage 2 — Repo map + Haiku (~$0.001, ~500ms)
+   candidate files → extract function/class signatures (no full content)
+   → Haiku: "Given this task, which of these files are most relevant?"
+   → 10–15 shortlisted files
+
+Stage 3 — Full content (cheap, fast)
+   fetch only shortlisted files from GitHub API
+   → inject into coder/planner context
+```
+
+This avoids reading everything while ensuring no relevant file is missed.
+
+---
+
+### 26. Repo Map (Tree-sitter)
+
+**What it is:** Extract only function/class/method signatures from every file — not full
+content. A 10k-line file becomes a 200-line map. Aider pioneered this approach.
+
+**Tool:** [`tree-sitter`](https://github.com/tree-sitter/tree-sitter) — fast, accurate
+parser for 40+ languages. Python binding: `pip install tree-sitter`.
+
+**Implementation — `backend/app/services/repo_map.py` (new file):**
+```python
+from tree_sitter import Language, Parser
+import tree_sitter_python as tspython
+
+PY_LANGUAGE = Language(tspython.language())
+
+SIGNATURE_QUERY = PY_LANGUAGE.query("""
+  (function_definition name: (identifier) @fn)
+  (class_definition name: (identifier) @cls)
+""")
+
+def extract_signatures(source: bytes) -> list[str]:
+    parser = Parser(PY_LANGUAGE)
+    tree = parser.parse(source)
+    captures = SIGNATURE_QUERY.captures(tree.root_node)
+    return [node.text.decode() for node, _ in captures]
+```
+
+**Usage in `context_builder`:**
+1. Fetch full file tree from GitHub API (one API call returns all paths)
+2. For candidate files (Stage 1 output), fetch raw content
+3. Run `extract_signatures` — produce a compact map of each file
+4. Pass map to Haiku for Stage 2 ranking (not full content → 10× cheaper)
+
+**Language support:** Tree-sitter has grammars for Python, TypeScript, JavaScript, Go,
+Rust, Java, C/C++, Ruby, PHP — covers ~99% of real repos.
+
+---
+
+### 27. Semantic Search (pgvector + voyage-code-3)
+
+**When to use:** Import graph misses files that are *semantically* related but not directly
+imported (e.g., similar patterns, shared conventions, documentation files).
+
+**Tool:** `voyage-code-3` embeddings (Voyage AI) — purpose-built for code, 1024-dim,
+outperforms OpenAI text-embedding-3 on code retrieval benchmarks.
+pgvector extension on PostgreSQL — cosine similarity search in <50ms at 100k chunks.
+
+**New table — `code_chunks`:**
+```python
+class CodeChunk(Base):
+    __tablename__ = "code_chunks"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    org_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("orgs.id"))
+    repo_name: Mapped[str] = mapped_column(Text)
+    file_path: Mapped[str] = mapped_column(Text)
+    chunk_index: Mapped[int] = mapped_column(Integer)
+    content: Mapped[str] = mapped_column(Text)           # raw chunk text
+    summary: Mapped[str] = mapped_column(Text, default="") # Haiku summary
+    embedding: Mapped[list] = mapped_column(Vector(1024)) # pgvector
+    sha: Mapped[str] = mapped_column(Text)               # git blob SHA — skip re-embed if unchanged
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+```
+
+**Index:**
+```sql
+CREATE INDEX ix_code_chunks_embedding ON code_chunks
+USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+```
+
+**Embedding pipeline (background task, runs after onboarding):**
+1. Fetch all files from GitHub API
+2. Chunk each file at function boundaries (tree-sitter) or every 400 tokens for prose
+3. Skip chunks whose git blob SHA hasn't changed since last sync
+4. Call Voyage API: `voyageai.Client().embed(chunks, model="voyage-code-3")`
+5. Upsert into `code_chunks` with embedding
+
+**Retrieval:**
+```python
+async def semantic_search(query: str, org_id: uuid.UUID, k: int = 20) -> list[str]:
+    query_embedding = voyageai.Client().embed([query], model="voyage-code-3").embeddings[0]
+    result = await db.execute(
+        select(CodeChunk.file_path, CodeChunk.content)
+        .where(CodeChunk.org_id == org_id)
+        .order_by(CodeChunk.embedding.cosine_distance(query_embedding))
+        .limit(k)
+    )
+    return result.all()
+```
+
+**When to trigger:** Only as fallback if import graph Stage 1 returns <5 candidates (e.g.,
+task is about a completely new feature with no existing entry points).
+
+---
+
+### 28. Import Graph Traversal (ast-grep / Python ast)
+
+**What it is:** Build a directed graph of `file → imports → file` across the whole repo.
+BFS from files likely mentioned in the task description to find what they depend on and
+what depends on them.
+
+**Tool:** Python's built-in `ast` module for Python repos.
+For TypeScript/JS: [`ast-grep`](https://ast-grep.github.io/) (Rust-based, 100× faster than
+ESLint-based alternatives) via CLI: `sg --pattern 'import $_ from "$PATH"' --lang ts`.
+
+**Implementation — Python repos:**
+```python
+import ast, pathlib
+
+def build_import_graph(files: dict[str, str]) -> dict[str, list[str]]:
+    """files: {path: source_code}. Returns {path: [imported_paths]}."""
+    graph = {}
+    for path, src in files.items():
+        try:
+            tree = ast.parse(src)
+        except SyntaxError:
+            continue
+        imports = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module:
+                # resolve relative imports to file paths
+                imports.append(node.module.replace(".", "/") + ".py")
+        graph[path] = imports
+    return graph
+
+def bfs_context(graph: dict, seed_files: list[str], depth: int = 2) -> set[str]:
+    visited, queue = set(seed_files), list(seed_files)
+    for _ in range(depth):
+        next_level = []
+        for f in queue:
+            for dep in graph.get(f, []):
+                if dep not in visited:
+                    visited.add(dep)
+                    next_level.append(dep)
+        queue = next_level
+    return visited
+```
+
+**BFS depth = 2** typically captures the right context without exploding to the whole repo.
+
+---
+
+### 29. Full Pipeline Integration (context_builder update)
+
+**Updated `context_builder.py` flow:**
+
+```python
+async def run(self, task: Task, context: dict) -> dict:
+    description = task.description
+
+    # Stage 1: Import graph BFS (~100ms, free)
+    file_tree = await github.get_file_tree(org.repo_name)
+    seed_files = extract_likely_files(description, file_tree)  # keyword match on paths
+    import_graph = await build_import_graph_from_github(seed_files, github)
+    candidates = bfs_context(import_graph, seed_files, depth=2)
+
+    # Stage 2: Repo map + Haiku ranking (~500ms, ~$0.001)
+    repo_map = {}
+    for path in candidates:
+        src = await github.get_file_content(path)
+        repo_map[path] = extract_signatures(src.encode())
+
+    ranked = await haiku_rank_files(description, repo_map, top_k=15)
+
+    # Stage 3: Full content fetch
+    full_files = {}
+    for path in ranked:
+        full_files[path] = await github.get_file_content(path)
+
+    # Semantic fallback (only if Stage 1 finds < 5 candidates)
+    if len(candidates) < 5:
+        semantic_hits = await semantic_search(description, task.org_id, k=20)
+        # merge + re-rank with Haiku
+
+    context["relevant_files"] = full_files
+    context["repo_map"] = repo_map
+    return context
+```
+
+---
+
+### 30. Tools Summary
+
+| Tool | Purpose | Install |
+|------|---------|---------|
+| `tree-sitter` + language grammars | Repo map: signature extraction for 40+ langs | `pip install tree-sitter tree-sitter-python tree-sitter-javascript` |
+| `ast-grep` | Fast structural search for TS/JS import graphs | `cargo install ast-grep` or pre-built binary |
+| `pgvector` | Cosine similarity search on code embeddings | PostgreSQL extension (`CREATE EXTENSION vector`) |
+| `voyage-code-3` | State-of-art code embeddings (1024-dim) | `pip install voyageai` |
+| `ripgrep` | Fast literal/regex search across repo | Available as `rg`, no install needed (binary) |
+
+**Environment variables to add:**
+```
+VOYAGE_API_KEY=           # for code embeddings (semantic fallback)
+```
+
+**New migration:** `backend/alembic/versions/012_code_chunks.py`
+```python
+# Requires pgvector extension
+op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+op.create_table("code_chunks",
+    sa.Column("id", postgresql.UUID, primary_key=True),
+    sa.Column("org_id", postgresql.UUID, sa.ForeignKey("orgs.id")),
+    sa.Column("repo_name", sa.Text),
+    sa.Column("file_path", sa.Text),
+    sa.Column("chunk_index", sa.Integer),
+    sa.Column("content", sa.Text),
+    sa.Column("summary", sa.Text, default=""),
+    sa.Column("embedding", Vector(1024)),
+    sa.Column("sha", sa.Text),
+    sa.Column("updated_at", sa.DateTime(timezone=True)),
+)
+op.create_index("ix_code_chunks_org_path", "code_chunks", ["org_id", "file_path"])
+```
+
+---
+
+### T4 (codebase navigation) — Files to Create/Modify
+
+| File | Change |
+|------|--------|
+| `backend/app/services/repo_map.py` | New — tree-sitter signature extraction |
+| `backend/app/agents/context_builder.py` | Replace naive file fetch with 3-stage pipeline |
+| `backend/app/models/code_chunk.py` | New — `CodeChunk` ORM model with pgvector column |
+| `backend/app/pipeline/task_queue.py` | Add `embed_repo` beat task (runs on onboarding + nightly) |
+| `backend/app/celery_app.py` | Add nightly re-embed beat entry |
+| `backend/alembic/versions/012_code_chunks.py` | New migration — pgvector extension + table |
+| `backend/app/core/config.py` | Add `voyage_api_key: str = ""` |
+| `.env.example` | Add `VOYAGE_API_KEY=` |
+
+---
+
+### T4 (codebase navigation) — Verification
+
+1. Onboard a repo with 1000+ files → `context_builder` completes in <3s (not reading all files)
+2. Submit "fix the login bug" → Stage 1 finds `auth/` files via import BFS, not by guessing
+3. Submit "add payment support" (new feature, no existing files) → semantic fallback activates, finds `billing/` related files
+4. Check repo map for `services/github_service.py` → returns function signatures only, not 400 lines of code
+5. Verify `code_chunks` has SHA-based dedup: unchanged files skipped on re-embed
