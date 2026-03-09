@@ -1,8 +1,14 @@
-from datetime import datetime
-
-from sqlalchemy import String, DateTime, Integer, ForeignKey, func, Text
-from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    Text,
+    DateTime,
+    ForeignKey,
+    func,
+)
+from sqlalchemy.dialects.postgresql import JSONB, ARRAY
+from sqlalchemy.orm import relationship
 
 from app.core.database import Base
 
@@ -10,58 +16,58 @@ from app.core.database import Base
 class Organization(Base):
     __tablename__ = "organizations"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(255))
-    clerk_org_id: Mapped[str | None] = mapped_column(String(255), unique=True, index=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)
+    clerk_org_id = Column(String(255), unique=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    onboarding_config = relationship(
+        "OnboardingConfig", back_populates="organization", uselist=False
+    )
+    users = relationship("User", back_populates="organization")
 
 
 class OnboardingConfig(Base):
     __tablename__ = "onboarding_config"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    org_id: Mapped[int] = mapped_column(Integer, ForeignKey("organizations.id"), unique=True, index=True)
+    id = Column(Integer, primary_key=True)
+    org_id = Column(
+        Integer, ForeignKey("organizations.id"), unique=True, nullable=False
+    )
 
-    # Step 2 — repo
-    repo_url: Mapped[str | None] = mapped_column(String(500))
-    repo_provider: Mapped[str | None] = mapped_column(String(50))  # github / gitlab
-    repo_name: Mapped[str | None] = mapped_column(String(255))
+    # GitHub
+    repo_url = Column(String(500))
+    repo_provider = Column(String(50))
+    github_access_token = Column(Text, nullable=True)
 
-    # Step 3 — jira
-    jira_project_key: Mapped[str | None] = mapped_column(String(100))
-    jira_workspace_url: Mapped[str | None] = mapped_column(String(500))
-    jira_status_mappings: Mapped[dict | None] = mapped_column(JSONB)
-    jira_email: Mapped[str | None] = mapped_column(String(255))
-    jira_api_token: Mapped[str | None] = mapped_column(Text)
+    # Jira
+    jira_project_key = Column(String(100))
+    jira_workspace_url = Column(String(500))
+    jira_status_mappings = Column(JSONB)
 
-    # Step 4 — slack
-    slack_channel_id: Mapped[str | None] = mapped_column(String(255))
-    slack_channel_name: Mapped[str | None] = mapped_column(String(255))
-    slack_bot_token: Mapped[str | None] = mapped_column(Text)
+    # Slack
+    slack_channel_id = Column(String(255))
+    slack_channel_name = Column(String(255))
 
-    # Step 5 — docs
-    docs_provider: Mapped[str | None] = mapped_column(String(50))  # confluence / gdrive
-    docs_scope: Mapped[str | None] = mapped_column(String(500))
+    # Confluence
+    confluence_base_url = Column(Text, nullable=True)
+    confluence_space_keys = Column(ARRAY(Text), nullable=True, default=list)
+    confluence_include_labels = Column(ARRAY(Text), nullable=True, default=list)
 
-    # Step 6 — capabilities
-    capabilities: Mapped[dict | None] = mapped_column(JSONB)
+    # Docs (generic)
+    docs_provider = Column(String(50))
+    docs_scope = Column(String(500))
 
-    # Step 7 — guardrails
-    guardrails: Mapped[dict | None] = mapped_column(JSONB)  # restricted_paths, max_files, risk_level
+    # Agent config
+    capabilities = Column(JSONB)
+    guardrails = Column(JSONB)
+    agent_name = Column(String(100))
+    agent_avatar = Column(String(100))
+    project_context = Column(Text)
 
-    # Step 8 — agent identity
-    agent_name: Mapped[str | None] = mapped_column(String(100))
-    agent_avatar: Mapped[str | None] = mapped_column(String(100))
-    agent_profile: Mapped[str | None] = mapped_column(String(50))  # web|backend|fullstack|devops|mobile_ios|mobile_android|data
-
-    # Step 9 — project context + org coding standards
-    project_context: Mapped[str | None] = mapped_column(Text)
-    coding_standards: Mapped[str | None] = mapped_column(Text)  # org-defined coding standards injected into every task
-
-    # GitHub PAT (plain-text for now; will be encrypted in Phase 3 OAuth)
-    github_access_token: Mapped[str | None] = mapped_column(Text)
-
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    updated_at: Mapped[datetime] = mapped_column(
+    completed_at = Column(DateTime(timezone=True))
+    updated_at = Column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+    organization = relationship("Organization", back_populates="onboarding_config")

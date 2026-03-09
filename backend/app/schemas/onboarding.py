@@ -1,119 +1,64 @@
-from pydantic import BaseModel
-from typing import Any
+from __future__ import annotations
+
+from typing import List, Optional
+from pydantic import BaseModel, HttpUrl, field_validator
 
 
-class AccountPayload(BaseModel):
+# ── Confluence ────────────────────────────────────────────────────────────────
+
+
+class ConfluencePayload(BaseModel):
+    """Payload for saving Confluence connector config."""
+
+    base_url: str
+    space_keys: List[str]
+    include_labels: Optional[List[str]] = []
+
+    @field_validator("base_url")
+    @classmethod
+    def base_url_not_empty(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("base_url is required")
+        return v
+
+    @field_validator("space_keys")
+    @classmethod
+    def at_least_one_space(cls, v: List[str]) -> List[str]:
+        if not v:
+            raise ValueError("At least one space key is required")
+        return [k.strip().upper() for k in v if k.strip()]
+
+
+class ConfluenceTestPayload(BaseModel):
+    """Payload for test-confluence endpoint."""
+
+    base_url: str
+    space_keys: List[str]
+    include_labels: Optional[List[str]] = []
+
+    @field_validator("base_url")
+    @classmethod
+    def base_url_not_empty(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("base_url is required")
+        return v
+
+    @field_validator("space_keys")
+    @classmethod
+    def at_least_one_space(cls, v: List[str]) -> List[str]:
+        if not v:
+            raise ValueError("At least one space key is required")
+        return [k.strip().upper() for k in v if k.strip()]
+
+
+class ConfluenceSpaceResult(BaseModel):
+    key: str
     name: str
-    company_name: str
-    role: str
+    page_count: int
 
 
-class RepoPayload(BaseModel):
-    provider: str  # github | gitlab
-    repo_url: str
-    repo_name: str
-
-
-class JiraPayload(BaseModel):
-    workspace_url: str
-    project_key: str
-    email: str
-    api_token: str
-    status_mappings: dict[str, Any] | None = None
-
-
-class SlackPayload(BaseModel):
-    channel_id: str
-    channel_name: str
-    bot_token: str
-
-
-class SlackTestPayload(BaseModel):
-    bot_token: str
-    channel_name: str
-
-
-class JiraTestPayload(BaseModel):
-    workspace_url: str
-    project_key: str
-    email: str
-    api_token: str
-
-
-class DocsPayload(BaseModel):
-    provider: str  # confluence | gdrive
-    scope: str
-
-
-class CapabilitiesPayload(BaseModel):
-    building: dict[str, bool]
-    planning: dict[str, bool]
-    review: dict[str, bool]
-    communication: dict[str, bool]
-
-
-class GuardrailsPayload(BaseModel):
-    restricted_paths: list[str] = []
-    max_files_per_task: int = 10
-    risk_level: str = "balanced"  # conservative | balanced | aggressive
-
-
-class AgentPayload(BaseModel):
-    agent_name: str
-    agent_avatar: str
-
-
-class AgentProfilePayload(BaseModel):
-    profile_key: str  # web|backend|fullstack|devops|mobile_ios|mobile_android|data
-
-
-class ContextPayload(BaseModel):
-    project_context: str
-    coding_standards: str = ""
-
-
-class GitHubTokenPayload(BaseModel):
-    token: str
-
-
-class GitHubTokenTestPayload(BaseModel):
-    token: str
-    repo_url: str
-
-
-class OnboardingStatus(BaseModel):
-    completed: bool
-    current_step: int
-    agent_name: str | None = None
-
-
-class OnboardingConfigOut(BaseModel):
-    """Full config returned to the frontend for store hydration."""
-    # agent
-    agent_name: str | None = None
-    agent_avatar: str | None = None
-    agent_profile: str | None = None
-    # repo
-    repo_url: str | None = None
-    repo_provider: str | None = None
-    repo_name: str | None = None
-    has_github_token: bool = False
-    # capabilities + guardrails (raw JSONB blobs)
-    capabilities: dict | None = None
-    guardrails: dict | None = None
-    # project context + coding standards
-    project_context: str | None = None
-    coding_standards: str | None = None
-    # account (from user + org)
-    user_name: str | None = None
-    user_role: str | None = None
-    company_name: str | None = None
-    # jira
-    jira_workspace_url: str | None = None
-    jira_project_key: str | None = None
-    jira_email: str | None = None
-    has_jira_token: bool = False
-    # slack
-    slack_channel_id: str | None = None
-    slack_channel_name: str | None = None
-    has_slack_token: bool = False
+class ConfluenceTestResult(BaseModel):
+    connected: bool
+    spaces: List[ConfluenceSpaceResult]
