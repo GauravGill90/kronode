@@ -24,6 +24,7 @@ class Task(Base):
     celery_task_id: Mapped[str | None] = mapped_column(String(255))
 
     result: Mapped[dict | None] = mapped_column(JSONB)  # final output from Coder Agent
+    plan_snapshot: Mapped[dict | None] = mapped_column(JSONB)  # approved plan for audit
     error: Mapped[str | None] = mapped_column(Text)
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

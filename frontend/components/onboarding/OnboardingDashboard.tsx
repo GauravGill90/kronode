@@ -22,6 +22,9 @@ import {
   completeOnboarding,
   getOnboardingStatus,
   getOnboardingConfig,
+  getSkills,
+  saveSkills,
+  type SkillInfo,
 } from "@/lib/api";
 import StageBar from "./StageBar";
 import SetupCard from "./SetupCard";
@@ -102,19 +105,38 @@ export const PROFILE_OPTIONS = [
 ];
 
 function AgentProfileForm({ onSave }: { onSave: () => void }) {
-  const { agentProfile, setAgentProfile } = useOnboardingStore();
-  const [selected, setSelected] = useState(agentProfile?.profile_key || "");
+  const { skills, setSkills, setAgentProfile } = useOnboardingStore();
+  const [tab, setTab] = useState<"presets" | "custom">("presets");
+  const [allSkills, setAllSkills] = useState<SkillInfo[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(
+    new Set(skills?.map((s) => s.id) || [])
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleSave() {
-    if (!selected) return;
+  useEffect(() => {
+    getSkills().then((res) => setAllSkills(res.data.skills)).catch(() => {});
+  }, []);
+
+  function toggleSkill(id: number) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function handlePreset(presetKey: string) {
     setLoading(true);
     setError("");
     try {
-      await saveAgentProfile({ profile_key: selected });
-      const found = PROFILE_OPTIONS.find((p) => p.key === selected)!;
-      setAgentProfile({ profile_key: found.key, profile_name: found.name });
+      await saveSkills({ skill_ids: [], preset: presetKey });
+      // Reload assigned skills
+      const found = PROFILE_OPTIONS.find((p) => p.key === presetKey);
+      setAgentProfile(found ? { profile_key: found.key, profile_name: found.name } : null);
+      // Fetch assigned skills from backend to get IDs
+      const assigned = allSkills.filter((s) => s.assigned);
+      setSkills(assigned.length > 0 ? assigned : null);
       onSave();
     } catch {
       setError("Failed to save. Please try again.");
@@ -123,57 +145,135 @@ function AgentProfileForm({ onSave }: { onSave: () => void }) {
     }
   }
 
+  async function handleCustomSave() {
+    if (selectedIds.size === 0) return;
+    setLoading(true);
+    setError("");
+    try {
+      await saveSkills({ skill_ids: Array.from(selectedIds) });
+      const selected = allSkills.filter((s) => selectedIds.has(s.id));
+      setSkills(selected.map((s) => ({ id: s.id, key: s.key, name: s.name, category: s.category })));
+      setAgentProfile({ profile_key: "custom", profile_name: selected.map((s) => s.name).join(", ") });
+      onSave();
+    } catch {
+      setError("Failed to save. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const categories = [...new Set(allSkills.map((s) => s.category))].sort();
+  const selectedChips = allSkills.filter((s) => selectedIds.has(s.id)).flatMap((s) => s.stack_chips);
+
   return (
     <div className="space-y-3">
-      <p className="text-sm" style={{ color: "#64748b" }}>
-        Your agent will be a world-class specialist in this domain. The profile shapes its
-        judgement, conventions, and which files it touches.
-      </p>
-      <div className="space-y-2">
-        {PROFILE_OPTIONS.map((p) => {
-          const isSelected = selected === p.key;
-          return (
-            <button
-              key={p.key}
-              type="button"
-              onClick={() => setSelected(p.key)}
-              className="w-full text-left rounded-xl px-4 py-3 transition-all"
-              style={{
-                background: isSelected ? "rgba(99,102,241,0.1)" : "rgba(255,255,255,0.03)",
-                border: `1px solid ${isSelected ? "rgba(99,102,241,0.6)" : "rgba(255,255,255,0.08)"}`,
-              }}
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-xl">{p.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium" style={{ color: isSelected ? "#a5b4fc" : "#e2e8f0" }}>
-                    {p.name}
-                  </div>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {p.chips.map((chip) => (
-                      <span
-                        key={chip}
-                        className="text-xs rounded px-1.5 py-0.5"
-                        style={{
-                          background: "rgba(99,102,241,0.12)",
-                          color: "#94a3b8",
-                        }}
-                      >
-                        {chip}
-                      </span>
-                    ))}
+      {/* Tabs */}
+      <div className="flex gap-1">
+        {(["presets", "custom"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className="flex-1 py-2 rounded-lg text-sm font-medium capitalize transition-all"
+            style={
+              tab === t
+                ? { background: "linear-gradient(135deg, #6366f1, #a78bfa)", color: "#fff" }
+                : { background: "rgba(255,255,255,0.04)", color: "#94a3b8", border: "1px solid rgba(99,102,241,0.2)" }
+            }
+          >
+            {t === "presets" ? "Quick Setup" : "Custom"}
+          </button>
+        ))}
+      </div>
+
+      {tab === "presets" ? (
+        <>
+          <p className="text-sm" style={{ color: "#64748b" }}>
+            Pick a preset to get started quickly. You can customise skills later.
+          </p>
+          <div className="space-y-2">
+            {PROFILE_OPTIONS.map((p) => (
+              <button
+                key={p.key}
+                type="button"
+                onClick={() => handlePreset(p.key)}
+                disabled={loading}
+                className="w-full text-left rounded-xl px-4 py-3 transition-all"
+                style={{
+                  background: "rgba(255,255,255,0.03)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">{p.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium" style={{ color: "#e2e8f0" }}>{p.name}</div>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {p.chips.map((chip) => (
+                        <span key={chip} className="text-xs rounded px-1.5 py-0.5" style={{ background: "rgba(99,102,241,0.12)", color: "#94a3b8" }}>
+                          {chip}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                {isSelected && (
-                  <span className="text-sm" style={{ color: "#6366f1" }}>✓</span>
-                )}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="text-sm" style={{ color: "#64748b" }}>
+            Pick individual skills. Your agent combines them all — broader skills = broader scope.
+          </p>
+
+          {/* Selected chips preview */}
+          {selectedChips.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {[...new Set(selectedChips)].map((chip) => (
+                <span key={chip} className="text-xs rounded-full px-2 py-0.5" style={{ background: "rgba(99,102,241,0.2)", color: "#a5b4fc" }}>
+                  {chip}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Skills by category */}
+          {categories.map((cat) => (
+            <div key={cat}>
+              <p className="text-xs font-semibold uppercase tracking-wide mt-3 mb-1.5" style={{ color: "#475569" }}>{cat}</p>
+              <div className="space-y-1">
+                {allSkills.filter((s) => s.category === cat).map((s) => {
+                  const isOn = selectedIds.has(s.id);
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => toggleSkill(s.id)}
+                      className="w-full text-left rounded-lg px-3 py-2 transition-all"
+                      style={{
+                        background: isOn ? "rgba(99,102,241,0.1)" : "rgba(255,255,255,0.02)",
+                        border: `1px solid ${isOn ? "rgba(99,102,241,0.5)" : "rgba(255,255,255,0.06)"}`,
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs" style={{ color: isOn ? "#6366f1" : "#334155" }}>{isOn ? "✓" : "○"}</span>
+                        <div className="flex-1">
+                          <span className="text-sm" style={{ color: isOn ? "#a5b4fc" : "#94a3b8" }}>{s.name}</span>
+                          {s.description && <span className="text-xs ml-2" style={{ color: "#475569" }}>— {s.description}</span>}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-            </button>
-          );
-        })}
-      </div>
+            </div>
+          ))}
+
+          <SaveBtn onClick={handleCustomSave} loading={loading} disabled={selectedIds.size === 0} label={`Save ${selectedIds.size} skill${selectedIds.size !== 1 ? "s" : ""}`} />
+        </>
+      )}
+
       {error && <p className="text-sm" style={{ color: "#f87171" }}>{error}</p>}
-      <SaveBtn onClick={handleSave} loading={loading} disabled={!selected} label="Set profile" />
     </div>
   );
 }
@@ -275,7 +375,8 @@ function AgentForm({ onSave }: { onSave: () => void }) {
 }
 
 function RepoForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void }) {
-  const { repo, setRepo } = useOnboardingStore();
+  const store = useOnboardingStore();
+  const { repo, setRepo } = store;
   const [provider, setProvider] = useState<"github" | "gitlab">(
     (repo?.provider as "github" | "gitlab") || "github"
   );
@@ -286,9 +387,19 @@ function RepoForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void 
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [error, setError] = useState("");
   const repoName = repoUrl.split("/").slice(-1)[0]?.replace(".git", "") || "";
-  const valid = repoUrl.trim().startsWith("http") && pat.trim().length > 0;
+  // Token already saved in backend — allow URL change without re-entering
+  const hasExistingToken = Boolean(repo?.repo_url);
+  const valid = repoUrl.trim().startsWith("http") && (pat.trim().length > 0 || hasExistingToken);
 
   async function handleTest() {
+    if (!pat.trim() && hasExistingToken) {
+      setTestResult({ ok: true, message: "Token already saved — change the URL and save." });
+      return;
+    }
+    if (!pat.trim()) {
+      setTestResult({ ok: false, message: "Enter a Personal Access Token to test" });
+      return;
+    }
     setTesting(true);
     setTestResult(null);
     try {
@@ -310,14 +421,18 @@ function RepoForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void 
     setLoading(true);
     setError("");
     try {
-      const check = await testGithubToken({ token: pat.trim(), repo_url: repoUrl.trim() });
-      if (!check.data.ok) {
-        setError(check.data.error || "Could not connect to GitHub — please check your token and repo URL");
-        onFail?.();
-        return;
+      // If a new PAT was entered, validate and save it
+      if (pat.trim()) {
+        const check = await testGithubToken({ token: pat.trim(), repo_url: repoUrl.trim() });
+        if (!check.data.ok) {
+          setError(check.data.error || "Could not connect to GitHub — please check your token and repo URL");
+          onFail?.();
+          return;
+        }
+        await saveGithubToken({ token: pat.trim() });
       }
+      // Always save the repo URL (may have changed without a new token)
       await saveRepo({ provider, repo_url: repoUrl, repo_name: repoName });
-      await saveGithubToken({ token: pat.trim() });
       setRepo({ provider, repo_url: repoUrl, repo_name: repoName });
       onSave();
     } catch {
@@ -367,11 +482,11 @@ function RepoForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void 
         </div>
       )}
       <div>
-        <FieldLabel>Personal Access Token</FieldLabel>
+        <FieldLabel>{hasExistingToken ? "Personal Access Token (leave blank to keep current)" : "Personal Access Token"}</FieldLabel>
         <input
           style={inputCls}
           type="password"
-          placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+          placeholder={hasExistingToken ? "••••••••  (already saved)" : "ghp_xxxxxxxxxxxxxxxxxxxx"}
           value={pat}
           onChange={(e) => setPat(e.target.value)}
           onFocus={focusBorder}
@@ -832,17 +947,18 @@ function ProfileForm({ onSave }: { onSave: () => void }) {
 
 function JiraForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void }) {
   const { jira, setJira } = useOnboardingStore();
+  const hasExistingToken = jira?.api_token === "••••••••";
   const [form, setForm] = useState({
     workspace_url: jira?.workspace_url || "",
     project_key: jira?.project_key || "",
     email: jira?.email || "",
-    api_token: jira?.api_token || "",
+    api_token: hasExistingToken ? "" : (jira?.api_token || ""),
   });
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [error, setError] = useState("");
-  const valid = form.workspace_url.trim() && form.project_key.trim() && form.email.trim() && form.api_token.trim();
+  const valid = form.workspace_url.trim() && form.project_key.trim() && form.email.trim() && (form.api_token.trim() || hasExistingToken);
 
   async function handleTest() {
     setTesting(true);
@@ -866,14 +982,20 @@ function JiraForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void 
     setLoading(true);
     setError("");
     try {
-      const check = await testJira({ workspace_url: form.workspace_url.trim(), project_key: form.project_key.trim(), email: form.email.trim(), api_token: form.api_token.trim() });
-      if (!check.data.ok) {
-        setError(check.data.error || "Could not connect to Jira — please check your credentials");
-        onFail?.();
-        return;
+      // If new token provided, validate it. If using existing token, skip validation.
+      if (form.api_token.trim()) {
+        const check = await testJira({ workspace_url: form.workspace_url.trim(), project_key: form.project_key.trim(), email: form.email.trim(), api_token: form.api_token.trim() });
+        if (!check.data.ok) {
+          setError(check.data.error || "Could not connect to Jira — please check your credentials");
+          onFail?.();
+          return;
+        }
+        await saveJira(form);
+      } else {
+        // Save only non-token fields (workspace, project key, email)
+        await saveJira({ ...form, api_token: "" });
       }
-      await saveJira(form);
-      setJira(form);
+      setJira(form.api_token ? form : { ...form, api_token: "••••••••" });
       onSave();
     } catch {
       setError("Failed to save. Please try again.");
@@ -979,17 +1101,18 @@ function JiraForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void 
 
 function SlackForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void }) {
   const { agent, slack, setSlack } = useOnboardingStore();
+  const hasExistingToken = slack?.bot_token === "••••••••";
   const [form, setForm] = useState({
     channel_id: slack?.channel_id || "",
     channel_name: slack?.channel_name || "",
-    bot_token: slack?.bot_token || "",
+    bot_token: hasExistingToken ? "" : (slack?.bot_token || ""),
   });
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [error, setError] = useState("");
   const agentName = agent?.agent_name || "Your agent";
-  const valid = form.channel_name.trim() && form.bot_token.trim();
+  const valid = form.channel_name.trim() && (form.bot_token.trim() || hasExistingToken);
 
   async function handleTest() {
     setTesting(true);
@@ -1018,14 +1141,21 @@ function SlackForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void
       bot_token: form.bot_token,
     };
     try {
-      const check = await testSlack({ bot_token: form.bot_token.trim(), channel_name: form.channel_name.trim() });
-      if (!check.data.ok) {
-        setError(check.data.error || "Could not connect to Slack — please check your token and channel");
-        onFail?.();
-        return;
+      // If new token provided, validate it. If using existing, skip validation.
+      if (form.bot_token.trim()) {
+        const check = await testSlack({ bot_token: form.bot_token.trim(), channel_name: form.channel_name.trim() });
+        if (!check.data.ok) {
+          setError(check.data.error || "Could not connect to Slack — please check your token and channel");
+          onFail?.();
+          return;
+        }
+        await saveSlack(payload);
+        setSlack(payload);
+      } else {
+        // Save only channel info, keep existing token
+        await saveSlack({ ...payload, bot_token: "" });
+        setSlack({ ...payload, bot_token: "••••••••" });
       }
-      await saveSlack(payload);
-      setSlack(payload);
       onSave();
     } catch {
       setError("Failed to save. Please try again.");
@@ -1123,7 +1253,7 @@ function SlackForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void
         <input
           style={inputCls}
           type="password"
-          placeholder="xoxb-..."
+          placeholder={hasExistingToken ? "••••••••  (already saved)" : "xoxb-..."}
           value={form.bot_token}
           onChange={(e) => setForm({ ...form, bot_token: e.target.value })}
           onFocus={focusBorder}
@@ -1201,7 +1331,7 @@ function computeStage(store: OnboardingState): number {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 const MODAL_TITLES: Record<string, string> = {
-  agent_profile: "Choose specialist role",
+  agent_profile: "Choose skills",
   agent: "Name your agent",
   repo: "Connect repository",
   capabilities: "Set capabilities",
@@ -1282,11 +1412,13 @@ export default function OnboardingDashboard({ isSettings = false }: { isSettings
   const cards = [
     {
       id: "agent_profile",
-      icon: "👔",
-      title: "Choose specialist role",
-      description: store.agentProfile?.profile_name ?? "Select the engineering domain your agent works in",
+      icon: "🧩",
+      title: "Choose skills",
+      description: store.skills?.length
+        ? store.skills.map((s) => s.name).join(", ")
+        : store.agentProfile?.profile_name ?? "Select the skills your agent should have",
       required: true,
-      completed: !!store.agentProfile,
+      completed: !!(store.skills?.length || store.agentProfile),
     },
     {
       id: "agent",

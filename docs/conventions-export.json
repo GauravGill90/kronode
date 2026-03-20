@@ -1,0 +1,4124 @@
+[
+  {
+    "id": 201,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Organize API credential environment variables into a dedicated 'Required Credentials' section in documentation or technical references.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28047"
+  },
+  {
+    "id": 269,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Maintain a centralized form schema for validation with zod, including avatar as a string.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/11399"
+  },
+  {
+    "id": 81,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use data-testid attributes for locating elements in tests instead of fragile CSS selectors.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28329"
+  },
+  {
+    "id": 271,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Translations for UI actions and messages should be added to locale JSON files with consistent keys and entries.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/17577"
+  },
+  {
+    "id": 272,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Include confirmation messages and related labels as separate key-value pairs in localization files.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/17577"
+  },
+  {
+    "id": 408,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Add explicit @ApiParam decorators for path parameters used in route handlers to improve OpenAPI documentation clarity.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27612"
+  },
+  {
+    "id": 274,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Localization files follow a pattern of translating common UI actions (e.g., delete, update, save) and specific messages for user confirmations.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/17577"
+  },
+  {
+    "id": 275,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Lazy-load external iframe content by setting its src attribute only when the sidebar is opened.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27946"
+  },
+  {
+    "id": 114,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use Docker containers for database dump and restore operations to ensure version consistency.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28260"
+  },
+  {
+    "id": 115,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Specify the exact PostgreSQL Docker image version (postgres:18) to avoid version mismatch issues.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28260"
+  },
+  {
+    "id": 374,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Group related test cases under descriptive describe blocks following consistent naming convention",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27849"
+  },
+  {
+    "id": 375,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Organize test files and controllers in dedicated directories with clear versioning or date suffixes",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27849"
+  },
+  {
+    "id": 29,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Extract all query parameters from the URL into a single object to handle all parameters uniformly, including those needed for security and validation.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27716"
+  },
+  {
+    "id": 380,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Include related data from associated models in database queries to ensure comprehensive data export.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27854"
+  },
+  {
+    "id": 381,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Add UTM parameter fields to CSV export by selecting them in database queries.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27854"
+  },
+  {
+    "id": 384,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Whitelist specific /api/avatar/*.png URLs to allow setting and clearing banners",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27848"
+  },
+  {
+    "id": 406,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use factory functions to instantiate strategy objects based on business context, such as createBySubscriptionId.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27828"
+  },
+  {
+    "id": 119,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Update dependencies such as database images in a centralized manner across all related workflows.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28252"
+  },
+  {
+    "id": 121,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Create explicit custom masks for countries with special phone number lengths to prevent truncation.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28203"
+  },
+  {
+    "id": 403,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Structure components to accept props and render within container components like 'ShellMainAppDir', maintaining separation of concerns.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27692"
+  },
+  {
+    "id": 405,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use explicit method calls like onRenewalPaid on strategy instances, enabling clear strategy behaviors.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27828"
+  },
+  {
+    "id": 125,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use the 'bin' field in package.json to declare CLI scripts for executables.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28244"
+  },
+  {
+    "id": 126,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Create a wrapper script for the enum generator that resolves paths correctly regardless of current working directory.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28244"
+  },
+  {
+    "id": 127,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Define the enum generator as a custom provider in the Prisma schema to facilitate correct path resolution and execution.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28244"
+  },
+  {
+    "id": 129,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use semantic versioning with care and properly patch dependencies to keep updates predictable and maintainable.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28204"
+  },
+  {
+    "id": 404,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use strategy pattern to handle billing logic, separating different implementations into distinct classes.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27828"
+  },
+  {
+    "id": 131,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Update dependencies atomically and track updates via patches with clear versioning.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28204"
+  },
+  {
+    "id": 34,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Automatically sign out users after enabling 2FA if their role is 'INACTIVE_ADMIN' to ensure session consistency",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28129"
+  },
+  {
+    "id": 136,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Manage table state, including sorting and filtering, through centralized hooks and synchronize them with the table instance inside useEffect.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/18950"
+  },
+  {
+    "id": 36,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Ensure audit and context parameters are always explicitly passed, using `null` where no relevant value exists, to prevent silent omissions from audit flows.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/26546"
+  },
+  {
+    "id": 139,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Strip display-only and large data fields from objects before including them in API requests.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28239"
+  },
+  {
+    "id": 140,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Include clear, platform-specific setup instructions in documentation to prevent environment issues",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28101"
+  },
+  {
+    "id": 12,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "External libraries must be configured according to their official documentation, especially regarding loading order or initialization prerequisites.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28314"
+  },
+  {
+    "id": 144,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Create seed data via a dedicated function that checks for existing data to avoid duplication.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27832"
+  },
+  {
+    "id": 145,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Connect related entities explicitly using the ORM's connect method to maintain clear associations.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27832"
+  },
+  {
+    "id": 148,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Implement centralized translation service and ensure locale-aware delivery for notifications, promoting consistent internationalization practices.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27087"
+  },
+  {
+    "id": 150,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use a branding hide flag attached to calendar event objects for controlling branding display",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27643"
+  },
+  {
+    "id": 39,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Define configuration data in JSON files with clear naming conventions and include sensitive or environment-specific data in environment variables, not in code.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/19812"
+  },
+  {
+    "id": 40,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use JSON files for app metadata and configuration, following a structured format and avoiding manual edits outside of CLI commands.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/19812"
+  },
+  {
+    "id": 158,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use getInitialProps for data fetching in Next.js pages when server-side data is required.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/124"
+  },
+  {
+    "id": 160,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Pass optional related data (e.g., fallbackAction) explicitly to functions handling form responses.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27588"
+  },
+  {
+    "id": 42,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Include app details such as name, slug, type, URL, categories, publisher, and description in a dedicated configuration JSON file.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/19812"
+  },
+  {
+    "id": 166,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use a dedicated package for internationalization (i18n) and centralize locale configurations.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28141"
+  },
+  {
+    "id": 167,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Import translation files from the dedicated i18n package path (packages/i18n/locales/...) instead of app-specific paths.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28141"
+  },
+  {
+    "id": 395,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Pass feature toggle flags through data fetching functions and ensure they are propagated to components for conditional rendering.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27637"
+  },
+  {
+    "id": 44,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Load the 'utc' plugin before the 'timezone' plugin in Day.js to ensure correct timezone formatting.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28314"
+  },
+  {
+    "id": 171,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Update dependencies to address security vulnerabilities and document the fixes clearly.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28117"
+  },
+  {
+    "id": 45,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use clear and descriptive import paths to indicate module boundaries and responsibilities.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28100"
+  },
+  {
+    "id": 46,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Decouple component imports from specific feature or module layers to facilitate refactoring and dependency management.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28100"
+  },
+  {
+    "id": 175,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use consistent relative import paths for project modules, placing hooks under '@calcom/features/bookings/Booker/hooks/'",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28119"
+  },
+  {
+    "id": 47,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Organize code into feature-specific directories to improve modularity.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28100"
+  },
+  {
+    "id": 178,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use biome JSON configuration overrides to disable specific lint rules in targeted packages to prevent unwanted auto-imports or code transformations.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27387"
+  },
+  {
+    "id": 50,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Move shared hooks and utility functions to a dedicated 'features' directory to decouple components from unrelated modules and reduce circular dependencies.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28098"
+  },
+  {
+    "id": 51,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Import hooks and modules from their dedicated feature paths rather than from more general or core modules to clarify dependencies and improve modularity.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28098"
+  },
+  {
+    "id": 13,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Organize import statements by feature and avoid importing directly from implementation details; use centralized feature exports when possible",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28100"
+  },
+  {
+    "id": 184,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use a boolean state variable to track open/close state of dropdown components.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28097"
+  },
+  {
+    "id": 54,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Add new app integrations to the centralized schemas, metadata, and app store metadata for consistency and discoverability.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27370"
+  },
+  {
+    "id": 187,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Pass state handlers and state variables explicitly to controlled dropdown components to manage their open/close behavior.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28097"
+  },
+  {
+    "id": 188,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use controlled components with explicit value and onValueChange handlers for toggle groups to prevent deselection and maintain UI consistency",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27748"
+  },
+  {
+    "id": 55,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Consolidate similar access check methods into a single, comprehensive method to avoid duplication and ensure consistent access logic.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28071"
+  },
+  {
+    "id": 190,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Initialize uncontrolled component state with defaultValue when in uncontrolled mode",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27748"
+  },
+  {
+    "id": 192,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use a set of exempt app slugs to conditionally skip nonce verification",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28083"
+  },
+  {
+    "id": 193,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use a dedicated producer interface to handle webhook queuing, injecting it via dependency injection.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27546"
+  },
+  {
+    "id": 194,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use factory functions to instantiate service dependencies to ensure proper lifecycle management.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27546"
+  },
+  {
+    "id": 195,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Define injection tokens in a separate file to avoid circular dependencies.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27546"
+  },
+  {
+    "id": 14,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Move feature components into dedicated feature directories and import from those directories to decouple dependencies",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28100"
+  },
+  {
+    "id": 197,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Implement consistent use of dependency injection for external services or producers.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27546"
+  },
+  {
+    "id": 58,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Derive runtime data schema types explicitly from schema definitions and export them separately.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28319"
+  },
+  {
+    "id": 200,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use environment variable declarations for API credentials with clear required/optional indication and descriptions.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28047"
+  },
+  {
+    "id": 80,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Wrap components with wrapper components like ShellMainAppDir to provide consistent layout and structure",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28323"
+  },
+  {
+    "id": 202,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use descriptive and specific import paths for components.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/20552"
+  },
+  {
+    "id": 204,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Create separate shape variation components to demonstrate different avatar shapes clearly.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/20552"
+  },
+  {
+    "id": 59,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Extract all query parameters into a single object to preserve all parameters transferred from the OIDC provider.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27716"
+  },
+  {
+    "id": 207,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use external links for documentation instead of rendering internal pages",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28046"
+  },
+  {
+    "id": 209,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use redirect in page component to external URLs for deprecated or replaced pages",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28046"
+  },
+  {
+    "id": 411,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Add permissions to roles via SQL migrations systematically using insert statements with conflict handling.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27836"
+  },
+  {
+    "id": 213,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use enums to represent fixed sets of related values for clarity and consistency.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/26792"
+  },
+  {
+    "id": 215,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Handle redirects differently depending on the type of entity being duplicated to improve user experience.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/26792"
+  },
+  {
+    "id": 217,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Handle rejection actions via GET requests for email clients that do not support POST, ensuring functionality in constrained environments.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28029"
+  },
+  {
+    "id": 218,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Design route handlers to process GET requests for user actions that are typically POST, especially to support email clients limitations.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28029"
+  },
+  {
+    "id": 219,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Make key parameters like actionSource explicitly required across all handlers and services to enforce explicit input contracts.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27869"
+  },
+  {
+    "id": 16,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Encapsulate app list components under feature-specific paths to facilitate easier refactoring and dependency management",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28100"
+  },
+  {
+    "id": 224,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Enforce input validation at the component level to prevent invalid data entry.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27818"
+  },
+  {
+    "id": 225,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use hooks to encapsulate and manage related state and side effects such as timezone handling.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27491"
+  },
+  {
+    "id": 226,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Pass additional context-specific parameters explicitly via function parameters instead of relying on global variables.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27491"
+  },
+  {
+    "id": 65,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "When session data indicates specific user roles (such as INACTIVE_ADMIN), perform sign-out to refresh user state",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28129"
+  },
+  {
+    "id": 66,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Invalidate user data after certain actions unless user role is INACTIVE_ADMIN, in which case sign out and refresh",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28129"
+  },
+  {
+    "id": 18,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use a centralized schema and metadata import pattern for app integrations to ensure uniformity.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27370"
+  },
+  {
+    "id": 230,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use localization for time units and duration labels to support multiple languages.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27998"
+  },
+  {
+    "id": 68,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Define detailed and precise property requirements for API responses",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28336"
+  },
+  {
+    "id": 232,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Deep links to booking history should be status-agnostic and include appropriate query parameters",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27709"
+  },
+  {
+    "id": 233,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Avoid modifying the original event object directly; instead, create a copy without specific fields to prevent breaking changes.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27891"
+  },
+  {
+    "id": 234,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Revert breaking changes specifically for payloads used in webhooks to maintain backward compatibility.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27891"
+  },
+  {
+    "id": 69,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Controller filenames should end with '.controller.ts' to ensure compatibility with NestJS Swagger plugin.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28342"
+  },
+  {
+    "id": 70,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use paginated endpoints for fetching large datasets to improve performance",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28156"
+  },
+  {
+    "id": 72,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Include related entities selectively in database query select statements to optimize data retrieval",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28156"
+  },
+  {
+    "id": 242,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Create utility functions for repeated calculations, e.g., getMinutesFromMidnight.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28"
+  },
+  {
+    "id": 244,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Generate time slots considering both same timezone and different timezone scenarios with clear separation.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28"
+  },
+  {
+    "id": 247,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use explicit value assignment for React component props to ensure correct rendering and behavior.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27890"
+  },
+  {
+    "id": 248,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Reference consistent data sources for input component values to prevent UI discrepancies.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27890"
+  },
+  {
+    "id": 250,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use feature flags to conditionally execute code paths, such as integrating with task scheduler.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/18370"
+  },
+  {
+    "id": 251,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Create specialized scheduler modules to handle CRM event scheduling separately from core logic.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/18370"
+  },
+  {
+    "id": 253,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use constants for unit conversions to improve readability and maintainability.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27964"
+  },
+  {
+    "id": 75,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use 'networkidle' load state to ensure page has finished loading and network activity has settled before proceeding in tests.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28341"
+  },
+  {
+    "id": 257,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Apply fixed positioning with margin utilities for overlays or banners in mobile view.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27965"
+  },
+  {
+    "id": 261,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Handle checkbox and multiselect input types distinctly with specific validation logic",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/16653"
+  },
+  {
+    "id": 19,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Add new integrations (such as Lyra) to existing configuration schemas and metadata JSON files in a structured manner.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27370"
+  },
+  {
+    "id": 20,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Follow a pattern of importing app-specific schemas and metadata with the app name as a key or suffix.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27370"
+  },
+  {
+    "id": 21,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Consolidate multiple nearly identical access check methods into a single comprehensive method for consistency.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28071"
+  },
+  {
+    "id": 277,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Create DOM elements during script initialization but defer loading external resources until user interaction.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27946"
+  },
+  {
+    "id": 84,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Include localization hooks at the beginning of components to support internationalization.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27088"
+  },
+  {
+    "id": 85,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use client-side routing by defining appropriate page files and rewrites to avoid full page reloads",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27862"
+  },
+  {
+    "id": 281,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "When modifying existing functionality, prefer direct lookups using roles or explicit filters.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/22475"
+  },
+  {
+    "id": 86,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Define rewrite rules in next.config.ts to map custom URLs to actual page paths",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27862"
+  },
+  {
+    "id": 284,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Apply the hideOrganizerEmail flag to determine whether to use customReplyToEmail or the organizer's email",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27941"
+  },
+  {
+    "id": 87,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Enforce the use of a dedicated layout component to wrap related pages",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27862"
+  },
+  {
+    "id": 288,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Update test routes collectively to adopt new onboarding paths.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27938"
+  },
+  {
+    "id": 289,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Enables onboarding flow for all users across the platform.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27938"
+  },
+  {
+    "id": 24,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Declare dependencies in package.json accurately to reflect how they are used, distinguishing between dependencies and devDependencies.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28365"
+  },
+  {
+    "id": 292,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Update JSON configuration files with precise values and descriptive comments for better maintainability.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27267"
+  },
+  {
+    "id": 294,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Maintain consistent dependency version updates across all related package files.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27864"
+  },
+  {
+    "id": 296,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Update dependency version references in lock files and package manifests simultaneously.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27864"
+  },
+  {
+    "id": 297,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use a consistent routing path /getting-started for onboarding and related flows.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27933"
+  },
+  {
+    "id": 90,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use path.sep to handle file path separators for cross-platform compatibility.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28301"
+  },
+  {
+    "id": 391,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Include app-specific assets in a static directory for consistent access",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27840"
+  },
+  {
+    "id": 301,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use inline string descriptions for package metadata in modules to ensure compatibility with test runners.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27931"
+  },
+  {
+    "id": 91,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Normalize file paths to use forward slashes when performing string operations like startsWith().",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28301"
+  },
+  {
+    "id": 92,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use environment variables prefixed with OUTLOOK_LOGIN_ENABLED to toggle Microsoft sign-in features",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28080"
+  },
+  {
+    "id": 93,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use feature flags to gate new authentication providers",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28080"
+  },
+  {
+    "id": 95,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use feature flags to control UI and backend feature availability",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28080"
+  },
+  {
+    "id": 307,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Update test URLs and references to the new onboarding flow paths",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27922"
+  },
+  {
+    "id": 308,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use localized timezone formatting with formatToLocalizedTimezone() in time display components.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27909"
+  },
+  {
+    "id": 390,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Add new app identifiers to the redirect list in a dedicated array",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27840"
+  },
+  {
+    "id": 311,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Import dependencies from specific feature module paths to make dependencies explicit",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27923"
+  },
+  {
+    "id": 97,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Separate authentication provider logic with feature flags for controlled rollout",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28080"
+  },
+  {
+    "id": 316,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Exclude specific test file patterns such as .spec., .e2e., .e2e-spec., .test., .test-suite., and .integration-test. from CODEOWNERS to prevent requiring approvals for these files.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27926"
+  },
+  {
+    "id": 25,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use workspace:* protocol for local packages in devDependencies to enable local development and correct packaging.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28365"
+  },
+  {
+    "id": 323,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use override patterns in CODEOWNERS to exclude specific file types from requiring ownership approval.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27919"
+  },
+  {
+    "id": 324,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Place override patterns at the end of the CODEOWNERS file to ensure they take precedence over earlier rules.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27919"
+  },
+  {
+    "id": 100,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Prefix server-side components and functions with 'Server' to clearly distinguish server-side logic from client-side code.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27650"
+  },
+  {
+    "id": 326,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Render modal components conditionally based on the presence of related data or state variables.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27917"
+  },
+  {
+    "id": 327,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Control modal visibility through boolean props such as 'isOpen'.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27917"
+  },
+  {
+    "id": 329,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Create organization only through stripe webhook and ensure the handler is idempotent to handle retries.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/18990"
+  },
+  {
+    "id": 330,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Store complete onboarding progress, including errors and completion status, in a dedicated table.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/18990"
+  },
+  {
+    "id": 101,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Include showHeader boolean controls in server-side listing components to decide when to display headers and action elements.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27650"
+  },
+  {
+    "id": 332,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Maintain a clear separation between server-side logic and page components by importing specific server-side functions from dedicated paths.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/18990"
+  },
+  {
+    "id": 335,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use wildcard path patterns to include all URL variants with locale prefixes in route protections.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27910"
+  },
+  {
+    "id": 336,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Remove duplicate license sections in documentation to avoid confusion and ensure clarity.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27903"
+  },
+  {
+    "id": 337,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Group related hooks and import them from a dedicated directory to organize code and clearly distinguish custom hooks from external libraries.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27900"
+  },
+  {
+    "id": 340,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Move framework-specific or client-side React hooks and contexts to dedicated hooks directory under web modules",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27833"
+  },
+  {
+    "id": 107,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use React useEffect hook to initialize default values for app data when not set",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/25638"
+  },
+  {
+    "id": 343,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Keep data-table related hooks and contexts within web modules, not in feature packages",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27833"
+  },
+  {
+    "id": 345,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Save tracking information only in the database when explicitly provided.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/19965"
+  },
+  {
+    "id": 346,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Pass tracking data through function parameters to maintain data flow clarity.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/19965"
+  },
+  {
+    "id": 348,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Extend existing input mapping functions to include optional tracking data for flexibility.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/19965"
+  },
+  {
+    "id": 349,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use environment variables with a common prefix for related configuration values",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27896"
+  },
+  {
+    "id": 352,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Using useMemo to derive derived state from pathname and user org ID",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27867"
+  },
+  {
+    "id": 354,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use component-based icons from a dedicated icons package instead of string-based icon names",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27458"
+  },
+  {
+    "id": 357,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Replace deprecated or legacy icon usages with new component-based icons after migration",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27458"
+  },
+  {
+    "id": 389,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Maintain a centralized metadata export pattern for app configurations",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27840"
+  },
+  {
+    "id": 363,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use router.refresh() to trigger re-rendering of pages after client-side feature opt-in updates",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27873"
+  },
+  {
+    "id": 364,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Provide optional callback (onOptInSuccess) to handle side effects after a feature opt-in",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27873"
+  },
+  {
+    "id": 112,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Wrap multiple providers in a single component, nesting them logically, and include custom providers like ToastProvider as needed.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27714"
+  },
+  {
+    "id": 386,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Group related URL validation rules within the validation function",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27848"
+  },
+  {
+    "id": 368,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use feature flags to toggle experimental or optional features during tests and development",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27872"
+  },
+  {
+    "id": 371,
+    "layer": "base",
+    "category": "architecture",
+    "rule": "Use object props instead of individual props when passing related data to child components.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27162"
+  },
+  {
+    "id": 203,
+    "layer": "base",
+    "category": "documentation",
+    "rule": "Document component usage with comprehensive examples and variations in MDX files.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/20552"
+  },
+  {
+    "id": 43,
+    "layer": "base",
+    "category": "documentation",
+    "rule": "Adopt a process to document setup requirements, such as adding environment variables to `.env.example`, when integrating new apps.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/19812"
+  },
+  {
+    "id": 103,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Include all relevant seed scripts in the cache hash to prevent stale database cache issues.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28284"
+  },
+  {
+    "id": 300,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Avoid importing package.json directly in test environments to prevent RPC errors.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27931"
+  },
+  {
+    "id": 222,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Validate user input fields using regex patterns that include Unicode letter, mark, number characters and specific punctuation to prevent invalid characters.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27818"
+  },
+  {
+    "id": 61,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Include all relevant parameters from the request in subsequent processing to avoid losing data like 'iss' or 'session_state'.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27716"
+  },
+  {
+    "id": 105,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Use default values for missing configuration fields to ensure consistent behavior",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/25638"
+  },
+  {
+    "id": 285,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Create replyTo only when a relevant email address exists, avoiding empty or undefined reply-to headers",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27941"
+  },
+  {
+    "id": 383,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Validate only HTTPS URLs in URL validation functions",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27848"
+  },
+  {
+    "id": 392,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Always include the 'metadata' key in webhook payloads, setting it to an empty object if no relevant data is available",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27300"
+  },
+  {
+    "id": 62,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Use character classes in regex that include hyphens, dots, and underscores for URL validation.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28253"
+  },
+  {
+    "id": 73,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Require explicit provision of impersonatedByUserUuid parameter in all booking-related handlers and services, using null when no impersonation occurs",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/26546"
+  },
+  {
+    "id": 154,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Check the 'x-forwarded-for' header to determine the client's real IP address when behind a proxy.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28152"
+  },
+  {
+    "id": 249,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Use early returns and logging to handle empty or missing data before proceeding with processing.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/18370"
+  },
+  {
+    "id": 155,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Prioritize the 'x-forwarded-for' header over other headers for client IP detection.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28152"
+  },
+  {
+    "id": 206,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Add necessary peer dependencies explicitly in package.json to ensure build stability.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/20552"
+  },
+  {
+    "id": 259,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Functions that depend on external parameters should use those parameters instead of hardcoded values for configuration.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27961"
+  },
+  {
+    "id": 133,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Add comments explaining the rationale for ignoring security advisories or upstream fixes",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28227"
+  },
+  {
+    "id": 291,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Implement explicit validation functions for user input values, such as validating query parameters before using them.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27267"
+  },
+  {
+    "id": 312,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Always await asynchronous database operations to prevent silent failures",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27923"
+  },
+  {
+    "id": 221,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Define a consistent convention to use 'VALID' or similar explicit enumeration excluding 'UNKNOWN' as valid actionSource values.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27869"
+  },
+  {
+    "id": 260,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Use strict type checks and validate array structures explicitly for multiselect fields",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/16653"
+  },
+  {
+    "id": 239,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Handle errors gracefully and check for necessary properties before proceeding with logic.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27928"
+  },
+  {
+    "id": 172,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Ignore specific npm audit advisories via configuration when updates are pending upstream fixes.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28117"
+  },
+  {
+    "id": 191,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Implement nonce verification for OAuth CSRF protection using HMAC signing with a secret and nonce",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28083"
+  },
+  {
+    "id": 328,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Implement modal exit handlers that update state and trigger related actions consistently.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27917"
+  },
+  {
+    "id": 143,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Initialize data only after verifying related entities exist, to prevent runtime errors.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27832"
+  },
+  {
+    "id": 254,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Round up fractional conversion results using Math.ceil to avoid underestimating durations.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27964"
+  },
+  {
+    "id": 146,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Use flags to prevent infinite loops when syncing calendar cancellations or reschedules",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/24124"
+  },
+  {
+    "id": 89,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Handle authentication by redirecting unauthenticated users on server-side pages",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27862"
+  },
+  {
+    "id": 317,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Use dynamic or randomized IDs for test data to prevent conflicts and flaky tests.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27902"
+  },
+  {
+    "id": 360,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Pass both bookingLimits and durationLimits as separate arguments to getStartEndDateforLimitCheck to preserve full data context.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27898"
+  },
+  {
+    "id": 243,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Compare time zone strings explicitly to handle timezone differences.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28"
+  },
+  {
+    "id": 28,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Use TypeScript type annotations that refer to the explicitly exported types instead of schema objects.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28319"
+  },
+  {
+    "id": 393,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Use a dedicated function like randomString() to generate unique identifiers in tests to prevent collisions.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27847"
+  },
+  {
+    "id": 276,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Use boolean flags to track whether certain elements or resources have been initialized or loaded.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27946"
+  },
+  {
+    "id": 319,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Use `randomString()` to generate unique identifiers for test data to avoid conflicts and flaky tests.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27916"
+  },
+  {
+    "id": 164,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Rename the 'highWaterMarkApplied' return field to more accurately represent its purpose.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28143"
+  },
+  {
+    "id": 262,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Enforce required fields for multiselect by checking for empty arrays or missing values",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/16653"
+  },
+  {
+    "id": 369,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Place conditional guards at the beginning of effect functions to prevent unnecessary executions",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27872"
+  },
+  {
+    "id": 295,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Use precise versioning for dependencies to ensure reproducible builds.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27864"
+  },
+  {
+    "id": 245,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Skip invalid or past slots based on current time and boundaries.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28"
+  },
+  {
+    "id": 74,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Use null as the default value for impersonatedByUserUuid when impersonation is not active",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/26546"
+  },
+  {
+    "id": 267,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Define schemas with zod and validate form data before submitting.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/11399"
+  },
+  {
+    "id": 376,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Use epoch time in milliseconds consistently for token expiry calculations.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27855"
+  },
+  {
+    "id": 321,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Preserve existing 'enabled' state of apps during database seeding by using existing values if present, rather than recalculating every time.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27918"
+  },
+  {
+    "id": 210,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Always use the utility function getServerErrorFromUnknown to extract error messages and status codes in catch blocks",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/24282"
+  },
+  {
+    "id": 138,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Send only the necessary fields in API payloads to avoid exceeding size limits.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28239"
+  },
+  {
+    "id": 402,
+    "layer": "base",
+    "category": "error_handling",
+    "rule": "Implement redirect handling for invalid or missing params to maintain application flow and user experience.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27692"
+  },
+  {
+    "id": 355,
+    "layer": "base",
+    "category": "import_style",
+    "rule": "Import icons directly from the icons package rather than from a generic icon component",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27458"
+  },
+  {
+    "id": 31,
+    "layer": "base",
+    "category": "logging",
+    "rule": "Log detailed error messages including contextual parameters like 'tenant' for easier debugging.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27716"
+  },
+  {
+    "id": 163,
+    "layer": "base",
+    "category": "logging",
+    "rule": "Include 'strategyName' in logs for better observability in webhook handlers.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28143"
+  },
+  {
+    "id": 252,
+    "layer": "base",
+    "category": "logging",
+    "rule": "Add warning logs when expected data is missing to aid debugging and monitoring.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/18370"
+  },
+  {
+    "id": 151,
+    "layer": "base",
+    "category": "logic",
+    "rule": "Check the event's hideBranding property to determine branding visibility in email templates and workflows",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27643"
+  },
+  {
+    "id": 314,
+    "layer": "base",
+    "category": "logic",
+    "rule": "Define email verification sending logic after user creation and checkout session handling to centralize notifications",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27923"
+  },
+  {
+    "id": 313,
+    "layer": "base",
+    "category": "logic",
+    "rule": "Send email verification only when user is created without an active checkout session or token to avoid duplicate emails",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27923"
+  },
+  {
+    "id": 162,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use readonly 'strategyName' property to identify the billing strategy in logs and return values.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28143"
+  },
+  {
+    "id": 377,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use descriptive, consistent variable naming for time calculations, such as 'expiryDate'.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27855"
+  },
+  {
+    "id": 83,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Prefix source property values with descriptive strings like \"date-override\" to indicate their origin.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27088"
+  },
+  {
+    "id": 117,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use consistent naming patterns for environment and configuration files, typically lowercase with hyphens or underscores.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28252"
+  },
+  {
+    "id": 283,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use consistent naming for variables related to reply-to emails, such as 'customReplyTo', 'fallbackReplyTo', and 'replyTo'",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27941"
+  },
+  {
+    "id": 382,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Name CSV columns and data fields clearly to match tracking parameters.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27854"
+  },
+  {
+    "id": 208,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Rename UI navigation identifiers and tracking metadata to reflect new external link instead of internal page",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28046"
+  },
+  {
+    "id": 48,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use consistent naming conventions for components, such as AppListCardWebWrapper, to distinguish web-specific wrappers.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28100"
+  },
+  {
+    "id": 49,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use descriptive and specific folder and file naming patterns that reflect the feature or purpose, such as 'hooks', 'components', 'utils', 'components' with clear feature-based organization.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28098"
+  },
+  {
+    "id": 128,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use a consistent naming pattern for steps and view constants, e.g., SETUP_VIEW_SETPS and defaultStep, adjusting logic accordingly.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28244"
+  },
+  {
+    "id": 53,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use consistent naming conventions for imported schemas and config JSONs, appending '_zod_ts', '_metadata_ts', and '_config_json' as suffixes respectively.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27370"
+  },
+  {
+    "id": 94,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Define login types explicitly and include 'microsoft' alongside 'saml', 'google', and 'credentials'",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28080"
+  },
+  {
+    "id": 409,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use consistent naming for path variables, such as 'webhookId', across route definitions and documentation annotations.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27612"
+  },
+  {
+    "id": 186,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use descriptive and specific icon components (ChevronDownIcon, ChevronUpIcon) to reflect component state.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28097"
+  },
+  {
+    "id": 96,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Create environment variables for third-party API credentials with clear naming conventions",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28080"
+  },
+  {
+    "id": 134,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use clear and descriptive naming for file and component names to indicate their purpose.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/18950"
+  },
+  {
+    "id": 35,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Controller files must use the `.controller.ts` suffix for proper integration with the NestJS Swagger plugin.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28342"
+  },
+  {
+    "id": 216,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use descriptive and consistent naming for variables, functions, and files to enhance code readability.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28029"
+  },
+  {
+    "id": 237,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use descriptive variable names that clearly indicate their purpose.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27928"
+  },
+  {
+    "id": 320,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use consistent naming for booking UID fields with the prefix `booking-uid-` followed by a randomly generated string.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27916"
+  },
+  {
+    "id": 407,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Name variables with clear, descriptive names indicating their role, e.g., teamBillingFactory, strategy.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27828"
+  },
+  {
+    "id": 71,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Define and use consistent TypeScript type aliases for data structures",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28156"
+  },
+  {
+    "id": 412,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Maintain consistency in naming permissions with 'read', 'view', and resource types.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27836"
+  },
+  {
+    "id": 102,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Name components with PascalCase and use descriptive, meaningful component names to improve clarity.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27650"
+  },
+  {
+    "id": 147,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use clear, descriptive variable naming conventions to indicate the purpose and type of variables, especially for identifiers like uid and referenceUid.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27087"
+  },
+  {
+    "id": 149,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Prefix test data variables with descriptive identifiers such as 'booking-' and 'seat-' to clarify their roles in tests.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27087"
+  },
+  {
+    "id": 104,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use specific, descriptive names for event types such as 'Lead', 'CompleteRegistration', 'Schedule', and 'PageView'",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/25638"
+  },
+  {
+    "id": 410,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use JSON keys with 'pbac_action' and 'pbac_desc' prefixes consistently for permission labels and descriptions.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27836"
+  },
+  {
+    "id": 106,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Configure conversion event options with labels and values for better UI clarity",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/25638"
+  },
+  {
+    "id": 152,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Pass eventTypeId as an optional prop where event-specific branding preferences are needed",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27643"
+  },
+  {
+    "id": 344,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use descriptive naming for variables and types related to booking tracking.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/19965"
+  },
+  {
+    "id": 347,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use TypeScript types to define the shape of tracking data and ensure type safety.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/19965"
+  },
+  {
+    "id": 394,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use consistent naming for boolean flags to indicate feature toggles, such as 'disableCancelling' and 'disableRescheduling'.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27637"
+  },
+  {
+    "id": 350,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Prefix environment variable names with the purpose or component (e.g., STRIPE_ORG_*) to organize billing-related configs",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27896"
+  },
+  {
+    "id": 108,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use TypeScript types to define options for select inputs to ensure type safety",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/25638"
+  },
+  {
+    "id": 41,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Maintain naming conventions for app slugs, types, and categories to ensure consistency across configuration and code.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/19812"
+  },
+  {
+    "id": 353,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use consistent naming for ID variables, such as teamIdNumber, for clarity",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27867"
+  },
+  {
+    "id": 57,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use consistent naming for types that represent data schemas, e.g., AppMetaType for the TypeScript type and AppMetaSchema for the Zod schema.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28319"
+  },
+  {
+    "id": 356,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Adopt a consistent naming pattern for icon components, using PascalCase such as 'ChevronDownIcon' and 'MenuIcon'",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27458"
+  },
+  {
+    "id": 159,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use descriptive and consistent naming for webhook events and actions, such as 'ROUTING_FORM_FALLBACK_HIT'.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27588"
+  },
+  {
+    "id": 27,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use distinct TypeScript type aliases for schema objects and their corresponding types.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28319"
+  },
+  {
+    "id": 110,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use descriptive and consistent component names, such as WebhookFormSkeleton and WebhookListItem, to enhance readability.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27714"
+  },
+  {
+    "id": 401,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Enforce clear and descriptive variable naming conventions, such as 'bookingUid' for clarity.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27692"
+  },
+  {
+    "id": 113,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Prefix boolean props with 'can' or 'is' to clearly indicate their purpose, e.g., canEditWebhook.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27714"
+  },
+  {
+    "id": 370,
+    "layer": "base",
+    "category": "naming",
+    "rule": "Use descriptive suffixes like 'SortedByCreatedAt' for variables that hold sorted data.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27162"
+  },
+  {
+    "id": 310,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use consistent import ordering and avoid commented-out code for cleaner code readability",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27923"
+  },
+  {
+    "id": 11,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use optional chaining when accessing properties or calling methods on potentially null or undefined variables to prevent runtime errors.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/17604"
+  },
+  {
+    "id": 15,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use uniform component wrapper naming conventions (e.g., AppListCardWebWrapper) for web-specific components",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28100"
+  },
+  {
+    "id": 17,
+    "layer": "base",
+    "category": "style",
+    "rule": "Maintain consistent use of import statements with dynamic imports placed after static imports.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27370"
+  },
+  {
+    "id": 22,
+    "layer": "base",
+    "category": "style",
+    "rule": "Organize import statements to remove unused imports and group related imports for clarity.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28071"
+  },
+  {
+    "id": 23,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use descriptive method names that clearly define their purpose, such as doesUserIdHaveAccessToBooking.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28071"
+  },
+  {
+    "id": 26,
+    "layer": "base",
+    "category": "style",
+    "rule": "Import runtime schema objects separately from their associated TypeScript types to prevent type/value conflation.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28319"
+  },
+  {
+    "id": 30,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use consistent naming conventions for variable names, such as 'params' for query parameters.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27716"
+  },
+  {
+    "id": 32,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use regex character classes that include hyphens, dots, and underscores for URL validation.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28253"
+  },
+  {
+    "id": 33,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use descriptive and dynamic messaging in UI alerts based on security requirements",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28129"
+  },
+  {
+    "id": 37,
+    "layer": "base",
+    "category": "style",
+    "rule": "Utilize TypeScript's type system to enforce required parameters and API contracts, ensuring explicit value provision (e.g., `string | null` instead of optional `string`).",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/26546"
+  },
+  {
+    "id": 38,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use consistent import/export style for module management, prefer default exports for components and named exports for utility modules.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/19812"
+  },
+  {
+    "id": 52,
+    "layer": "base",
+    "category": "style",
+    "rule": "Keep import statements organized and consistent, grouping external libraries, followed by internal modules, with clear separation.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28098"
+  },
+  {
+    "id": 56,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use TypeScript type imports for type annotations to distinguish between runtime and compile-time entities.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28319"
+  },
+  {
+    "id": 60,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use consistent variable naming for query parameters, e.g., 'params' for the object holding search parameters.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27716"
+  },
+  {
+    "id": 63,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use named exports for React components",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28129"
+  },
+  {
+    "id": 64,
+    "layer": "base",
+    "category": "style",
+    "rule": "Follow consistent import order with external modules first, then internal modules",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28129"
+  },
+  {
+    "id": 67,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use array type notation for response properties that return multiple objects",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28336"
+  },
+  {
+    "id": 76,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use descriptive test step labels to clarify the sequence of actions performed in tests.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28341"
+  },
+  {
+    "id": 77,
+    "layer": "base",
+    "category": "style",
+    "rule": "Remove unused component imports to keep the codebase clean and avoid unnecessary dependencies",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28323"
+  },
+  {
+    "id": 78,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use descriptive and consistent data-testid attributes for DOM elements to facilitate reliable testing",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28323"
+  },
+  {
+    "id": 79,
+    "layer": "base",
+    "category": "style",
+    "rule": "Organize imports in a logical order, placing React libraries after local component imports",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28323"
+  },
+  {
+    "id": 82,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use TypeScript's required property syntax to make properties mandatory in types.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27088"
+  },
+  {
+    "id": 88,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use React functional components with asynchronous data fetching for server-side logic",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27862"
+  },
+  {
+    "id": 98,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use explicit and descriptive import statements, avoiding unnecessary aliases or complex paths.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27650"
+  },
+  {
+    "id": 99,
+    "layer": "base",
+    "category": "style",
+    "rule": "Group related imports together consistently and order standard libraries before third-party and internal modules.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27650"
+  },
+  {
+    "id": 109,
+    "layer": "base",
+    "category": "style",
+    "rule": "Follow a consistent import style by importing specific components from UI libraries and components.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27714"
+  },
+  {
+    "id": 111,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use functional components with explicit return statements.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27714"
+  },
+  {
+    "id": 116,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use bash scripts in CI to execute database operations within Docker containers for consistency.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28260"
+  },
+  {
+    "id": 118,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use specific version tags for Docker images in CI workflows to ensure reproducibility.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28252"
+  },
+  {
+    "id": 120,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use consistent order for React import statements, placing React imports before other imports.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28203"
+  },
+  {
+    "id": 124,
+    "layer": "base",
+    "category": "style",
+    "rule": "Prefix import statements with 'use' hooks like 'useState' and 'useEffect' in a consistent order for readability.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28203"
+  },
+  {
+    "id": 130,
+    "layer": "base",
+    "category": "style",
+    "rule": "Maintain consistent import and dependency declarations in package.json files across monorepo.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28204"
+  },
+  {
+    "id": 132,
+    "layer": "base",
+    "category": "style",
+    "rule": "Specify exact package versions in dependencies to ensure consistent environments",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28227"
+  },
+  {
+    "id": 135,
+    "layer": "base",
+    "category": "style",
+    "rule": "Implement sorting state display on column headers using icons to visually indicate the sorting order.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/18950"
+  },
+  {
+    "id": 137,
+    "layer": "base",
+    "category": "style",
+    "rule": "Apply consistent class names and conditional styling to elements based on state (e.g., open, sorted).",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/18950"
+  },
+  {
+    "id": 141,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use shell commands like 'rm' and 'cp' to replace symlinks with actual files on Windows",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28101"
+  },
+  {
+    "id": 142,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use descriptive and consistent naming for variables, functions, and components to improve code readability.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27832"
+  },
+  {
+    "id": 153,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use boolean logic or nullish coalescing to determine visibility flags (e.g., hideLogo) based on multiple conditions",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27643"
+  },
+  {
+    "id": 156,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use named imports for functions from modules to improve readability and tree-shaking.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/124"
+  },
+  {
+    "id": 157,
+    "layer": "base",
+    "category": "style",
+    "rule": "Import getCsrfToken instead of csrfToken from 'next-auth/client'.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/124"
+  },
+  {
+    "id": 165,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use consistent import style for modules, including curly braces for named imports.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28143"
+  },
+  {
+    "id": 169,
+    "layer": "base",
+    "category": "style",
+    "rule": "Remove unused UI elements such as Cancel buttons from form pages to reduce clutter and focus on primary actions.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/141"
+  },
+  {
+    "id": 170,
+    "layer": "base",
+    "category": "style",
+    "rule": "Identify and eliminate UI elements that are no longer needed or used in the codebase.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/141"
+  },
+  {
+    "id": 173,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use explicit version pinning for dependencies when updating to ensure stability.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28117"
+  },
+  {
+    "id": 174,
+    "layer": "base",
+    "category": "style",
+    "rule": "Maintain dependency versions in package.json, yarn.lock, and other lockfiles to ensure consistency.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28117"
+  },
+  {
+    "id": 176,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use named imports for hooks from their files",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28119"
+  },
+  {
+    "id": 177,
+    "layer": "base",
+    "category": "style",
+    "rule": "Align inline variable declaration spacing for better readability",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28119"
+  },
+  {
+    "id": 179,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use consistent TypeScript syntax for array type annotations, preferring 'Type[]' over 'Type<{}>' notation.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27387"
+  },
+  {
+    "id": 180,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use React components for rendering hint texts that include links, rather than plain strings.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27837"
+  },
+  {
+    "id": 181,
+    "layer": "base",
+    "category": "style",
+    "rule": "Internationalize dynamic link content with placeholders that can include React components.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27837"
+  },
+  {
+    "id": 182,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use React nodes for hint props to allow rich content such as links or formatted text.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27837"
+  },
+  {
+    "id": 183,
+    "layer": "base",
+    "category": "style",
+    "rule": "Store explanation texts including HTML content as localized strings with embedded components for flexibility.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27837"
+  },
+  {
+    "id": 185,
+    "layer": "base",
+    "category": "style",
+    "rule": "Update toggle icons dynamically based on the open/close state of the dropdown.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28097"
+  },
+  {
+    "id": 189,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use TypeScript optional chaining to handle optional props gracefully",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27748"
+  },
+  {
+    "id": 196,
+    "layer": "base",
+    "category": "style",
+    "rule": "Name files and functions to clearly indicate their purpose, such as 'handleBookingRequested.ts' for webhook handling.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27546"
+  },
+  {
+    "id": 198,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use descriptive section headers for setup instructions with clear step-by-step guidance.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/112"
+  },
+  {
+    "id": 199,
+    "layer": "base",
+    "category": "style",
+    "rule": "Include detailed comments and links in documentation to assist configuration.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/112"
+  },
+  {
+    "id": 205,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use the 'shape' prop on Avatar to switch between 'circle' and 'square' shapes.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/20552"
+  },
+  {
+    "id": 211,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use separate icon components for different toggle states and switch icons based on open/close state.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27983"
+  },
+  {
+    "id": 212,
+    "layer": "base",
+    "category": "style",
+    "rule": "Import all related icons in a single import statement for clarity.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27983"
+  },
+  {
+    "id": 214,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use conditional rendering based on type identifiers to control UI behavior and logic flow.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/26792"
+  },
+  {
+    "id": 220,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use specific types like ValidActionSource instead of general or optional types for critical input parameters.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27869"
+  },
+  {
+    "id": 223,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use specific, descriptive error message keys in localization files for validation errors.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27818"
+  },
+  {
+    "id": 227,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use consistent import ordering and avoid unused imports to maintain code clarity.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27491"
+  },
+  {
+    "id": 228,
+    "layer": "base",
+    "category": "style",
+    "rule": "Define specific data shapes for optional parameters (e.g., restrictionSchedule with id and useBookerTimezone).",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27491"
+  },
+  {
+    "id": 229,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use i18n translation functions for user-visible strings instead of hardcoded text.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27998"
+  },
+  {
+    "id": 231,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use target=\"_blank\" and rel=\"noopener noreferrer\" for external links that open in new tabs",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27709"
+  },
+  {
+    "id": 235,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use object destructuring to exclude and omit specific fields from payload objects before sending to external services.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27891"
+  },
+  {
+    "id": 236,
+    "layer": "base",
+    "category": "style",
+    "rule": "Apply consistent code formatting and indentation across all files to ensure uniformity.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27928"
+  },
+  {
+    "id": 238,
+    "layer": "base",
+    "category": "style",
+    "rule": "Maintain consistent import and export style throughout the codebase, favoring named exports for clarity.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27928"
+  },
+  {
+    "id": 240,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use consistent import style, preferring named imports over require when possible.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28"
+  },
+  {
+    "id": 241,
+    "layer": "base",
+    "category": "style",
+    "rule": "Extend dayjs with plugins at the top of the module after import statements.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28"
+  },
+  {
+    "id": 246,
+    "layer": "base",
+    "category": "style",
+    "rule": "Initialize optional function parameters with a space after the arrow in arrow functions.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27890"
+  },
+  {
+    "id": 256,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use responsive utility classes from Tailwind to control component visibility based on viewport size.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27965"
+  },
+  {
+    "id": 263,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use consistent naming conventions: variables and components use camelCase, files and JSON keys use snake_case or lowercase with underscores.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/11399"
+  },
+  {
+    "id": 264,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use TypeScript for type safety and explicit typing, especially for form data and component props.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/11399"
+  },
+  {
+    "id": 265,
+    "layer": "base",
+    "category": "style",
+    "rule": "Place import statements together at the top of the file, grouping external and internal modules separately.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/11399"
+  },
+  {
+    "id": 266,
+    "layer": "base",
+    "category": "style",
+    "rule": "Import React hooks directly from their packages, e.g., import { useForm } from 'react-hook-form'.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/11399"
+  },
+  {
+    "id": 268,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use React Hook Form's Controller component for controlled components like Avatar and ImageUploader.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/11399"
+  },
+  {
+    "id": 270,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use 'shouldDirty: true' when setting form values programmatically to mark the field as modified.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/11399"
+  },
+  {
+    "id": 273,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use placeholder syntax '{{name}}' consistently in translation strings for dynamic content.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/17577"
+  },
+  {
+    "id": 278,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use explicit imports from fixture modules for test setup.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/22475"
+  },
+  {
+    "id": 279,
+    "layer": "base",
+    "category": "style",
+    "rule": "Organize imports by categorizing external and internal modules separately.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/22475"
+  },
+  {
+    "id": 280,
+    "layer": "base",
+    "category": "style",
+    "rule": "Declare test fixtures and dependencies at the beginning of test files for clarity.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/22475"
+  },
+  {
+    "id": 282,
+    "layer": "base",
+    "category": "style",
+    "rule": "Remove unused module imports to keep module dependencies minimal.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/22475"
+  },
+  {
+    "id": 286,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use destructuring with conditional spread to include replyTo in email data only when it is defined",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27941"
+  },
+  {
+    "id": 290,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use consistent naming conventions for component files and functions, such as PascalCase for React components and camelCase for variables and functions.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27267"
+  },
+  {
+    "id": 293,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use descriptive inline comments to indicate new or changed UI elements, especially when replacing or modifying existing components.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27267"
+  },
+  {
+    "id": 298,
+    "layer": "base",
+    "category": "style",
+    "rule": "Remove redundant data-testid attributes from buttons in onboarding views.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27933"
+  },
+  {
+    "id": 302,
+    "layer": "base",
+    "category": "style",
+    "rule": "Apply formatting changes only, do not modify logic when refactoring for formatting.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27880"
+  },
+  {
+    "id": 303,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use arrow functions consistently in Promise-based email sending calls.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27880"
+  },
+  {
+    "id": 304,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use named exports for functions that are part of the module's public API.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27880"
+  },
+  {
+    "id": 305,
+    "layer": "base",
+    "category": "style",
+    "rule": "Organize import statements to follow a consistent style, such as grouping and ordering.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27880"
+  },
+  {
+    "id": 306,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use data-testid attributes consistently for testing selectors",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27922"
+  },
+  {
+    "id": 309,
+    "layer": "base",
+    "category": "style",
+    "rule": "Render attendee phone numbers conditionally between name and email in the WhoSection.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27909"
+  },
+  {
+    "id": 315,
+    "layer": "base",
+    "category": "style",
+    "rule": "Set default icon size to 16px in createIcon wrapper to ensure icon size consistency across the codebase.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27924"
+  },
+  {
+    "id": 318,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use snake_case in test UID strings for consistency.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27902"
+  },
+  {
+    "id": 322,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use conditional spreading to include optional 'keys' field only when 'keys' is defined.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27918"
+  },
+  {
+    "id": 325,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use boolean state variables with clear, descriptive names that indicate their purpose.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27917"
+  },
+  {
+    "id": 331,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use environment variables to configure Stripe price and product IDs with clear naming conventions.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/18990"
+  },
+  {
+    "id": 333,
+    "layer": "base",
+    "category": "style",
+    "rule": "Update import paths to reflect the directory structure and distinct staging of components, indicating a convention of modular organization.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/18990"
+  },
+  {
+    "id": 334,
+    "layer": "base",
+    "category": "style",
+    "rule": "Avoid defining functions or constants directly inside string literals; instead, create variables for reusability and clarity.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/18990"
+  },
+  {
+    "id": 338,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use consistent import paths for hooks within the project, such as '~/data-table/hooks/'.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27900"
+  },
+  {
+    "id": 339,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use relative import paths for local modules (e.g., '~/data-table/...' instead of '@calcom/features/data-table')",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27833"
+  },
+  {
+    "id": 341,
+    "layer": "base",
+    "category": "style",
+    "rule": "Import React hooks directly from React or specific utility modules, avoid importing from feature packages",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27833"
+  },
+  {
+    "id": 342,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use specific, individual import statements for only the necessary components or functions from a module",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27833"
+  },
+  {
+    "id": 351,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use explicit boolean literals in conditional rendering to avoid ambiguity",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27867"
+  },
+  {
+    "id": 358,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use the useLocale hook to retrieve translation functions instead of passing them as props.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27423"
+  },
+  {
+    "id": 359,
+    "layer": "base",
+    "category": "style",
+    "rule": "Keep translation functions located internally within components if they are only used locally, rather than passing t as a prop.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27423"
+  },
+  {
+    "id": 362,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use destructuring to extract configuration or limit parameters before passing to service functions.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27898"
+  },
+  {
+    "id": 365,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use named hooks with explicit options objects for clarity",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27873"
+  },
+  {
+    "id": 366,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use useCallback for functions passed as options to prevent unnecessary re-renders",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27873"
+  },
+  {
+    "id": 372,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use template literals with clear and unique identifiers such as eventTypeId for UID generation in tests",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27849"
+  },
+  {
+    "id": 373,
+    "layer": "base",
+    "category": "style",
+    "rule": "Create fixtures with variable and descriptive referenceUids, preferably using random strings for uniqueness",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27849"
+  },
+  {
+    "id": 378,
+    "layer": "base",
+    "category": "style",
+    "rule": "Avoid explicit magic numbers in time calculations; use descriptive constants or variables.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27855"
+  },
+  {
+    "id": 379,
+    "layer": "base",
+    "category": "style",
+    "rule": "Format internal field labels into human-readable text for UI display using translation or label formatting.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27858"
+  },
+  {
+    "id": 385,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use regex to match specific API paths and extensions for validation",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27848"
+  },
+  {
+    "id": 387,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use consistent naming patterns for configuration files with lowercase and underscores",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27840"
+  },
+  {
+    "id": 388,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use JSON for configuration data with informative comments",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27840"
+  },
+  {
+    "id": 396,
+    "layer": "base",
+    "category": "style",
+    "rule": "Implement conditional logic in email components to hide or show UI elements based on feature flags like 'disableCancelling' and 'disableRescheduling'.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27637"
+  },
+  {
+    "id": 397,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use consistent URL schemes for Redis connections, prefer 'redis://' over 'rediss://' in configuration files.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27478"
+  },
+  {
+    "id": 398,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use consistent import statement styles, preferring named imports when importing specific modules or components.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27692"
+  },
+  {
+    "id": 399,
+    "layer": "base",
+    "category": "style",
+    "rule": "Apply biome formatting uniformly across codebase to ensure consistent code style and readability.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27692"
+  },
+  {
+    "id": 400,
+    "layer": "base",
+    "category": "style",
+    "rule": "Use explicit async/await syntax for asynchronous functions, ensuring readability and clarity in async operations.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27692"
+  },
+  {
+    "id": 287,
+    "layer": "base",
+    "category": "testing",
+    "rule": "Use data-testid attributes for stable UI element testing selectors.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27938"
+  },
+  {
+    "id": 255,
+    "layer": "base",
+    "category": "testing",
+    "rule": "Implement identity conversions to verify that functions return the same value when converting a type to itself.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27964"
+  },
+  {
+    "id": 168,
+    "layer": "base",
+    "category": "testing",
+    "rule": "Mock the i18n server module from the dedicated @calcom/i18n/server package in tests.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28141"
+  },
+  {
+    "id": 161,
+    "layer": "base",
+    "category": "testing",
+    "rule": "When handling asynchronous data, mock dependencies and verify function calls with relevant data passed in tests.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27588"
+  },
+  {
+    "id": 123,
+    "layer": "base",
+    "category": "testing",
+    "rule": "Include unit tests that parse and validate representative phone numbers using libphonenumber-js to ensure input masks are correctly configured.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28203"
+  },
+  {
+    "id": 122,
+    "layer": "base",
+    "category": "testing",
+    "rule": "Validate that custom phone input masks have enough digit placeholders to accommodate the longest valid phone numbers per country.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/28203"
+  },
+  {
+    "id": 367,
+    "layer": "base",
+    "category": "testing",
+    "rule": "In testing, mock user session data explicitly to simulate different user states",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27873"
+  },
+  {
+    "id": 361,
+    "layer": "base",
+    "category": "testing",
+    "rule": "Include thorough unit tests for functions that depend on limits parameters, especially after bug fixes.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27898"
+  },
+  {
+    "id": 299,
+    "layer": "base",
+    "category": "testing",
+    "rule": "Test for user-visible content and URL changes instead of relying solely on URL patterns.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27933"
+  },
+  {
+    "id": 258,
+    "layer": "base",
+    "category": "testing",
+    "rule": "Use descriptive test IDs for key UI elements to facilitate testing.",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/calcom/cal.com/pull/27965"
+  },
+  {
+    "id": 2,
+    "layer": "customer",
+    "category": "architecture",
+    "rule": "Import colors and gradients from the centralized tokens file rather than using hardcoded color values",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/GauravGill90/kronode/pull/4"
+  },
+  {
+    "id": 9,
+    "layer": "customer",
+    "category": "architecture",
+    "rule": "Return consistent schema objects with all expected fields, using null for missing optional values",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/GauravGill90/kronode/pull/2"
+  },
+  {
+    "id": 1,
+    "layer": "customer",
+    "category": "architecture",
+    "rule": "Centralize all color values in a single tokens file at frontend/tokens/colors.ts",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/GauravGill90/kronode/pull/4"
+  },
+  {
+    "id": 3,
+    "layer": "customer",
+    "category": "naming",
+    "rule": "Organize colors into semantic categories like bg, border, and text with subcategories like base, subtle, and primary",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/GauravGill90/kronode/pull/4"
+  },
+  {
+    "id": 6,
+    "layer": "customer",
+    "category": "naming",
+    "rule": "Define component props as interfaces with Props suffix pattern (e.g., WelcomeBannerProps)",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/GauravGill90/kronode/pull/2"
+  },
+  {
+    "id": 4,
+    "layer": "customer",
+    "category": "naming",
+    "rule": "Use named gradient exports for reusable gradient patterns",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/GauravGill90/kronode/pull/4"
+  },
+  {
+    "id": 8,
+    "layer": "customer",
+    "category": "style",
+    "rule": "Include optional fields in schema/type definitions as union types with null (e.g., user_name: string | null)",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/GauravGill90/kronode/pull/2"
+  },
+  {
+    "id": 5,
+    "layer": "customer",
+    "category": "style",
+    "rule": "Use default exports for React components",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/GauravGill90/kronode/pull/2"
+  },
+  {
+    "id": 7,
+    "layer": "customer",
+    "category": "style",
+    "rule": "Use optional chaining with nullish coalescing for null/undefined fallbacks (e.g., data.user_name ?? null)",
+    "frequency": 1,
+    "confidence": 1.0,
+    "enforced_by": [],
+    "source_pr": "https://github.com/GauravGill90/kronode/pull/2"
+  },
+  {
+    "id": 10,
+    "layer": "customer",
+    "category": "style",
+    "rule": "Always use named exports for React components",
+    "frequency": 2,
+    "confidence": 0.44000000000000006,
+    "enforced_by": [
+      "unknown"
+    ],
+    "source_pr": "https://github.com/test/test/pull/99"
+  }
+]

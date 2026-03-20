@@ -44,32 +44,40 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 Create a file at `backend/.env` with the following variables:
 
 ```
+# Clerk — used to verify tokens server-side (same secret key as frontend)
+CLERK_SECRET_KEY=sk_test_your_secret_key_here
+
 # PostgreSQL connection string
 DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/kronode
 
 # Redis connection string
 REDIS_URL=redis://localhost:6379/0
 
-# Clerk — used to verify tokens server-side (same secret key as frontend)
-CLERK_SECRET_KEY=sk_test_your_secret_key_here
+# Anthropic API key (used by planner, coder, reviewer agents)
+ANTHROPIC_API_KEY=sk-ant-your_key_here
 
-# CORS — comma-separated list of allowed frontend origins
-CORS_ORIGINS=http://localhost:3000
+# Gemini API key (used for cheap batch work — ticket interpretation, convention extraction)
+GEMINI_API_KEY=your_gemini_api_key_here
 
-# OpenAI API key (used by the agent)
-OPENAI_API_KEY=sk-your_openai_api_key_here
-
-# GitHub App credentials (used for opening PRs)
-GITHUB_APP_ID=your_github_app_id
-GITHUB_APP_PRIVATE_KEY=your_github_app_private_key_pem_contents
+# GitHub OAuth (optional)
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
 
 # Jira OAuth credentials (optional — required for Jira integration)
-JIRA_CLIENT_ID=your_jira_client_id
-JIRA_CLIENT_SECRET=your_jira_client_secret
+JIRA_CLIENT_ID=
+JIRA_CLIENT_SECRET=
 
 # Slack bot credentials (optional — required for Slack integration)
-SLACK_BOT_TOKEN=xoxb-your_slack_bot_token
-SLACK_SIGNING_SECRET=your_slack_signing_secret
+SLACK_CLIENT_ID=
+SLACK_CLIENT_SECRET=
+SLACK_SIGNING_SECRET=
+
+# App
+BACKEND_URL=http://localhost:8000
+CORS_ORIGINS=http://localhost:3000
+
+# Dev / testing — set to true to skip all LLM calls
+BYPASS_LLM=false
 ```
 
 ---

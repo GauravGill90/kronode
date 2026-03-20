@@ -1,10 +1,7 @@
 import json
 import logging
 
-import anthropic
-
 from app.agents.base import AgentBase
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -12,9 +9,11 @@ SYSTEM_PROMPT = """You are a task router for an autonomous AI developer tool.
 Your job is to classify incoming tasks and select which agents should run.
 
 Available agents (in order):
+- ticket_interpreter: parses raw ticket into structured task definition
 - context_builder: assembles codebase awareness
 - clarification_agent: asks questions if ambiguous
 - planner_agent: creates implementation plan and DoD checklist
+- plan_approval_agent: posts plan to Slack/Jira for human approval before coding
 - guardrails_agent: validates scope and risk against the plan
 - coder_agent: writes the code
 - tester_agent: writes unit and integration tests
@@ -28,53 +27,47 @@ Respond with valid JSON only. No markdown, no explanation.
 FEW_SHOT = """Examples:
 
 Task: "Fix the login button color"
-Response: {"agents": ["context_builder", "planner_agent", "guardrails_agent", "coder_agent", "reviewer_agent", "memory_agent"], "complexity": "simple", "steps": 6}
+Response: {"agents": ["ticket_interpreter", "context_builder", "planner_agent", "guardrails_agent", "coder_agent", "reviewer_agent", "memory_agent"], "complexity": "simple", "steps": 7}
 
 Task: "Add forgot password screen"
-Response: {"agents": ["context_builder", "clarification_agent", "planner_agent", "guardrails_agent", "coder_agent", "tester_agent", "execution_verifier", "reviewer_agent", "memory_agent"], "complexity": "medium", "steps": 9}
+Response: {"agents": ["ticket_interpreter", "context_builder", "clarification_agent", "planner_agent", "plan_approval_agent", "guardrails_agent", "coder_agent", "tester_agent", "execution_verifier", "reviewer_agent", "memory_agent"], "complexity": "medium", "steps": 11}
 
 Task: "Build full authentication system"
-Response: {"agents": ["context_builder", "clarification_agent", "planner_agent", "guardrails_agent", "coder_agent", "tester_agent", "execution_verifier", "reviewer_agent", "memory_agent"], "complexity": "complex", "steps": 9}
+Response: {"agents": ["ticket_interpreter", "context_builder", "clarification_agent", "planner_agent", "plan_approval_agent", "guardrails_agent", "coder_agent", "tester_agent", "execution_verifier", "reviewer_agent", "memory_agent"], "complexity": "complex", "steps": 11}
 
 Task: "Review PR #42"
 Response: {"agents": ["context_builder", "reviewer_agent"], "complexity": "simple", "steps": 2}
 
 Task: "Upload PRD and create tickets"
-Response: {"agents": ["context_builder", "planner_agent", "guardrails_agent"], "complexity": "medium", "steps": 3}
+Response: {"agents": ["ticket_interpreter", "context_builder", "planner_agent", "guardrails_agent"], "complexity": "medium", "steps": 4}
 """
 
 
 class RouterAgent(AgentBase):
     display_name = "Task Router"
 
-    def __init__(self):
-        self.client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-
     async def run(self, context: dict) -> dict:
         description = context["description"]
 
-        message = await self.client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=256,
+        from app.core.llm import cheap
+        raw = await cheap(
             system=SYSTEM_PROMPT + "\n\n" + FEW_SHOT,
-            messages=[
-                {"role": "user", "content": f"Task: \"{description}\""}
-            ],
+            user_message=f"Task: \"{description}\"",
+            max_tokens=256,
         )
-
-        raw = message.content[0].text.strip()
         try:
             routing = json.loads(raw)
         except json.JSONDecodeError:
             logger.warning("RouterAgent: failed to parse JSON, using full pipeline fallback")
             routing = {
                 "agents": [
-                    "context_builder", "clarification_agent", "planner_agent",
-                    "guardrails_agent", "coder_agent", "tester_agent",
-                    "execution_verifier", "reviewer_agent", "memory_agent"
+                    "ticket_interpreter", "context_builder", "clarification_agent",
+                    "planner_agent", "plan_approval_agent", "guardrails_agent",
+                    "coder_agent", "tester_agent", "execution_verifier",
+                    "reviewer_agent", "memory_agent"
                 ],
                 "complexity": "medium",
-                "steps": 9,
+                "steps": 11,
             }
 
         routing["summary"] = (

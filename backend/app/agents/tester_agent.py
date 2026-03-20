@@ -37,8 +37,6 @@ class TesterAgent(AgentBase):
     display_name = "Tester"
 
     async def run(self, context: dict) -> dict:
-        from app.profiles import get_profile
-
         coder_result = context.get("coder_agent", {})
         impl_files = coder_result.get("files", [])
         branch_name = coder_result.get("branch_name", "")
@@ -46,8 +44,7 @@ class TesterAgent(AgentBase):
         context_bundle = context.get("context_builder", {})
         conventions = context_bundle.get("conventions", [])
 
-        profile_key = context.get("agent_profile", "fullstack")
-        profile = get_profile(profile_key)
+        skill_names = context.get("agent_profile", "fullstack")
 
         if not impl_files:
             logger.info("[Tester] No implementation files — skipping")
@@ -76,7 +73,7 @@ class TesterAgent(AgentBase):
             truncation_note = f"\nNote: only {len(file_sections)} of {len(impl_files)} files shown due to context limits."
 
         user_message = (
-            f"Profile: {profile.PROFILE_NAME}\n"
+            f"Skills: {skill_names}\n"
             f"Conventions observed in this codebase:\n"
             f"{json.dumps(conventions, indent=2) if conventions else 'none extracted'}\n"
             f"{truncation_note}\n\n"

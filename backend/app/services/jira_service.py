@@ -177,3 +177,70 @@ async def update_ticket_status(
                 logger.info(f"[Jira] PR linked to {ticket_id}: {pr_url}")
 
     return True
+
+
+async def post_plan_comment(
+    workspace_url: str,
+    email: str,
+    api_token: str,
+    ticket_id: str,
+    plan: dict,
+    confidence_level: str,
+    confidence_score: float,
+    agent_name: str,
+) -> bool:
+    """Post an implementation plan as a Jira comment on the ticket."""
+    subtasks = plan.get("subtasks", [])
+    dod = plan.get("definition_of_done", [])
+    risk_flags = plan.get("risk_flags", [])
+    assumptions = plan.get("assumptions", [])
+    estimated_files = plan.get("estimated_files", "?")
+
+    # Build plain-text comment body (Jira renders markdown in comments)
+    lines = [
+        f"*{agent_name} — Implementation Plan*",
+        f"Confidence: *{confidence_level.upper()}* ({confidence_score:.1f}) | Estimated files: {estimated_files}",
+        "",
+        "*Subtasks:*",
+    ]
+    for s in subtasks:
+        lines.append(f"# {s['description']}")
+    lines.append("")
+    lines.append("*Definition of Done:*")
+    for d in dod:
+        lines.append(f"* {d}")
+    if risk_flags:
+        lines.append("")
+        lines.append("*Risks:*")
+        for r in risk_flags:
+            lines.append(f"(!) {r}")
+    if assumptions:
+        lines.append("")
+        lines.append("*Assumptions:*")
+        for a in assumptions:
+            lines.append(f"* {a}")
+    if confidence_level == "low":
+        lines.append("")
+        lines.append(f"(!) Low confidence — {agent_name} recommends a human take this ticket.")
+
+    body = "\n".join(lines)
+
+    base = workspace_url.rstrip("/")
+    creds = base64.b64encode(f"{email}:{api_token}".encode()).decode()
+    headers = {
+        "Authorization": f"Basic {creds}",
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+    }
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.post(
+            f"{base}/rest/api/3/issue/{ticket_id}/comment",
+            headers=headers,
+            json={"body": {"type": "doc", "version": 1, "content": [{"type": "paragraph", "content": [{"type": "text", "text": body}]}]}},
+        )
+        if resp.status_code not in (200, 201):
+            logger.warning(f"[Jira] Plan comment failed for {ticket_id}: {resp.status_code}")
+            return False
+        logger.info(f"[Jira] Plan comment posted to {ticket_id}")
+        return True

@@ -15,6 +15,61 @@ def run_resume_pipeline(task_id: str, clarification_answer: str):
     asyncio.run(resume_pipeline(task_id, clarification_answer))
 
 
+@celery_app.task(name="run_convention_extraction")
+def run_convention_extraction(org_id: int, pr_count: int = 200):
+    from app.pipeline.convention_pipeline import run_extraction
+    asyncio.run(run_extraction(org_id, pr_count))
+
+
+@celery_app.task(name="run_base_convention_extraction")
+def run_base_convention_extraction(repo_url: str = "https://github.com/calcom/cal.com", pr_count: int = 200):
+    from app.pipeline.convention_pipeline import run_base_extraction
+    asyncio.run(run_base_extraction(repo_url=repo_url, pr_count=pr_count))
+
+
+@celery_app.task(name="refresh_conventions_all_orgs")
+def refresh_conventions_all_orgs():
+    """Weekly task: re-extract conventions from recent PRs for all orgs with a repo."""
+    asyncio.run(_refresh_all_orgs())
+
+
+async def _refresh_all_orgs():
+    import logging
+    from sqlalchemy import select
+    from app.core.database import AsyncSessionLocal
+    from app.models.org import OnboardingConfig
+
+    logger = logging.getLogger(__name__)
+    logger.info("[ConventionRefresh] Starting weekly refresh for all orgs")
+
+    async with AsyncSessionLocal() as db:
+        rows = (await db.execute(
+            select(OnboardingConfig.org_id)
+            .where(
+                OnboardingConfig.repo_url.isnot(None),
+                OnboardingConfig.github_access_token.isnot(None),
+            )
+        )).scalars().all()
+
+    logger.info(f"[ConventionRefresh] {len(rows)} org(s) with repos configured")
+
+    for org_id in rows:
+        try:
+            # Only fetch recent PRs (50) for the weekly refresh, not the full 200
+            run_convention_extraction.delay(org_id, 50)
+            logger.info(f"[ConventionRefresh] Queued extraction for org {org_id}")
+        except Exception as exc:
+            logger.warning(f"[ConventionRefresh] Failed to queue org {org_id}: {exc}")
+
+    logger.info("[ConventionRefresh] Weekly refresh complete")
+
+
+@celery_app.task(name="run_self_onboarding")
+def run_self_onboarding(org_id: int):
+    from app.pipeline.self_onboarding import run_onboarding
+    asyncio.run(run_onboarding(org_id))
+
+
 @celery_app.task(name="poll_pr_outcomes")
 def poll_pr_outcomes():
     asyncio.run(_poll_pr_outcomes())
@@ -134,6 +189,20 @@ async def _poll_pr_outcomes():
             except Exception as exc:
                 logger.warning(f"[PollPR] pr_outcome update failed for task {task_id}: {exc}")
 
+            # Extract positive signal from merged PR (conventions that were followed)
+            if status.get("review_comments") or status.get("inline_comments"):
+                try:
+                    from app.agents.feedback_extractor import extract_from_review
+                    await extract_from_review(
+                        org_id=org_id,
+                        review_comments=status.get("review_comments", []),
+                        inline_comments=status.get("inline_comments", []),
+                        pr_url=pr_url,
+                        is_merged=True,
+                    )
+                except Exception as exc:
+                    logger.warning(f"[PollPR] Feedback extraction on merge failed: {exc}")
+
             # Transition Jira to Done
             if (jira_ticket_id and cfg.jira_workspace_url
                     and cfg.jira_email and cfg.jira_api_token):
@@ -169,8 +238,10 @@ async def _poll_pr_outcomes():
                             task_id=task_id,
                             record_type="pitfall",
                             content={
-                                "review_comments": status["review_comments"],
-                                "inline_comments": status.get("inline_comments", []),
+                                "review_comments": status["review_comments"],  # [{body, reviewer, state}]
+                                "inline_comments": status.get("inline_comments", []),  # [{path, body, reviewer}]
+                                "reviewers": status.get("reviewers", []),
+                                "pr_url": pr_url,
                             },
                             source=pr_url,
                         ))
@@ -178,7 +249,8 @@ async def _poll_pr_outcomes():
                         logger.info(
                             f"[PollPR] Wrote pitfall record for task {task_id} "
                             f"({len(status['review_comments'])} review + "
-                            f"{len(status.get('inline_comments', []))} inline comment(s))"
+                            f"{len(status.get('inline_comments', []))} inline comment(s), "
+                            f"reviewers: {status.get('reviewers', [])})"
                         )
 
                         # Notify Slack — only on first detection (same gate as pitfall write)
@@ -188,11 +260,14 @@ async def _poll_pr_outcomes():
                                 agent_name = cfg.agent_name or "Kronode"
                                 comment_lines: list[str] = []
                                 for c in status["review_comments"]:
-                                    comment_lines.append(f"• {c}")
+                                    reviewer = c.get("reviewer", "reviewer") if isinstance(c, dict) else "reviewer"
+                                    body = c.get("body", c) if isinstance(c, dict) else c
+                                    comment_lines.append(f"• *{reviewer}*: {body}")
                                 for ic in status.get("inline_comments", []):
                                     path = ic.get("path", "")
                                     body = ic.get("body", "")
-                                    comment_lines.append(f"• `{path}`: {body}")
+                                    reviewer = ic.get("reviewer", "")
+                                    comment_lines.append(f"• *{reviewer}* on `{path}`: {body}")
                                 comments_block = "\n".join(comment_lines[:10])  # cap at 10
                                 if len(comment_lines) > 10:
                                     comments_block += f"\n_…and {len(comment_lines) - 10} more_"
@@ -225,6 +300,19 @@ async def _poll_pr_outcomes():
                                 logger.info(f"[PollPR] Slack 'changes requested' notification sent for task {task_id}")
                             except Exception as slack_exc:
                                 logger.warning(f"[PollPR] Slack changes-requested notify failed: {slack_exc}")
+
+                        # Extract conventions from reviewer feedback (learn from corrections)
+                        try:
+                            from app.agents.feedback_extractor import extract_from_review
+                            await extract_from_review(
+                                org_id=org_id,
+                                review_comments=status["review_comments"],
+                                inline_comments=status.get("inline_comments", []),
+                                pr_url=pr_url,
+                                is_merged=False,
+                            )
+                        except Exception as fb_exc:
+                            logger.warning(f"[PollPR] Feedback extraction failed: {fb_exc}")
 
                         # Queue revision agent to address the comments
                         try:
@@ -288,9 +376,9 @@ async def _run_pr_revision(task_id_str: str):
     review_comments = pitfall.content.get("review_comments", [])
     inline_comments = pitfall.content.get("inline_comments", [])
 
-    from app.profiles import get_profile
-    profile_key = cfg.agent_profile or "fullstack"
-    profile = get_profile(profile_key)
+    from app.skills.composer import compose_skills
+    async with AsyncSessionLocal() as skill_db:
+        skill_set = await compose_skills(task.org_id, skill_db)
 
     context = {
         "task_id": task_id_str,
@@ -306,7 +394,7 @@ async def _run_pr_revision(task_id_str: str):
         "review_comments": review_comments,
         "inline_comments": inline_comments,
         "original_files": original_files,
-        "profile_injection": profile.SYSTEM_PROMPT_INJECTION,
+        "profile_injection": skill_set.system_prompt,
         "coding_standards": cfg.coding_standards or "",
     }
 
@@ -432,3 +520,105 @@ async def _poll_clarifications():
             logger.warning(f"[PollClarification] Failed to queue resume for {task.id}: {exc}")
 
     logger.info("[PollClarification] Poll complete")
+
+
+@celery_app.task(name="poll_plan_approvals")
+def poll_plan_approvals():
+    asyncio.run(_poll_plan_approvals())
+
+
+async def _poll_plan_approvals():
+    import logging
+    from datetime import datetime, timezone, timedelta
+    from sqlalchemy import select
+
+    from app.core.database import AsyncSessionLocal
+    from app.models.task import Task
+    from app.services.slack_service import get_thread_replies
+
+    logger = logging.getLogger(__name__)
+    logger.info("[PollApproval] Starting plan approval poll")
+
+    async with AsyncSessionLocal() as db:
+        rows = (await db.execute(
+            select(Task).where(Task.status == "waiting_approval").limit(20)
+        )).scalars().all()
+
+    logger.info(f"[PollApproval] {len(rows)} task(s) waiting for approval")
+
+    approve_words = {"approve", "approved", "lgtm", "go", "yes", "ship", "ship it", "proceed"}
+    reject_words = {"reject", "rejected", "no", "stop", "cancel", "don't", "dont"}
+
+    for task in rows:
+        snapshot = (task.result or {})
+        thread_ts = snapshot.get("thread_ts")
+        context_snap = snapshot.get("context_snapshot", {})
+
+        if not thread_ts:
+            logger.warning(f"[PollApproval] Task {task.id} has no thread_ts — skipping")
+            continue
+
+        slack_channel = snapshot.get("slack_channel_id") or context_snap.get("slack_channel_id")
+        slack_token = context_snap.get("slack_bot_token")
+
+        if not slack_channel or not slack_token:
+            logger.warning(f"[PollApproval] Task {task.id} has no Slack creds — skipping")
+            continue
+
+        # Check for timeout (24h)
+        age = datetime.now(timezone.utc) - task.created_at.replace(tzinfo=timezone.utc)
+        if age > timedelta(hours=24):
+            # Auto-approve high confidence, auto-cancel low, notify medium
+            confidence = snapshot.get("confidence_level") or context_snap.get("plan_approval_agent", {}).get("confidence_level", "medium")
+            if confidence == "high":
+                logger.info(f"[PollApproval] Task {task.id} timed out — auto-approving (high confidence)")
+                run_resume_pipeline.delay(str(task.id), "Plan auto-approved after 24h timeout (high confidence).")
+            elif confidence == "low":
+                logger.info(f"[PollApproval] Task {task.id} timed out — auto-cancelling (low confidence)")
+                async with AsyncSessionLocal() as db:
+                    task_obj = await db.get(Task, task.id)
+                    task_obj.status = "cancelled"
+                    task_obj.error = "Plan auto-cancelled: low confidence and no approval received in 24h."
+                    task_obj.completed_at = datetime.now(timezone.utc)
+                    await db.commit()
+            else:
+                logger.info(f"[PollApproval] Task {task.id} timed out — auto-approving (medium confidence)")
+                run_resume_pipeline.delay(str(task.id), "Plan auto-approved after 24h timeout.")
+            continue
+
+        # Poll Slack thread for approval/rejection
+        try:
+            replies = await get_thread_replies(
+                channel_id=slack_channel,
+                thread_ts=thread_ts,
+                bot_token=slack_token,
+            )
+        except Exception as exc:
+            logger.warning(f"[PollApproval] get_thread_replies failed for {task.id}: {exc}")
+            continue
+
+        if not replies:
+            logger.info(f"[PollApproval] No reply yet for task {task.id}")
+            continue
+
+        # Check the latest reply for approval/rejection keywords
+        for reply_text in replies:
+            lower = reply_text.lower().strip()
+            if any(w in lower for w in reject_words):
+                logger.info(f"[PollApproval] Task {task.id} rejected: {reply_text[:80]}")
+                async with AsyncSessionLocal() as db:
+                    task_obj = await db.get(Task, task.id)
+                    task_obj.status = "cancelled"
+                    task_obj.error = f"Plan rejected by team: {reply_text[:200]}"
+                    task_obj.completed_at = datetime.now(timezone.utc)
+                    await db.commit()
+                break
+            if any(w in lower for w in approve_words):
+                logger.info(f"[PollApproval] Task {task.id} approved: {reply_text[:80]}")
+                try:
+                    run_resume_pipeline.delay(str(task.id), f"Plan approved: {reply_text[:200]}")
+                except Exception as exc:
+                    logger.warning(f"[PollApproval] Failed to queue resume for {task.id}: {exc}")
+                break
+
+    logger.info("[PollApproval] Poll complete")

@@ -2,10 +2,7 @@ import json
 import logging
 import re
 
-import anthropic
-
 from app.agents.base import AgentBase
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -39,36 +36,40 @@ class ClarificationAgent(AgentBase):
             logger.info("[Clarification] No Slack config — skipping")
             return _skip("No Slack config — clarification skipped.")
 
-        description = context.get("description", "")
-        project_context = context.get("project_context", "")
-        context_summary = context.get("context_builder", {}).get("summary", "")
+        # If ticket_interpreter already identified ambiguities, use those directly
+        interpreter = context.get("ticket_interpreter", {})
+        structured_task = interpreter.get("structured_task", {})
+        interpreter_ambiguities = structured_task.get("ambiguities", [])
 
-        user_message = (
-            f"Task: {description}\n\n"
-            f"Project context: {project_context or 'none provided'}\n\n"
-            f"Relevant codebase summary: {context_summary or 'none available'}"
-        )
+        if interpreter_ambiguities:
+            logger.info(f"[Clarification] Using {len(interpreter_ambiguities)} ambiguity(ies) from ticket interpreter")
+            needs_clarification = True
+            questions = interpreter_ambiguities[:3]  # max 3 questions
+        else:
+            # Fall back to LLM-based ambiguity detection
+            description = context.get("description", "")
+            project_context = context.get("project_context", "")
+            context_summary = context.get("context_builder", {}).get("summary", "")
 
-        needs_clarification = False
-        questions: list[str] = []
-
-        try:
-            client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-            message = await client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=256,
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": user_message}],
+            user_message = (
+                f"Task: {description}\n\n"
+                f"Project context: {project_context or 'none provided'}\n\n"
+                f"Relevant codebase summary: {context_summary or 'none available'}"
             )
-            raw = message.content[0].text.strip()
-            raw = re.sub(r"^```[a-z]*\n?", "", raw)
-            raw = re.sub(r"\n?```$", "", raw)
-            parsed = json.loads(raw)
-            needs_clarification = bool(parsed.get("needs_clarification", False))
-            questions = parsed.get("questions", [])
-        except Exception as exc:
-            logger.warning(f"[Clarification] LLM call failed: {exc} — skipping clarification")
-            return _skip(f"LLM call failed ({exc}) — skipping.")
+
+            needs_clarification = False
+            questions = []
+
+            try:
+                from app.core.llm import cheap
+                raw = await cheap(system=SYSTEM_PROMPT, user_message=user_message, max_tokens=256)
+                raw = re.sub(r"\n?```$", "", raw)
+                parsed = json.loads(raw)
+                needs_clarification = bool(parsed.get("needs_clarification", False))
+                questions = parsed.get("questions", [])
+            except Exception as exc:
+                logger.warning(f"[Clarification] LLM call failed: {exc} — skipping clarification")
+                return _skip(f"LLM call failed ({exc}) — skipping.")
 
         if not needs_clarification or not questions:
             logger.info("[Clarification] Task is clear — no questions needed")

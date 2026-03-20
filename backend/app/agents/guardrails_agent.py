@@ -29,17 +29,14 @@ class GuardrailsAgent(AgentBase):
     display_name = "Guardrails"
 
     async def run(self, context: dict) -> dict:
-        from app.profiles import get_profile
-
         guardrails = context.get("guardrails", {}) or {}
         restricted_paths = guardrails.get("restricted_paths", [])
         max_files = guardrails.get("max_files_per_task", 20)
         risk_level = guardrails.get("risk_level", "balanced")
 
-        profile_key = context.get("agent_profile", "fullstack")
-        profile = get_profile(profile_key)
-        allowed_dirs = profile.ALLOWED_DIRS
-        allowed_extensions = profile.ALLOWED_EXTENSIONS
+        # Read composed skill scope from context (set by pipeline.py)
+        allowed_dirs = context.get("allowed_dirs", [])
+        allowed_extensions = set(context.get("allowed_extensions", []))
 
         # Flatten files_affected from all planner subtasks (deduplicated)
         planner_result = context.get("planner_agent", {})

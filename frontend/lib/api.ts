@@ -101,3 +101,59 @@ export interface JiraTicket {
 
 export const getJiraTickets = () =>
   api.get<{ tickets: JiraTicket[]; configured: boolean }>("/jira/tickets");
+
+// ── Skills ────────────────────────────────────────────────────────────────────
+
+export interface SkillInfo {
+  id: number;
+  key: string;
+  name: string;
+  description: string | null;
+  category: string;
+  stack_chips: string[];
+  is_preset: boolean;
+  assigned?: boolean;
+}
+
+export const getSkills = (category?: string) =>
+  api.get<{ skills: SkillInfo[] }>("/skills/", { params: category ? { category } : {} });
+
+export const getSkillPresets = () =>
+  api.get<{ presets: Record<string, string[]> }>("/skills/presets");
+
+export const getAssignedSkills = () =>
+  api.get<{ skills: SkillInfo[] }>("/onboarding/skills");
+
+export const saveSkills = (data: { skill_ids: number[]; preset?: string }) =>
+  api.post("/onboarding/skills", data);
+
+// ── Conventions ───────────────────────────────────────────────────────────────
+
+export interface Convention {
+  id: number;
+  rule: string;
+  category: string;
+  examples: string[];
+  frequency: number;
+  confidence: number;
+  layer: string;
+  source_prs: string[];
+  enforced_by?: string[];
+  suppressed: boolean;
+  created_at: string | null;
+}
+
+export const getConventions = (params?: { category?: string; layer?: string; page?: number }) =>
+  api.get<{ conventions: Convention[]; total: number; page: number; page_size: number }>("/conventions", { params });
+
+export const updateConvention = (id: number, data: { rule?: string; category?: string }) =>
+  api.put(`/conventions/${id}`, data);
+
+export const suppressConvention = (id: number) =>
+  api.delete(`/conventions/${id}`);
+
+export const triggerExtraction = () =>
+  api.post("/conventions/extract");
+
+export const triggerBaseExtraction = () =>
+  api.post("/conventions/extract-base");

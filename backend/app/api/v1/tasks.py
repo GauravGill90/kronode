@@ -138,6 +138,7 @@ async def cancel_task(
     return {"ok": True}
 
 
+
 @router.get("/task/{task_id}/stream")
 async def stream_task(
     task_id: uuid.UUID,

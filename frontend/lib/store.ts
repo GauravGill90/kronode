@@ -5,6 +5,7 @@ import type { OnboardingState } from "./types";
 interface OnboardingStore extends OnboardingState {
   setStep: (step: number) => void;
   setAgentProfile: (data: OnboardingState["agentProfile"]) => void;
+  setSkills: (data: OnboardingState["skills"]) => void;
   setAccount: (data: OnboardingState["account"]) => void;
   setRepo: (data: OnboardingState["repo"]) => void;
   setJira: (data: OnboardingState["jira"]) => void;
@@ -21,6 +22,7 @@ interface OnboardingStore extends OnboardingState {
 const initialState: OnboardingState = {
   currentStep: 1,
   agentProfile: null,
+  skills: null,
   account: null,
   repo: null,
   jira: null,
@@ -39,6 +41,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
       ...initialState,
       setStep: (step) => set({ currentStep: step }),
       setAgentProfile: (data) => set({ agentProfile: data }),
+      setSkills: (data) => set({ skills: data }),
       setAccount: (data) => set({ account: data }),
       setRepo: (data) => set({ repo: data }),
       setJira: (data) => set({ jira: data }),

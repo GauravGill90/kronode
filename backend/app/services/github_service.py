@@ -356,20 +356,155 @@ async def get_pr_status(pr_url: str, token: str) -> dict:
 
     changes_requested = any(r.get("state") == "CHANGES_REQUESTED" for r in reviews)
     review_comments = [
-        r.get("body", "").strip()
+        {
+            "body": r.get("body", "").strip(),
+            "reviewer": r.get("user", {}).get("login", "unknown"),
+            "state": r.get("state", ""),
+        }
         for r in reviews
         if r.get("state") == "CHANGES_REQUESTED" and r.get("body", "").strip()
     ]
-    # Inline comments: body + file path for context
+    # Inline comments: body + file path + reviewer for context
     inline_comments = [
-        {"path": c.get("path", ""), "body": c.get("body", "").strip()}
+        {
+            "path": c.get("path", ""),
+            "body": c.get("body", "").strip(),
+            "reviewer": c.get("user", {}).get("login", "unknown"),
+        }
         for c in inline
         if c.get("body", "").strip()
     ]
+    # Unique reviewers who participated
+    reviewers = list({
+        r.get("user", {}).get("login", "")
+        for r in reviews
+        if r.get("user", {}).get("login")
+    })
     return {
         "merged": merged,
         "closed": closed,
         "changes_requested": changes_requested,
         "review_comments": review_comments,
         "inline_comments": inline_comments,
+        "reviewers": reviewers,
     }
+
+
+async def fetch_merged_prs(
+    repo_url: str,
+    token: str,
+    count: int = 200,
+) -> list[dict]:
+    """Fetch the last `count` merged PRs with diffs, descriptions, review comments, and reviewers.
+
+    Returns a list of dicts:
+        {
+            "number": int,
+            "title": str,
+            "body": str,
+            "url": str,
+            "author": str,
+            "files_changed": [str],
+            "diff": str,           # truncated to ~4KB per PR
+            "review_comments": [str],
+            "reviewers": [str],
+            "merged_at": str,
+        }
+    """
+    owner, repo = _parse_repo(repo_url)
+    headers = _auth_headers(token)
+    prs: list[dict] = []
+    page = 1
+    per_page = 100  # max allowed by GitHub API
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        # Paginate through merged PRs
+        while len(prs) < count:
+            resp = await client.get(
+                f"{GITHUB_API}/repos/{owner}/{repo}/pulls",
+                headers=headers,
+                params={
+                    "state": "closed",
+                    "sort": "updated",
+                    "direction": "desc",
+                    "per_page": per_page,
+                    "page": page,
+                },
+            )
+            if not resp.is_success:
+                logger.warning(f"[GitHub] fetch_merged_prs page {page} failed: {resp.status_code}")
+                break
+
+            items = resp.json()
+            if not items:
+                break
+
+            for pr in items:
+                if not pr.get("merged_at"):
+                    continue  # skip closed-not-merged
+                prs.append({
+                    "number": pr["number"],
+                    "title": pr["title"],
+                    "body": (pr.get("body") or "")[:2000],
+                    "url": pr["html_url"],
+                    "author": pr.get("user", {}).get("login", ""),
+                    "merged_at": pr["merged_at"],
+                })
+                if len(prs) >= count:
+                    break
+
+            page += 1
+
+        # Enrich each PR with diff, files, review comments, reviewers (batched)
+        for pr_record in prs:
+            num = pr_record["number"]
+            try:
+                # Files changed
+                files_resp = await client.get(
+                    f"{GITHUB_API}/repos/{owner}/{repo}/pulls/{num}/files",
+                    headers=headers,
+                    params={"per_page": 50},
+                )
+                if files_resp.is_success:
+                    files_data = files_resp.json()
+                    pr_record["files_changed"] = [f["filename"] for f in files_data]
+                    # Build a truncated diff from patches
+                    patches = []
+                    total = 0
+                    for f in files_data:
+                        patch = f.get("patch", "")
+                        if total + len(patch) > 4000:
+                            break
+                        patches.append(f"--- {f['filename']} ---\n{patch}")
+                        total += len(patch)
+                    pr_record["diff"] = "\n".join(patches)
+                else:
+                    pr_record["files_changed"] = []
+                    pr_record["diff"] = ""
+
+                # Review comments
+                reviews_resp = await client.get(
+                    f"{GITHUB_API}/repos/{owner}/{repo}/pulls/{num}/reviews",
+                    headers=headers,
+                    params={"per_page": 30},
+                )
+                if reviews_resp.is_success:
+                    reviews = reviews_resp.json()
+                    pr_record["reviewers"] = list({r.get("user", {}).get("login", "") for r in reviews if r.get("user")})
+                    pr_record["review_comments"] = [
+                        r["body"] for r in reviews
+                        if r.get("body", "").strip() and r.get("state") in ("CHANGES_REQUESTED", "COMMENTED")
+                    ]
+                else:
+                    pr_record["reviewers"] = []
+                    pr_record["review_comments"] = []
+
+            except Exception as exc:
+                logger.warning(f"[GitHub] Failed to enrich PR #{num}: {exc}")
+                pr_record.setdefault("files_changed", [])
+                pr_record.setdefault("diff", "")
+                pr_record.setdefault("reviewers", [])
+                pr_record.setdefault("review_comments", [])
+
+    logger.info(f"[GitHub] Fetched {len(prs)} merged PRs from {owner}/{repo}")
+    return prs

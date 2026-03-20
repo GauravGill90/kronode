@@ -4,10 +4,7 @@ import logging
 import os
 import re
 
-import anthropic
-
 from app.agents.base import AgentBase
-from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +16,6 @@ MAX_FILES_TO_FETCH = 10    # never fetch more than this
 
 class ContextBuilderAgent(AgentBase):
     display_name = "Context Builder"
-
-    def __init__(self):
-        self.client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
 
     async def run(self, context: dict) -> dict:
         repo_url = context.get("repo_url", "")
@@ -127,23 +121,161 @@ class ContextBuilderAgent(AgentBase):
             relevant_files.append({"path": path, "content": content})
             total_bytes += len(content)
 
-        # 4. Use cached conventions if available, otherwise extract via Haiku
-        if cached_conventions:
-            conventions = cached_conventions
-            logger.info(f"[ContextBuilder] Using {len(conventions)} cached conventions — skipping Haiku call")
-        else:
-            conventions = await self._extract_conventions(relevant_files, repo_structure_summary)
-            # Signal to pipeline that we have fresh conventions to cache
-            context["new_conventions"] = conventions
+        # 4. Ask cheap LLM which convention categories matter for this task
+        category_boost = await _get_category_relevance(description)
+
+        # 5. Load conventions from DB (structured convention table)
+        conventions = []
+        pitfalls = []
+        reviewer_patterns = []
+        try:
+            from app.models.convention import Convention
+            # Detect org's stack for base convention filtering
+            org_stack = None
+            async with AsyncSessionLocal() as db:
+                if org_id:
+                    from app.models.org import OnboardingConfig as OC
+                    oc = (await db.execute(sa_select(OC).where(OC.org_id == org_id))).scalar_one_or_none()
+                    if oc:
+                        org_stack = oc.docs_scope  # stores detected primary stack
+
+            async with AsyncSessionLocal() as db:
+                # Load all customer conventions + base conventions matching org's stack
+                query = sa_select(Convention).where(
+                    Convention.suppressed == False,  # noqa: E712
+                )
+                if org_stack:
+                    # Customer conventions for this org + base conventions matching stack
+                    query = query.where(
+                        (Convention.org_id == org_id) |
+                        ((Convention.org_id.is_(None)) & ((Convention.stack == org_stack) | (Convention.stack.is_(None))))
+                    )
+                else:
+                    query = query.where(
+                        (Convention.org_id == org_id) | (Convention.org_id.is_(None))
+                    )
+                conv_rows = (await db.execute(query)).scalars().all()
+
+                # Score each convention for relevance to THIS task
+                conventions = await _rank_conventions(
+                    conv_rows,
+                    description=description,
+                    selected_paths=selected_paths,
+                    category_boost=category_boost,
+                    max_conventions=30,
+                )
+                logger.info(f"[ContextBuilder] {len(conv_rows)} total conventions → {len(conventions)} relevant selected")
+        except Exception as exc:
+            logger.warning(f"[ContextBuilder] Convention table query failed: {exc}")
+
+        # Fall back to Haiku extraction if convention table is empty
+        if not conventions:
+            if cached_conventions:
+                conventions = [{"rule": c, "category": "style", "confidence": 0.5, "layer": "unknown", "source_prs": []} for c in cached_conventions]
+                logger.info(f"[ContextBuilder] Using {len(conventions)} cached conventions (fallback)")
+            else:
+                raw_conventions = await self._extract_conventions(relevant_files, repo_structure_summary)
+                conventions = [{"rule": c, "category": "style", "confidence": 0.5, "layer": "extracted", "source_prs": []} for c in raw_conventions]
+                context["new_conventions"] = raw_conventions
+
+        # 5. Load pitfalls for selected files
+        selected_path_set = set(selected_paths)
+        if org_id:
+            try:
+                async with AsyncSessionLocal() as db:
+                    pitfall_rows = (await db.execute(
+                        sa_select(MemoryRecord)
+                        .where(
+                            MemoryRecord.org_id == org_id,
+                            MemoryRecord.record_type == "pitfall",
+                        )
+                        .order_by(MemoryRecord.id.desc())
+                        .limit(50)
+                    )).scalars().all()
+                    for r in pitfall_rows:
+                        content = r.content or {}
+                        pitfall_files = set(content.get("files_changed", []))
+                        if pitfall_files & selected_path_set:
+                            # Handle both old (str) and new ({body, reviewer}) comment formats
+                            comments = content.get("review_comments", [])
+                            desc_parts = []
+                            reviewers = content.get("reviewers", [])
+                            for c in comments:
+                                if isinstance(c, dict):
+                                    reviewer = c.get("reviewer", "")
+                                    body = c.get("body", "")
+                                    desc_parts.append(f"{reviewer}: {body}" if reviewer else body)
+                                else:
+                                    desc_parts.append(str(c))
+                            pitfalls.append({
+                                "description": "; ".join(desc_parts)[:200],
+                                "reviewers": reviewers,
+                                "files": list(pitfall_files & selected_path_set),
+                                "pr_url": content.get("pr_url", ""),
+                            })
+                    logger.info(f"[ContextBuilder] Loaded {len(pitfalls)} relevant pitfalls")
+            except Exception as exc:
+                logger.warning(f"[ContextBuilder] Pitfall query failed: {exc}")
+
+        # 6. Load reviewer patterns
+        if org_id:
+            try:
+                async with AsyncSessionLocal() as db:
+                    pattern_rows = (await db.execute(
+                        sa_select(MemoryRecord)
+                        .where(
+                            MemoryRecord.org_id == org_id,
+                            MemoryRecord.record_type == "pattern",
+                        )
+                        .order_by(MemoryRecord.id.desc())
+                        .limit(20)
+                    )).scalars().all()
+                    for r in pattern_rows:
+                        content = r.content or {}
+                        reviewer = content.get("reviewer", "")
+                        changes = content.get("changes_requested", [])
+                        if changes:
+                            reviewer_patterns.append({
+                                "reviewer": reviewer,
+                                "preference": changes[0][:200] if changes else "",
+                                "source": content.get("description", "")[:100],
+                            })
+
+                # Also load per-reviewer conventions from the conventions table
+                async with AsyncSessionLocal() as db:
+                    enforced_convs = (await db.execute(
+                        sa_select(Convention)
+                        .where(
+                            Convention.org_id == org_id,
+                            Convention.enforced_by.isnot(None),
+                            Convention.suppressed == False,  # noqa: E712
+                        )
+                        .order_by(Convention.confidence.desc())
+                        .limit(10)
+                    )).scalars().all()
+                    for c in enforced_convs:
+                        enforcers = c.enforced_by or []
+                        if enforcers:
+                            reviewer_patterns.append({
+                                "reviewer": ", ".join(enforcers[:3]),
+                                "preference": c.rule[:200],
+                                "source": f"enforced across {c.frequency} PR(s)",
+                            })
+                    logger.info(f"[ContextBuilder] Loaded {len(reviewer_patterns)} reviewer patterns")
+            except Exception as exc:
+                logger.warning(f"[ContextBuilder] Pattern query failed: {exc}")
 
         return {
             "summary": (
                 f"Fetched {len(relevant_files)} relevant file(s) from repo "
                 f"({total_bytes // 1000}KB). "
-                f"{len(conventions)} conventions extracted."
+                f"{len(conventions)} conventions, {len(pitfalls)} pitfalls, "
+                f"{len(reviewer_patterns)} reviewer patterns loaded."
             ),
             "relevant_files": relevant_files,
             "conventions": conventions,
+            "pitfalls": pitfalls,
+            "reviewer_patterns": reviewer_patterns,
             "repo_structure": repo_structure_summary,
         }
 
@@ -171,13 +303,8 @@ Examples: "Uses named exports", "TypeScript with strict mode", "Tests in __tests
 Return 5-12 conventions. JSON array only."""
 
         try:
-            message = await self.client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=512,
-                messages=[{"role": "user", "content": prompt}],
-            )
-            raw = message.content[0].text.strip()
-            raw = re.sub(r"^```[a-z]*\n?", "", raw)
+            from app.core.llm import cheap
+            raw = await cheap(system="Extract coding conventions. Return JSON array only.", user_message=prompt, max_tokens=512)
             raw = re.sub(r"\n?```$", "", raw)
             result = json.loads(raw)
             if isinstance(result, list):
@@ -236,3 +363,184 @@ def _heuristic_select(
             scored.append((score, p))
     scored.sort(key=lambda x: -x[0])
     return [p for _, p in scored[:MAX_FILES_TO_SELECT]]
+
+
+# Keywords that indicate a convention's category is relevant to certain file patterns
+_CATEGORY_FILE_HINTS = {
+    "testing": {"test", "spec", "__tests__", "tests", "vitest", "jest"},
+    "error_handling": {"error", "exception", "catch", "try", "handler", "middleware"},
+    "logging": {"log", "logger", "logging", "sentry", "monitor"},
+    "naming": set(),  # always relevant
+    "style": set(),   # always relevant
+    "architecture": set(),  # always relevant
+}
+
+
+async def _get_category_relevance(description: str) -> dict[str, float]:
+    """Ask cheap LLM which convention categories are most relevant for this task.
+
+    Returns a dict of category -> boost multiplier (1.0 = neutral, 2.0 = very relevant).
+    Falls back to uniform weights if LLM fails.
+    """
+    try:
+        from app.core.llm import cheap
+        raw = await cheap(
+            system=(
+                'Given a task description, rate how relevant each convention category is on a scale of 1-3. '
+                'Categories: architecture, style, naming, error_handling, testing, logging. '
+                'Respond with JSON only: {"architecture": 2, "style": 1, ...}'
+            ),
+            user_message=f"Task: {description}",
+            max_tokens=64,
+        )
+        raw = re.sub(r"^```[a-z]*\n?", "", raw.strip())
+        raw = re.sub(r"\n?```$", "", raw)
+        # Try direct parse, then extract first JSON object
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            match = re.search(r"\{[^}]+\}", raw)
+            parsed = json.loads(match.group()) if match else {}
+        # Normalise to multipliers: 1->0.5, 2->1.0, 3->2.0
+        weights = {
+            "architecture": 1.0, "style": 1.0, "naming": 1.0,
+            "error_handling": 1.0, "testing": 1.0, "logging": 1.0,
+        }
+        for cat, val in parsed.items():
+            if cat in weights and isinstance(val, (int, float)):
+                weights[cat] = {1: 0.5, 2: 1.0, 3: 2.0}.get(int(val), 1.0)
+        logger.info(f"[ContextBuilder] Category relevance: {weights}")
+        return weights
+    except Exception as exc:
+        logger.warning(f"[ContextBuilder] Category relevance LLM failed: {exc} — using uniform weights")
+        return {}
+
+
+async def _rank_conventions(
+    conv_rows: list,
+    description: str,
+    selected_paths: list[str],
+    category_boost: dict[str, float] | None = None,
+    max_conventions: int = 30,
+) -> list[dict]:
+    """Score and rank conventions by relevance to this specific task.
+
+    Scoring (5 signals):
+    1. Customer > base (team-specific conventions always prioritised)
+    2. Keyword match between convention rule and task description
+    3. Category relevance from LLM (which categories matter for this task)
+    4. File path match: convention extracted from files we're touching
+    5. Semantic similarity: embedding cosine distance between task and convention rule
+
+    Returns top max_conventions as dicts.
+    """
+    if category_boost is None:
+        category_boost = {}
+
+    # Compute semantic embeddings (task description + all convention rules)
+    semantic_scores: dict[int, float] = {}  # conv index -> similarity score
+    try:
+        from app.core.embeddings import get_embedding, get_embeddings_batch, cosine_similarity
+        task_emb = await get_embedding(description)
+        if task_emb:
+            rule_texts = [c.rule for c in conv_rows]
+            rule_embs = await get_embeddings_batch(rule_texts)
+            for idx, emb in enumerate(rule_embs):
+                if emb:
+                    semantic_scores[idx] = cosine_similarity(task_emb, emb)
+        if semantic_scores:
+            logger.info(f"[ContextBuilder] Semantic matching: {len(semantic_scores)} conventions scored")
+    except Exception as exc:
+        logger.warning(f"[ContextBuilder] Semantic matching failed: {exc} — using keyword only")
+    desc_lower = description.lower()
+    desc_words = {w for w in re.split(r'\W+', desc_lower) if len(w) > 3}
+
+    # Build a set of directory/file signals from selected paths
+    path_words = set()
+    path_dirs = set()
+    for p in selected_paths:
+        parts = p.lower().replace("\\", "/").split("/")
+        path_words.update(parts)
+        path_dirs.update(parts[:-1])  # directories only
+        # Add filename without extension
+        name = os.path.splitext(parts[-1])[0]
+        path_words.update(w for w in re.split(r'[\W_]+', name) if len(w) > 2)
+
+    scored: list[tuple[float, dict]] = []
+
+    for c in conv_rows:
+        score = 0.0
+        rule_lower = c.rule.lower()
+        rule_words = {w for w in re.split(r'\W+', rule_lower) if len(w) > 3}
+
+        # 1. Layer boost: customer conventions are more specific
+        if c.layer == "customer":
+            score += 2.0
+        else:
+            score += 0.5
+
+        # 2. Keyword overlap between convention rule and task description
+        overlap = desc_words & rule_words
+        score += len(overlap) * 1.5
+
+        # 3. Category relevance (LLM-ranked + file hint matching)
+        cat_mult = category_boost.get(c.category, 1.0)
+        cat_hints = _CATEGORY_FILE_HINTS.get(c.category, set())
+        if cat_hints and (cat_hints & path_words):
+            score += 2.0 * cat_mult  # e.g., testing convention + test file + LLM says testing matters
+        elif not cat_hints:
+            score += 0.5 * cat_mult  # style/naming/architecture weighted by LLM relevance
+        else:
+            score += 0.3 * cat_mult
+
+        # 4. Rule text matches file paths or directories
+        path_overlap = path_words & rule_words
+        score += len(path_overlap) * 1.0
+
+        # 5. Source files match (strongest signal — this convention came from these exact files/dirs)
+        conv_files = set(c.source_files or [])
+        if conv_files:
+            # Direct file match: convention extracted from a file we're touching
+            direct_match = conv_files & set(selected_paths)
+            if direct_match:
+                score += 5.0  # very strong — same file
+
+            # Directory match: convention from files in the same directory
+            conv_dirs = {f.rsplit("/", 1)[0] for f in conv_files if "/" in f}
+            selected_dirs = {p.rsplit("/", 1)[0] for p in selected_paths if "/" in p}
+            dir_match = conv_dirs & selected_dirs
+            if dir_match and not direct_match:
+                score += 3.0  # strong — same directory
+
+        # 6. Semantic similarity (embedding cosine distance)
+        conv_idx = conv_rows.index(c)
+        sem_score = semantic_scores.get(conv_idx, 0.0)
+        if sem_score > 0.3:  # only boost if meaningfully similar
+            score += sem_score * 4.0  # max ~4.0 for perfect semantic match
+
+        # 7. Frequency + confidence as tiebreaker
+        score += c.confidence * 0.5
+        score += min(c.frequency * 0.1, 1.0)  # cap at 1.0
+
+        scored.append((score, {
+            "rule": c.rule,
+            "category": c.category,
+            "confidence": c.confidence,
+            "layer": c.layer,
+            "source_prs": c.source_prs or [],
+            "relevance_score": round(score, 2),
+        }))
+
+    # Sort by relevance score descending
+    scored.sort(key=lambda x: -x[0])
+
+    # Always include ALL customer conventions (they're team-specific, never skip)
+    customer = [(s, d) for s, d in scored if d["layer"] == "customer"]
+    base = [(s, d) for s, d in scored if d["layer"] == "base"]
+
+    # Take all customer + fill remaining slots with top-scoring base
+    result = [d for _, d in customer]
+    remaining = max_conventions - len(result)
+    result.extend(d for _, d in base[:remaining])
+
+    return result

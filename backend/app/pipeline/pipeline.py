@@ -11,9 +11,11 @@ from app.models.user import User  # noqa: F401 — registers 'users' table in SA
 
 
 AGENT_CHAIN = [
+    "ticket_interpreter",   # parse raw ticket into structured task
     "context_builder",
     "clarification_agent",
     "planner_agent",
+    "plan_approval_agent",  # post plan for human approval, pause pipeline
     "guardrails_agent",     # runs after planner so it can check files_affected
     "coder_agent",
     "tester_agent",
@@ -80,13 +82,15 @@ async def run_pipeline(task_id_str: str):
         "slack_bot_token": config.slack_bot_token if config else None,
     }
 
-    # Load agent profile and inject world-class system prompt into context
-    from app.profiles import get_profile
-    profile_key = (config.agent_profile or "fullstack") if config else "fullstack"
-    profile = get_profile(profile_key)
-    context["agent_profile"] = profile_key
-    context["profile_injection"] = profile.SYSTEM_PROMPT_INJECTION
-    context["profile_priority_extensions"] = list(profile.CONTEXT_PRIORITIES)
+    # Load composable skills and inject into context
+    from app.skills.composer import compose_skills
+    async with AsyncSessionLocal() as db:
+        skill_set = await compose_skills(task.org_id, db)
+    context["agent_profile"] = ", ".join(skill_set.skill_names) or "none"
+    context["profile_injection"] = skill_set.system_prompt
+    context["profile_priority_extensions"] = skill_set.context_priorities
+    context["allowed_dirs"] = list(skill_set.allowed_dirs)
+    context["allowed_extensions"] = list(skill_set.allowed_extensions)
 
     # Org coding standards (injected between profile and agent system prompt)
     context["coding_standards"] = (config.coding_standards or "") if config else ""
@@ -184,8 +188,12 @@ async def run_pipeline(task_id_str: str):
 
         # Run the selected agent chain
         agent_map = _build_agent_map()
+        skip_flags = _get_skip_flags()
         for agent_name in routing["agents"]:
             if agent_name not in agent_map:
+                continue
+            if skip_flags.get(agent_name):
+                await emit_event(task_id, agent_name, "completed", f"{agent_name} skipped (disabled in config).")
                 continue
 
             # Cancellation check — user may have cancelled between agents
@@ -218,7 +226,7 @@ async def run_pipeline(task_id_str: str):
                     task_obj.result = {
                         "context_snapshot": context,
                         "thread_ts": result["thread_ts"],
-                        "slack_channel_id": result.get("slack_channel_id"),  # real C0XXXXXXX ID
+                        "slack_channel_id": result.get("slack_channel_id"),
                         "questions": result.get("questions", []),
                         "resume_from": "planner_agent",
                     }
@@ -316,7 +324,7 @@ async def _notify_integrations(
 
 
 async def resume_pipeline(task_id_str: str, clarification_answer: str) -> None:
-    """Resume a pipeline that was paused at waiting_clarification."""
+    """Resume a pipeline that was paused at waiting_clarification or waiting_approval."""
     task_id = uuid.UUID(task_id_str)
 
     async with AsyncSessionLocal() as db:
@@ -348,10 +356,14 @@ async def resume_pipeline(task_id_str: str, clarification_answer: str) -> None:
         routing = context.get("routing", {})
         selected_agents = routing.get("agents", AGENT_CHAIN)
 
+        skip_flags = _get_skip_flags()
         for agent_name in agents_to_run:
             if agent_name not in selected_agents:
                 continue
             if agent_name not in agent_map:
+                continue
+            if skip_flags.get(agent_name):
+                await emit_event(task_id, agent_name, "completed", f"{agent_name} skipped (disabled in config).")
                 continue
 
             async with AsyncSessionLocal() as db:
@@ -404,10 +416,12 @@ async def resume_pipeline(task_id_str: str, clarification_answer: str) -> None:
 
 
 def _build_agent_map() -> dict:
+    from app.agents.ticket_interpreter import TicketInterpreterAgent
     from app.agents.context_builder import ContextBuilderAgent
     from app.agents.guardrails_agent import GuardrailsAgent
     from app.agents.clarification_agent import ClarificationAgent
     from app.agents.planner_agent import PlannerAgent
+    from app.agents.plan_approval_agent import PlanApprovalAgent
     from app.agents.coder_agent import CoderAgent
     from app.agents.tester_agent import TesterAgent
     from app.agents.execution_verifier import ExecutionVerifierAgent
@@ -415,13 +429,33 @@ def _build_agent_map() -> dict:
     from app.agents.memory_agent import MemoryAgent
 
     return {
+        "ticket_interpreter": TicketInterpreterAgent,
         "context_builder": ContextBuilderAgent,
         "guardrails_agent": GuardrailsAgent,
         "clarification_agent": ClarificationAgent,
         "planner_agent": PlannerAgent,
+        "plan_approval_agent": PlanApprovalAgent,
         "coder_agent": CoderAgent,
         "tester_agent": TesterAgent,
         "execution_verifier": ExecutionVerifierAgent,
         "reviewer_agent": ReviewerAgent,
         "memory_agent": MemoryAgent,
+    }
+
+
+def _get_skip_flags() -> dict[str, bool]:
+    """Map agent names to their skip flags from settings."""
+    from app.core.config import settings as _s
+    return {
+        "ticket_interpreter": _s.skip_ticket_interpreter,
+        "context_builder": _s.skip_context_builder,
+        "clarification_agent": _s.skip_clarification,
+        "planner_agent": _s.skip_planner,
+        "plan_approval_agent": _s.skip_plan_posting,
+        "guardrails_agent": _s.skip_guardrails,
+        "coder_agent": _s.skip_coder,
+        "tester_agent": _s.skip_tester,
+        "execution_verifier": _s.skip_execution_verifier,
+        "reviewer_agent": _s.skip_reviewer,
+        "memory_agent": _s.skip_memory,
     }

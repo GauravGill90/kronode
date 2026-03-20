@@ -28,4 +28,8 @@ celery_app.conf.beat_schedule = {
         "task": "poll_clarifications",
         "schedule": 30.0,  # every 30 seconds
     },
+    "weekly-convention-refresh": {
+        "task": "refresh_conventions_all_orgs",
+        "schedule": 604800.0,  # weekly (7 days)
+    },
 }

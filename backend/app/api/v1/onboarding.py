@@ -85,7 +85,9 @@ async def save_jira(
     config.jira_workspace_url = payload.workspace_url
     config.jira_project_key = payload.project_key
     config.jira_email = payload.email
-    config.jira_api_token = payload.api_token
+    # Only overwrite token if a new one was provided
+    if payload.api_token:
+        config.jira_api_token = payload.api_token
     config.jira_status_mappings = payload.status_mappings
     await db.commit()
     return {"ok": True}
@@ -139,7 +141,9 @@ async def save_slack(
     _, _, config = await _get_or_create_org(user_data, db)
     config.slack_channel_id = payload.channel_id
     config.slack_channel_name = payload.channel_name
-    config.slack_bot_token = payload.bot_token
+    # Only overwrite token if a new one was provided
+    if payload.bot_token:
+        config.slack_bot_token = payload.bot_token
     await db.commit()
     return {"ok": True}
 
@@ -291,9 +295,18 @@ async def save_github_token(
     user_data: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    _, _, config = await _get_or_create_org(user_data, db)
+    _, org, config = await _get_or_create_org(user_data, db)
     config.github_access_token = payload.token
     await db.commit()
+
+    # Trigger self-onboarding if repo is also configured
+    if config.repo_url and payload.token:
+        try:
+            from app.pipeline.task_queue import run_self_onboarding
+            run_self_onboarding.delay(org.id)
+        except Exception:
+            pass  # non-critical — onboarding can run later
+
     return {"ok": True}
 
 
