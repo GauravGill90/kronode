@@ -73,7 +73,10 @@ async def get_assigned_skills(
     db: AsyncSession = Depends(get_db),
 ):
     """Get the org's currently assigned skills."""
-    org_id = await _get_org_id(user_data, db)
+    # Import the helper from onboarding to get or create org
+    from app.api.v1.onboarding import _get_or_create_org
+    _, org, _ = await _get_or_create_org(user_data, db)
+    org_id = org.id
 
     result = await db.execute(
         select(Skill)
@@ -95,7 +98,10 @@ async def save_assigned_skills(
     db: AsyncSession = Depends(get_db),
 ):
     """Save the org's selected skills. Accepts skill_ids or a preset name."""
-    org_id = await _get_org_id(user_data, db)
+    # Import the helper from onboarding to get or create org
+    from app.api.v1.onboarding import _get_or_create_org
+    _, org, _ = await _get_or_create_org(user_data, db)
+    org_id = org.id
 
     # Resolve preset to skill IDs if provided
     skill_ids = list(payload.skill_ids)

@@ -8,6 +8,7 @@ from pydantic import BaseModel
 class TaskCreate(BaseModel):
     description: str
     jira_ticket_id: str | None = None
+    action: str | None = None  # Flow selection: 'implement', 'onboard', 'ingest', etc.
 
 
 class TaskEventOut(BaseModel):

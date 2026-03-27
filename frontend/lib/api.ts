@@ -78,7 +78,7 @@ export const getDashboard = () =>
 
 // ── Tasks ──────────────────────────────────────────────────────────────────────
 
-export const createTask = (data: { description: string; jira_ticket_id?: string }) =>
+export const createTask = (data: { description: string; jira_ticket_id?: string; action?: string }) =>
   api.post("/task", data);
 
 export const getTask = (taskId: string) =>

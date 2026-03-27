@@ -32,7 +32,7 @@ export function useTask(taskId: string | null) {
 
 export function useCreateTask() {
   const queryClient = useQueryClient();
-  return useMutation<TaskCreated, Error, { description: string; jira_ticket_id?: string }>({
+  return useMutation<TaskCreated, Error, { description: string; jira_ticket_id?: string; action?: string }>({
     mutationFn: async (data) => {
       const res = await createTask(data);
       return res.data;

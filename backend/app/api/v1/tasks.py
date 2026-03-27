@@ -74,9 +74,11 @@ async def create_task(
     await db.commit()
     await db.refresh(task)
 
-    # Queue via Celery — store the celery task ID for later cancellation
-    from app.pipeline.task_queue import run_pipeline
-    celery_result = run_pipeline.delay(str(task.id))
+    # Queue via Celery with new multi-flow orchestrator
+    # Default action is 'implement' for backward compatibility
+    from app.orchestration.celery_integration import run_pipeline_task
+    action = payload.action or 'implement'
+    celery_result = run_pipeline_task.delay(str(task.id), action=action)
     task.celery_task_id = celery_result.id
     await db.commit()
 

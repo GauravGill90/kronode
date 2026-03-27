@@ -1,11 +1,24 @@
 import uuid
 from datetime import datetime
+from enum import Enum
 
 from sqlalchemy import String, DateTime, Integer, ForeignKey, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
+
+
+class TaskStatus(str, Enum):
+    """Task execution status."""
+    QUEUED = "queued"
+    RUNNING = "running"
+    WAITING_CLARIFICATION = "waiting_clarification"
+    PAUSED = "paused"
+    IN_REVIEW = "in_review"
+    DONE = "done"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class Task(Base):
@@ -27,7 +40,21 @@ class Task(Base):
     plan_snapshot: Mapped[dict | None] = mapped_column(JSONB)  # approved plan for audit
     error: Mapped[str | None] = mapped_column(Text)
 
+    # New orchestrator state (stores complete PipelineState)
+    pipeline_state: Mapped[dict | None] = mapped_column(JSONB)
+
+    # PR info (set by orchestrator)
+    pr_url: Mapped[str | None] = mapped_column(String(500))
+    pr_number: Mapped[int | None] = mapped_column(Integer)
+    branch_name: Mapped[str | None] = mapped_column(String(255))
+    error_message: Mapped[str | None] = mapped_column(Text)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now()
+    )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
