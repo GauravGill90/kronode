@@ -98,7 +98,7 @@ async def get_task(
     )
     task = result.scalar_one_or_none()
     if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
 
     result = await db.execute(
         select(TaskEvent).where(TaskEvent.task_id == task_id).order_by(TaskEvent.created_at)
@@ -123,10 +123,10 @@ async def cancel_task(
     )
     task = result.scalar_one_or_none()
     if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
 
     if task.status not in ("queued", "running", "waiting_clarification", "in_review"):
-        raise HTTPException(status_code=400, detail=f"Cannot cancel a task with status '{task.status}'")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Cannot cancel a task with status '{task.status}'")
 
     # Revoke the Celery task — terminate=True sends SIGTERM to the worker process
     if task.celery_task_id:
@@ -184,7 +184,7 @@ async def stream_task(
     )
     task = result.scalar_one_or_none()
     if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Task not found")
 
     async def event_generator():
         last_event_id = 0
