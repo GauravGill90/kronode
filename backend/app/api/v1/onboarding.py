@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -319,7 +319,7 @@ async def trigger_doc_ingestion(
     """Manually trigger doc ingestion (markdown files from connected repo)."""
     _, org, config = await _get_or_create_org(user_data, db)
     if not config.repo_url or not config.github_access_token:
-        raise HTTPException(status_code=400, detail="No repo or GitHub token configured")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No repo or GitHub token configured")
     from app.pipeline.task_queue import run_doc_ingestion
     run_doc_ingestion.delay(org.id, "git")
     return {"ok": True, "message": f"Doc ingestion queued for org {org.id}"}

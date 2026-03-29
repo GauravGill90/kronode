@@ -18,7 +18,7 @@ async def _get_org_id(user_data: dict, db: AsyncSession) -> int:
     result = await db.execute(select(User).where(User.clerk_id == user_data["user_id"]))
     user = result.scalar_one_or_none()
     if not user or not user.org_id:
-        raise HTTPException(status_code=400, detail="Onboarding not complete")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Onboarding not complete")
     return user.org_id
 
 
@@ -109,12 +109,12 @@ async def save_assigned_skills(
         from app.skills.presets import PRESETS
         skill_keys = PRESETS.get(payload.preset, [])
         if not skill_keys:
-            raise HTTPException(status_code=400, detail=f"Unknown preset: {payload.preset}")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown preset: {payload.preset}")
         result = await db.execute(select(Skill.id).where(Skill.key.in_(skill_keys)))
         skill_ids = list(result.scalars().all())
 
     if not skill_ids:
-        raise HTTPException(status_code=400, detail="No skills selected")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No skills selected")
 
     # Clear existing assignments
     existing = (await db.execute(
@@ -173,9 +173,9 @@ async def update_skill(
         select(Skill).where(Skill.id == skill_id)
     )).scalar_one_or_none()
     if not skill:
-        raise HTTPException(status_code=404, detail="Skill not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found")
     if skill.org_id != org_id:
-        raise HTTPException(status_code=403, detail="Cannot edit a curated skill")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot edit a curated skill")
 
     for field in ("name", "description", "system_prompt", "allowed_extensions", "allowed_dirs", "context_priorities"):
         val = getattr(payload, field)
@@ -199,9 +199,9 @@ async def delete_skill(
         select(Skill).where(Skill.id == skill_id)
     )).scalar_one_or_none()
     if not skill:
-        raise HTTPException(status_code=404, detail="Skill not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill not found")
     if skill.org_id != org_id:
-        raise HTTPException(status_code=403, detail="Cannot delete a curated skill")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot delete a curated skill")
 
     # Remove assignments first
     assignments = (await db.execute(
