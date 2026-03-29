@@ -68,6 +68,7 @@ async def run_pipeline(task_id_str: str):
         "org_id": task.org_id,
         "project_context": config.project_context if config else "",
         "repo_url": config.repo_url if config else "",
+        "fork_repo_url": config.fork_repo_url if config else None,
         "github_access_token": config.github_access_token if config else None,
         "guardrails": config.guardrails if config else {},
         "capabilities": config.capabilities if config else {},
@@ -187,13 +188,20 @@ async def run_pipeline(task_id_str: str):
                 )
 
         # Run the selected agent chain
+        MAX_REVISIONS = 2
+        revision_count = 0
         agent_map = _build_agent_map()
         skip_flags = _get_skip_flags()
-        for agent_name in routing["agents"]:
+        agent_list = list(routing["agents"])
+        i = 0
+        while i < len(agent_list):
+            agent_name = agent_list[i]
             if agent_name not in agent_map:
+                i += 1
                 continue
             if skip_flags.get(agent_name):
                 await emit_event(task_id, agent_name, "completed", f"{agent_name} skipped (disabled in config).")
+                i += 1
                 continue
 
             # Cancellation check — user may have cancelled between agents
@@ -240,18 +248,54 @@ async def run_pipeline(task_id_str: str):
 
             await emit_event(task_id, agent_name, "completed", result.get("summary", f"{agent.display_name} complete."), result)
 
-        # Notify integrations (Slack + Jira) — non-blocking, errors don't fail pipeline
-        await _notify_integrations(task_id, task.description, task.jira_ticket_id, context)
+            # Reviewer → Coder retry loop
+            if agent_name == "reviewer_agent" and result.get("needs_revision") and revision_count < MAX_REVISIONS:
+                revision_count += 1
+                changes = result.get("changes_requested", [])
+                await emit_event(
+                    task_id, "pipeline", "progress",
+                    f"Reviewer requested changes (revision {revision_count}/{MAX_REVISIONS}): {'; '.join(changes[:3])}",
+                    {"revision": revision_count, "changes_requested": changes},
+                )
+                # Inject review feedback into context for the coder
+                context["review_feedback"] = {
+                    "changes_requested": changes,
+                    "verdict": result.get("verdict", ""),
+                    "revision_number": revision_count,
+                }
+                # Jump back to coder_agent
+                coder_idx = agent_list.index("coder_agent") if "coder_agent" in agent_list else None
+                if coder_idx is not None:
+                    i = coder_idx
+                    continue
 
-        # Mark in_review if a PR was opened (true done happens when PR merges),
-        # otherwise mark done immediately (no-PR tasks like doc edits).
+            i += 1
+
+        # Determine final status
         coder_result = context.get("coder_agent", {})
+        reviewer_result = context.get("reviewer_agent", {})
         has_pr = bool(coder_result.get("pr_url"))
+        coder_failed = bool(coder_result.get("error")) or not coder_result.get("files_changed")
+        reviewer_rejected = reviewer_result.get("approved") is False
+
+        if has_pr:
+            final_status = "in_review"
+        elif coder_failed or reviewer_rejected:
+            final_status = "failed"
+        else:
+            final_status = "done"
+
+        # Notify integrations (Slack + Jira) — non-blocking, errors don't fail pipeline
+        if final_status != "failed":
+            await _notify_integrations(task_id, task.description, task.jira_ticket_id, context)
+
         async with AsyncSessionLocal() as db:
             task_obj = await db.get(Task, task_id)
-            task_obj.status = "in_review" if has_pr else "done"
+            task_obj.status = final_status
             task_obj.result = coder_result
-            if not has_pr:
+            if final_status == "failed":
+                task_obj.error = coder_result.get("error") or "Coder failed to produce changes after all retries"
+            if final_status in ("done", "failed"):
                 task_obj.completed_at = datetime.now(timezone.utc)
             await db.commit()
 

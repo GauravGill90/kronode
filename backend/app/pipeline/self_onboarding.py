@@ -170,12 +170,20 @@ async def run_onboarding(org_id: int) -> None:
     except Exception as exc:
         logger.warning(f"[SelfOnboarding] Codebase analysis failed: {exc}")
 
-    # Step 5: Trigger PR-based convention extraction (runs as separate Celery task)
+    # Step 5: Ingest documentation from repo (markdown files)
+    try:
+        from app.services.doc_ingestion import ingest_docs
+        chunk_count = await ingest_docs(org_id, source_type="git")
+        logger.info(f"[SelfOnboarding] Ingested {chunk_count} doc chunks for org {org_id}")
+    except Exception as exc:
+        logger.warning(f"[SelfOnboarding] Doc ingestion failed (non-blocking): {exc}")
+
+    # Step 6: Trigger PR-based convention extraction (runs as separate Celery task)
     from app.pipeline.task_queue import run_convention_extraction
     run_convention_extraction.delay(org_id, 200)
     logger.info(f"[SelfOnboarding] Queued convention extraction for org {org_id}")
 
-    # Step 6: Post conventions to Slack for team review
+    # Step 7: Post conventions to Slack for team review
     if config.slack_bot_token and config.slack_channel_id:
         try:
             from app.models.convention import Convention

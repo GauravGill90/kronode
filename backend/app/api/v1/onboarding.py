@@ -69,6 +69,7 @@ async def save_repo(
 ):
     _, _, config = await _get_or_create_org(user_data, db)
     config.repo_url = payload.repo_url
+    config.fork_repo_url = payload.fork_repo_url
     config.repo_provider = payload.provider
     config.repo_name = payload.repo_name
     await db.commit()
@@ -310,6 +311,20 @@ async def save_github_token(
     return {"ok": True}
 
 
+@router.post("/ingest-docs")
+async def trigger_doc_ingestion(
+    user_data: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Manually trigger doc ingestion (markdown files from connected repo)."""
+    _, org, config = await _get_or_create_org(user_data, db)
+    if not config.repo_url or not config.github_access_token:
+        raise HTTPException(status_code=400, detail="No repo or GitHub token configured")
+    from app.pipeline.task_queue import run_doc_ingestion
+    run_doc_ingestion.delay(org.id, "git")
+    return {"ok": True, "message": f"Doc ingestion queued for org {org.id}"}
+
+
 @router.post("/test-github-token")
 async def test_github_token(
     payload: GitHubTokenTestPayload,
@@ -408,6 +423,7 @@ async def get_config(
         agent_avatar=config.agent_avatar,
         agent_profile=config.agent_profile,
         repo_url=config.repo_url,
+        fork_repo_url=config.fork_repo_url,
         repo_provider=config.repo_provider,
         repo_name=config.repo_name,
         has_github_token=bool(config.github_access_token),

@@ -12,6 +12,7 @@ export default function Step2Repo() {
   const { setRepo, setStep } = useOnboardingStore();
   const [provider, setProvider] = useState<"github" | "gitlab">("github");
   const [repoUrl, setRepoUrl] = useState("");
+  const [forkRepoUrl, setForkRepoUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -23,8 +24,8 @@ export default function Step2Repo() {
     if (!valid) return;
     setLoading(true);
     try {
-      await saveRepo({ provider, repo_url: repoUrl, repo_name: repoName });
-      setRepo({ provider, repo_url: repoUrl, repo_name: repoName });
+      await saveRepo({ provider, repo_url: repoUrl, repo_name: repoName, fork_repo_url: forkRepoUrl || undefined });
+      setRepo({ provider, repo_url: repoUrl, repo_name: repoName, fork_repo_url: forkRepoUrl || undefined });
       setStep(3);
       router.push("/onboarding/3");
     } catch {
@@ -63,11 +64,11 @@ export default function Step2Repo() {
         </div>
 
         <Input
-          label="Repository URL"
+          label="Source Repository URL"
           placeholder={`https://${provider}.com/your-org/your-repo`}
           value={repoUrl}
           onChange={(e) => setRepoUrl(e.target.value)}
-          hint="Paste the full URL of the repository you want to connect"
+          hint="The repo your agent reads from — conventions, docs, and context are ingested from here"
         />
 
         {repoName && (
@@ -76,6 +77,14 @@ export default function Step2Repo() {
             <span>Repository: <strong>{repoName}</strong></span>
           </div>
         )}
+
+        <Input
+          label="Fork URL (optional)"
+          placeholder={`https://${provider}.com/your-user/your-repo`}
+          value={forkRepoUrl}
+          onChange={(e) => setForkRepoUrl(e.target.value)}
+          hint="If set, PRs and branches go here instead of the source repo. Use for open-source repos you've forked."
+        />
       </div>
 
       <div className="bg-blue-50 rounded-lg px-4 py-3 text-sm text-blue-700 border border-blue-200">

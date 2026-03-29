@@ -6,7 +6,7 @@ celery_app = Celery(
     "kronode",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["app.pipeline.task_queue"],
+    include=["app.pipeline.task_queue", "app.orchestration.celery_integration"],
 )
 
 celery_app.conf.update(
@@ -19,17 +19,25 @@ celery_app.conf.update(
     worker_prefetch_multiplier=1,
 )
 
-celery_app.conf.beat_schedule = {
-    "poll-pr-outcomes": {
+# Beat schedule — only enabled via env vars (all off by default)
+beat_schedule = {}
+
+if settings.enable_poll_pr:
+    beat_schedule["poll-pr-outcomes"] = {
         "task": "poll_pr_outcomes",
-        "schedule": 60.0,  # every minute
-    },
-    "poll-clarifications": {
+        "schedule": 60.0,
+    }
+
+if settings.enable_poll_clarification:
+    beat_schedule["poll-clarifications"] = {
         "task": "poll_clarifications",
-        "schedule": 30.0,  # every 30 seconds
-    },
-    "weekly-convention-refresh": {
+        "schedule": 30.0,
+    }
+
+if settings.enable_convention_refresh:
+    beat_schedule["weekly-convention-refresh"] = {
         "task": "refresh_conventions_all_orgs",
-        "schedule": 604800.0,  # weekly (7 days)
-    },
-}
+        "schedule": 604800.0,
+    }
+
+celery_app.conf.beat_schedule = beat_schedule

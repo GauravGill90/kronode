@@ -381,6 +381,7 @@ function RepoForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void 
     (repo?.provider as "github" | "gitlab") || "github"
   );
   const [repoUrl, setRepoUrl] = useState(repo?.repo_url || "");
+  const [forkRepoUrl, setForkRepoUrl] = useState(repo?.fork_repo_url || "");
   const [pat, setPat] = useState("");
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -432,8 +433,8 @@ function RepoForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void 
         await saveGithubToken({ token: pat.trim() });
       }
       // Always save the repo URL (may have changed without a new token)
-      await saveRepo({ provider, repo_url: repoUrl, repo_name: repoName });
-      setRepo({ provider, repo_url: repoUrl, repo_name: repoName });
+      await saveRepo({ provider, repo_url: repoUrl, repo_name: repoName, fork_repo_url: forkRepoUrl || undefined });
+      setRepo({ provider, repo_url: repoUrl, repo_name: repoName, fork_repo_url: forkRepoUrl || undefined });
       onSave();
     } catch {
       setError("Failed to save. Please try again.");
@@ -481,6 +482,20 @@ function RepoForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void 
           <span>Detected: <strong>{repoName}</strong></span>
         </div>
       )}
+      <div>
+        <FieldLabel>Fork URL <span style={{ color: "#475569", fontWeight: 400 }}>(optional)</span></FieldLabel>
+        <input
+          style={inputCls}
+          placeholder={`https://${provider}.com/your-user/${repoName || "your-repo"}`}
+          value={forkRepoUrl}
+          onChange={(e) => setForkRepoUrl(e.target.value)}
+          onFocus={focusBorder}
+          onBlur={blurBorder}
+        />
+        <p className="text-xs mt-1.5" style={{ color: "#475569" }}>
+          If set, PRs go to this fork instead of the source repo. Use for open-source repos you&apos;ve forked.
+        </p>
+      </div>
       <div>
         <FieldLabel>{hasExistingToken ? "Personal Access Token (leave blank to keep current)" : "Personal Access Token"}</FieldLabel>
         <input
@@ -1375,7 +1390,7 @@ export default function OnboardingDashboard({ isSettings = false }: { isSettings
             if (found) store.setAgentProfile({ profile_key: found.key, profile_name: found.name });
           }
           if (c.agent_name) store.setAgent({ agent_name: c.agent_name, agent_avatar: c.agent_avatar || "" });
-          if (c.repo_url) store.setRepo({ provider: c.repo_provider || "github", repo_url: c.repo_url, repo_name: c.repo_name || "" });
+          if (c.repo_url) store.setRepo({ provider: c.repo_provider || "github", repo_url: c.repo_url, repo_name: c.repo_name || "", fork_repo_url: c.fork_repo_url || undefined });
           if (c.capabilities) store.setCapabilities(c.capabilities);
           if (c.guardrails) store.setGuardrails(c.guardrails);
           if (c.project_context) store.setProjectContext(c.project_context);

@@ -64,6 +64,12 @@ async def _refresh_all_orgs():
     logger.info("[ConventionRefresh] Weekly refresh complete")
 
 
+@celery_app.task(name="run_doc_ingestion")
+def run_doc_ingestion(org_id: int, source_type: str = "git"):
+    from app.services.doc_ingestion import ingest_docs
+    asyncio.run(ingest_docs(org_id, source_type))
+
+
 @celery_app.task(name="run_self_onboarding")
 def run_self_onboarding(org_id: int):
     from app.pipeline.self_onboarding import run_onboarding
@@ -369,7 +375,10 @@ async def _run_pr_revision(task_id_str: str):
     pr_url = coder_result.get("pr_url")
     original_files = coder_result.get("files", [])
 
-    if not branch_name or not cfg.repo_url or not cfg.github_access_token:
+    # Use fork_repo_url for writes (PRs), fall back to repo_url
+    write_repo = cfg.fork_repo_url or cfg.repo_url
+
+    if not branch_name or not write_repo or not cfg.github_access_token:
         logger.warning(f"[PRRevision] Missing branch/repo/token for task {task_id}")
         return
 
@@ -384,7 +393,7 @@ async def _run_pr_revision(task_id_str: str):
         "task_id": task_id_str,
         "description": task.description,
         "org_id": task.org_id,
-        "repo_url": cfg.repo_url,
+        "repo_url": write_repo,
         "github_access_token": cfg.github_access_token,
         "slack_channel_id": cfg.slack_channel_id,
         "slack_bot_token": cfg.slack_bot_token,
@@ -423,7 +432,7 @@ async def _run_pr_revision(task_id_str: str):
         from app.services.github_service import add_files_to_branch
         commit_message = result.get("commit_message", "fix: address PR review comments")
         ok = await add_files_to_branch(
-            repo_url=cfg.repo_url,
+            repo_url=write_repo,
             branch_name=branch_name,
             files=files,
             commit_message=commit_message,

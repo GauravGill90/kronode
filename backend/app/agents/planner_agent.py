@@ -170,37 +170,44 @@ Conventions:
                 "estimated_files": 1,
             }
 
-        # Calculate confidence score based on available signals
-        plan["confidence_score"] = _calculate_confidence(plan, context_bundle, context)
-        if plan["confidence_score"] >= 0.7:
+        # Calculate confidence score and detect unseen files
+        confidence, unseen_files = _calculate_confidence(plan, context_bundle, context)
+        plan["confidence_score"] = confidence
+        plan["unseen_files"] = unseen_files
+        if confidence >= 0.7:
             plan["confidence_level"] = "high"
-        elif plan["confidence_score"] >= 0.4:
+        elif confidence >= 0.4:
             plan["confidence_level"] = "medium"
         else:
             plan["confidence_level"] = "low"
 
+        # Flag unseen files in assumptions so downstream agents know
+        if unseen_files:
+            assumptions = plan.get("assumptions", []) or []
+            assumptions.append(
+                f"Files not in fetched context (planner is guessing paths): {', '.join(unseen_files)}"
+            )
+            plan["assumptions"] = assumptions
+
+        unseen_note = f" WARNING: {len(unseen_files)} planned file(s) not in fetched context." if unseen_files else ""
         plan["summary"] = (
             f"Plan created: {len(plan.get('subtasks', []))} subtasks, "
             f"{len(plan.get('definition_of_done', []))} DoD items. "
             f"Confidence: {plan['confidence_level']} ({plan['confidence_score']:.1f})."
+            f"{unseen_note}"
         )
         return plan
 
 
-def _calculate_confidence(plan: dict, context_bundle: dict, context: dict) -> float:
+def _calculate_confidence(plan: dict, context_bundle: dict, context: dict) -> tuple[float, list[str]]:
     """Score 0.0-1.0 based on how well-understood the task is.
-
-    Scoring philosophy:
-    - Start at 0.5 (neutral — we know nothing yet)
-    - Boost for positive signals (conventions, known files, structured task, simple complexity)
-    - Penalise for negative signals (risk flags, unknown files, complex task)
-    - Most tasks with a connected repo and some conventions should land at 0.6-0.8
+    Returns (score, unseen_files) where unseen_files are paths the planner
+    referenced but context builder didn't fetch.
     """
     score = 0.5
 
     # ── Positive signals ──────────────────────────────────────────────
 
-    # Conventions available (org has learned patterns)
     conventions = context_bundle.get("conventions", [])
     if len(conventions) >= 10:
         score += 0.15
@@ -209,14 +216,12 @@ def _calculate_confidence(plan: dict, context_bundle: dict, context: dict) -> fl
     elif conventions:
         score += 0.05
 
-    # Files were fetched from repo (context builder worked)
     relevant_files = context_bundle.get("relevant_files", [])
     if len(relevant_files) >= 5:
         score += 0.1
     elif relevant_files:
         score += 0.05
 
-    # Structured task from ticket interpreter (better input)
     interpreter = context.get("ticket_interpreter", {})
     structured = interpreter.get("structured_task", {})
     if structured.get("requirements"):
@@ -224,12 +229,10 @@ def _calculate_confidence(plan: dict, context_bundle: dict, context: dict) -> fl
     if structured.get("acceptance_criteria"):
         score += 0.05
 
-    # Simple complexity
     routing = context.get("routing", {})
     if routing.get("complexity") == "simple":
         score += 0.1
 
-    # Pitfalls and reviewer patterns available (more context)
     if context_bundle.get("pitfalls"):
         score += 0.05
     if context_bundle.get("reviewer_patterns"):
@@ -237,21 +240,20 @@ def _calculate_confidence(plan: dict, context_bundle: dict, context: dict) -> fl
 
     # ── Negative signals ──────────────────────────────────────────────
 
-    # Risk flags from the planner
     risk_flags = plan.get("risk_flags", [])
-    score -= min(len(risk_flags) * 0.05, 0.15)  # cap penalty at 0.15
+    score -= min(len(risk_flags) * 0.05, 0.15)
 
-    # Unknown files (planned but not in context)
+    # Unknown files (planned but not in context) — significant penalty
     known_paths = {f["path"] for f in relevant_files}
     planned_files = set()
     for st in plan.get("subtasks", []):
         planned_files.update(st.get("files_affected", []))
+    unseen_files = sorted(planned_files - known_paths)
     if planned_files:
-        unknown_ratio = len(planned_files - known_paths) / len(planned_files)
-        score -= unknown_ratio * 0.1  # softer penalty
+        unknown_ratio = len(unseen_files) / len(planned_files)
+        score -= unknown_ratio * 0.25  # strong penalty: all unseen = -0.25
 
-    # Complex task
     if routing.get("complexity") == "complex":
         score -= 0.1
 
-    return max(0.0, min(1.0, round(score, 2)))
+    return max(0.0, min(1.0, round(score, 2))), unseen_files

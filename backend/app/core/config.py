@@ -48,6 +48,18 @@ class Settings(BaseSettings):
 
     # Dev / testing
     bypass_llm: bool = False  # set BYPASS_LLM=true to skip all LLM calls and test GitHub PR directly
+    bypass_auth: bool = False  # set BYPASS_AUTH=true to skip Clerk JWT verification (dev only)
+    bypass_auth_user_id: str = "dev_user"  # user_id used when auth is bypassed
+
+    # Claude Agent SDK (coder agent execution engine)
+    agent_sdk_model: str = "haiku"  # haiku | sonnet | opus
+    agent_sdk_fallback_model: str = "sonnet"  # model to use on retry after failure
+    agent_sdk_max_turns: int = 15  # max tool round-trips per task
+
+    # Beat schedule — set to true to enable automatic polling
+    enable_poll_pr: bool = True        # ENABLE_POLL_PR=true to auto-poll PR outcomes
+    enable_poll_clarification: bool = True  # ENABLE_POLL_CLARIFICATION=true to auto-poll Slack threads
+    enable_convention_refresh: bool = False  # ENABLE_CONVENTION_REFRESH=true to weekly refresh conventions
 
     # Pipeline step flags — set to true to skip individual agents
     skip_ticket_interpreter: bool = False

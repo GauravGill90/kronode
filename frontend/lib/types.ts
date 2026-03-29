@@ -78,7 +78,7 @@ export interface OnboardingState {
   agentProfile: { profile_key: string; profile_name: string } | null;
   skills: { id: number; key: string; name: string; category: string }[] | null;
   account: { name: string; company_name: string; role: string } | null;
-  repo: { provider: string; repo_url: string; repo_name: string } | null;
+  repo: { provider: string; repo_url: string; repo_name: string; fork_repo_url?: string } | null;
   jira: { workspace_url: string; project_key: string; email: string; api_token: string } | null;
   slack: { channel_id: string; channel_name: string; bot_token: string } | null;
   docs: { provider: string; scope: string } | null;

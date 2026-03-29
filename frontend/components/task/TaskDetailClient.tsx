@@ -143,10 +143,10 @@ function TaskDetail({ taskId }: { taskId: string }) {
           status={displayStatus}
         />
 
-        {/* Result — PR link */}
+        {/* Result — PR link + cost */}
         {task.result?.pr_url && (
           <div
-            className="rounded-xl p-4 space-y-1"
+            className="rounded-xl p-4 space-y-2"
             style={{ background: "rgba(52,211,153,0.07)", border: "1px solid rgba(52,211,153,0.2)" }}
           >
             <p className="text-sm font-semibold" style={{ color: "#34d399" }}>Pull request opened</p>
@@ -161,6 +161,39 @@ function TaskDetail({ taskId }: { taskId: string }) {
             </a>
             {task.result.slack_summary && (
               <p className="text-sm mt-2" style={{ color: "#64748b" }}>{task.result.slack_summary as string}</p>
+            )}
+          </div>
+        )}
+
+        {/* Cost tracker */}
+        {task.result && (typeof task.result.cost_usd === "number" || task.result.num_turns) && (
+          <div
+            className="rounded-xl p-4 flex items-center gap-4"
+            style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.15)" }}
+          >
+            {typeof task.result.cost_usd === "number" && (
+              <div className="text-center">
+                <p className="text-lg font-semibold" style={{ color: "#a5b4fc" }}>
+                  ${(task.result.cost_usd as number).toFixed(4)}
+                </p>
+                <p className="text-xs" style={{ color: "#475569" }}>Cost</p>
+              </div>
+            )}
+            {task.result.num_turns && (
+              <div className="text-center">
+                <p className="text-lg font-semibold" style={{ color: "#a5b4fc" }}>
+                  {task.result.num_turns as number}
+                </p>
+                <p className="text-xs" style={{ color: "#475569" }}>Turns</p>
+              </div>
+            )}
+            {task.result.files_changed && (
+              <div className="text-center">
+                <p className="text-lg font-semibold" style={{ color: "#a5b4fc" }}>
+                  {(task.result.files_changed as string[]).length}
+                </p>
+                <p className="text-xs" style={{ color: "#475569" }}>Files</p>
+              </div>
             )}
           </div>
         )}

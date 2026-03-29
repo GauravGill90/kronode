@@ -4,9 +4,20 @@ Kronode is an autonomous AI developer that lives inside your engineering organiz
 
 ---
 
-## Prerequisites
+## Quick Start
 
-Before you begin, make sure you have the following installed:
+```bash
+make install   # install deps (backend + frontend)
+make infra     # start postgres + redis
+make migrate   # apply database migrations
+make dev       # start everything
+```
+
+Backend: http://localhost:8000 | Frontend: http://localhost:3000 | API docs: http://localhost:8000/docs
+
+---
+
+## Prerequisites
 
 | Tool | Version | Purpose |
 |---|---|---|
@@ -21,8 +32,6 @@ Before you begin, make sure you have the following installed:
 ## Environment Variables
 
 ### Frontend (`frontend/.env.local`)
-
-Create a file at `frontend/.env.local` with the following variables:
 
 ```
 # Clerk — authentication (get these from https://dashboard.clerk.com)
@@ -41,10 +50,8 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 
 ### Backend (`backend/.env`)
 
-Create a file at `backend/.env` with the following variables:
-
 ```
-# Clerk — used to verify tokens server-side (same secret key as frontend)
+# Clerk — used to verify tokens server-side
 CLERK_SECRET_KEY=sk_test_your_secret_key_here
 
 # PostgreSQL connection string
@@ -53,21 +60,21 @@ DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/kronode
 # Redis connection string
 REDIS_URL=redis://localhost:6379/0
 
-# Anthropic API key (used by planner, coder, reviewer agents)
-ANTHROPIC_API_KEY=sk-ant-your_key_here
-
-# Gemini API key (used for cheap batch work — ticket interpretation, convention extraction)
-GEMINI_API_KEY=your_gemini_api_key_here
+# LLM API keys
+ANTHROPIC_API_KEY=sk-ant-your_key_here          # required — coder, reviewer agents
+GEMINI_API_KEY=your_gemini_api_key_here          # optional — cheap tier (ticket interpretation, conventions)
+DEEPSEEK_API_KEY=                                # optional — cheap tier fallback
+OPENAI_API_KEY=                                  # optional — embeddings + cheap/quality fallback
 
 # GitHub OAuth (optional)
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 
-# Jira OAuth credentials (optional — required for Jira integration)
+# Jira OAuth (optional — required for Jira integration)
 JIRA_CLIENT_ID=
 JIRA_CLIENT_SECRET=
 
-# Slack bot credentials (optional — required for Slack integration)
+# Slack bot (optional — required for Slack integration)
 SLACK_CLIENT_ID=
 SLACK_CLIENT_SECRET=
 SLACK_SIGNING_SECRET=
@@ -76,117 +83,47 @@ SLACK_SIGNING_SECRET=
 BACKEND_URL=http://localhost:8000
 CORS_ORIGINS=http://localhost:3000
 
-# Dev / testing — set to true to skip all LLM calls
-BYPASS_LLM=false
+# Dev / testing
+BYPASS_LLM=false                                 # skip all LLM calls for pipeline testing
 ```
 
 ---
 
-## Getting Started
+## Makefile Reference
 
-Follow these steps in order to get the full stack running locally.
-
-### 1. Start infrastructure (PostgreSQL + Redis)
-
-```bash
-make infra
-```
-
-This starts PostgreSQL on port `5432` and Redis on port `6379` using Docker Compose.
-
-### 2. Install all dependencies
-
-```bash
-make install
-```
-
-This runs two things:
-- `cd backend && uv sync` — installs Python dependencies
-- `cd frontend && pnpm install` — installs Node dependencies
-
-You can also run each separately:
-
-```bash
-# Backend only
-cd backend && uv sync
-
-# Frontend only
-cd frontend && pnpm install
-```
-
-### 3. Run database migrations
-
-```bash
-make migrate
-```
-
-This applies all Alembic migrations and sets up the database schema. The underlying command is:
-
-```bash
-cd backend && uv run alembic upgrade head
-```
-
-### 4. Start the backend dev server
-
-```bash
-make backend
-```
-
-This starts the FastAPI server at **http://localhost:8000** with hot-reload enabled. The underlying command is:
-
-```bash
-cd backend && uv run uvicorn app.main:app --reload
-```
-
-Verify it is running by visiting http://localhost:8000/health — you should see `{"status": "ok"}`.
-
-### 5. Start the frontend dev server
-
-```bash
-make frontend
-```
-
-This starts the Next.js app at **http://localhost:3000**. The underlying command is:
-
-```bash
-cd frontend && pnpm dev
-```
-
----
-
-## Background Workers (optional)
-
-Kronode uses Celery for background task processing (e.g. running the AI agent, polling PRs). These are optional for basic local development but required for the agent to execute tickets.
-
-### Start the Celery worker
-
-```bash
-make worker
-```
-
-This starts a Celery worker with auto-reload on Python file changes.
-
-### Start the Celery beat scheduler
-
-```bash
-make beat
-```
-
-This starts the Celery beat scheduler, which handles recurring tasks such as polling pull requests every 60 seconds.
-
----
-
-## All Makefile Targets
+### Core Workflow
 
 | Command | What it does |
 |---|---|
-| `make infra` | Starts PostgreSQL and Redis via Docker Compose |
-| `make install` | Installs backend (uv) and frontend (pnpm) dependencies |
-| `make migrate` | Runs Alembic database migrations |
-| `make backend` | Starts the FastAPI backend dev server on port 8000 |
-| `make frontend` | Starts the Next.js frontend dev server on port 3000 |
-| `make worker` | Starts the Celery background worker |
-| `make beat` | Starts the Celery beat scheduler |
+| `make dev` | Start everything (infra + backend + worker + beat + frontend) |
+| `make stop` | Kill all running services |
+| `make restart` | Stop + restart backend, worker, beat |
+| `make status` | Show which services are running |
+
+### Setup
+
+| Command | What it does |
+|---|---|
+| `make install` | Install backend (uv) and frontend (pnpm) dependencies |
+| `make infra` | Start PostgreSQL + Redis via Docker Compose |
+| `make migrate` | Run Alembic database migrations |
+
+### Individual Services
+
+| Command | What it does |
+|---|---|
+| `make backend` | FastAPI on port 8000 (hot-reload) |
+| `make frontend` | Next.js on port 3000 |
+| `make worker` | Celery worker (auto-reload on file changes) |
+| `make beat` | Celery beat scheduler (PR polling, convention refresh) |
+
+### Testing
+
+| Command | What it does |
+|---|---|
+| `make test-quick` | Quick orchestrator validation |
+| `make test-orchestrator` | Full E2E orchestrator test (runs real agents) |
+| `make test-full` | Full stack integration test |
 
 ---
 
@@ -194,18 +131,27 @@ This starts the Celery beat scheduler, which handles recurring tasks such as pol
 
 ```
 kronode/
-├── backend/          # FastAPI backend (Python 3.12, uv)
+���── backend/
 │   ├── app/
-│   │   ├── api/      # Route handlers
-│   │   ├── core/     # Config, database, auth
-│   │   ├── models/   # SQLAlchemy models
-│   │   └── main.py   # FastAPI application entry point
-│   └── alembic/      # Database migration files
-├── frontend/         # Next.js frontend (TypeScript, pnpm)
-│   ├── app/          # Next.js App Router pages
-│   ├── components/   # Shared React components
-│   └── tokens/       # Design system tokens
-├── Makefile          # Developer convenience commands
+│   │   ���── api/v1/            # REST endpoints (tasks, onboarding, conventions, skills, jira)
+│   │   ├── agents/            # 16 agents (router, planner, coder, reviewer, memory, etc.)
+│   │   ├── core/              # Config, database, auth, LLM router, embeddings
+│   │   ├── models/            # SQLAlchemy models (task, org, convention, skill, doc_chunk, memory)
+│   │   ├── orchestration/     # Multi-flow LangGraph orchestrator
+│   │   │   ├── core/          # Flow base, classifier, registries
+│   │   │   └── flows/         # ticket_implementation, onboarding, ingestion
+│   │   ├── pipeline/          # Celery tasks, convention extraction, self-onboarding
+│   │   ├── services/          # GitHub, Jira, Slack, convention extractor, doc ingestion
+│   │   │   └── doc_providers/ # Agnostic doc providers (git, confluence, etc.)
+│   │   └── skills/            # Composable skill presets + composer
+│   └── alembic/               # Database migrations
+├── frontend/
+│   ├── app/                   # Next.js App Router pages
+│   ├── components/            # UI, dashboard, onboarding, task, conventions
+│   ├── lib/                   # API client, types, store, hooks (SSE, tasks)
+│   └── tokens/                # Design system color tokens
+├── docs/                      # Architecture, pipeline flow, product gaps
+├── Makefile
 └── docker-compose.yml
 ```
 
@@ -215,11 +161,21 @@ kronode/
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js 14 (App Router), TypeScript, Tailwind CSS |
-| Auth | Clerk |
-| Backend | FastAPI, Python 3.12 |
-| Database | PostgreSQL (async via SQLAlchemy + asyncpg) |
+| Frontend | Next.js 14 (App Router), TypeScript, Tailwind, Clerk, Zustand |
+| Backend | FastAPI, Python 3.12, SQLAlchemy (async) |
+| Database | PostgreSQL 16 (asyncpg) |
 | Migrations | Alembic |
+| Orchestration | LangGraph |
 | Background jobs | Celery + Redis |
+| LLM | Anthropic (Haiku/Sonnet), OpenAI, Gemini, DeepSeek (auto-failover) |
+| Integrations | GitHub API, Jira REST API, Slack API |
 | Package management | pnpm (frontend), uv (backend) |
 | Local infra | Docker Compose |
+
+---
+
+## Architecture
+
+See [docs/architecture.md](docs/architecture.md) for the full system diagram, data model, agent chain, and flow details.
+
+See [docs/router-flow.md](docs/router-flow.md) for the pipeline Mermaid diagram.

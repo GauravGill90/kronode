@@ -10,8 +10,9 @@ class AccountPayload(BaseModel):
 
 class RepoPayload(BaseModel):
     provider: str  # github | gitlab
-    repo_url: str
+    repo_url: str  # upstream repo (read: ingestion, context, conventions)
     repo_name: str
+    fork_repo_url: str | None = None  # fork repo (write: branches, PRs). If None, writes go to repo_url.
 
 
 class JiraPayload(BaseModel):
@@ -95,6 +96,7 @@ class OnboardingConfigOut(BaseModel):
     agent_profile: str | None = None
     # repo
     repo_url: str | None = None
+    fork_repo_url: str | None = None
     repo_provider: str | None = None
     repo_name: str | None = None
     has_github_token: bool = False

@@ -48,6 +48,8 @@ async def _get_sse_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(_optional_bearer),
 ) -> dict:
     """Auth for SSE — accepts Bearer header OR ?token= query param (EventSource limitation)."""
+    if settings.bypass_auth:
+        return {"user_id": settings.bypass_auth_user_id, "session_id": "dev"}
     raw = credentials.credentials if credentials else token_query
     if not raw:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing token")
@@ -74,11 +76,9 @@ async def create_task(
     await db.commit()
     await db.refresh(task)
 
-    # Queue via Celery with new multi-flow orchestrator
-    # Default action is 'implement' for backward compatibility
-    from app.orchestration.celery_integration import run_pipeline_task
-    action = payload.action or 'implement'
-    celery_result = run_pipeline_task.delay(str(task.id), action=action)
+    # Queue via Celery — use legacy pipeline (proven working)
+    from app.pipeline.task_queue import run_pipeline
+    celery_result = run_pipeline.delay(str(task.id))
     task.celery_task_id = celery_result.id
     await db.commit()
 
@@ -139,6 +139,36 @@ async def cancel_task(
     await db.commit()
     return {"ok": True}
 
+
+
+@router.post("/poll/pr-outcomes")
+async def trigger_poll_pr_outcomes(
+    user_data: dict = Depends(get_current_user),
+):
+    """Manually trigger PR outcome polling."""
+    from app.pipeline.task_queue import poll_pr_outcomes
+    poll_pr_outcomes.delay()
+    return {"ok": True, "message": "PR outcome poll queued"}
+
+
+@router.post("/poll/clarifications")
+async def trigger_poll_clarifications(
+    user_data: dict = Depends(get_current_user),
+):
+    """Manually trigger clarification polling."""
+    from app.pipeline.task_queue import poll_clarifications
+    poll_clarifications.delay()
+    return {"ok": True, "message": "Clarification poll queued"}
+
+
+@router.post("/poll/convention-refresh")
+async def trigger_convention_refresh(
+    user_data: dict = Depends(get_current_user),
+):
+    """Manually trigger convention refresh for all orgs."""
+    from app.pipeline.task_queue import refresh_conventions_all_orgs
+    refresh_conventions_all_orgs.delay()
+    return {"ok": True, "message": "Convention refresh queued"}
 
 
 @router.get("/task/{task_id}/stream")

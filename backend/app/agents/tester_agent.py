@@ -118,7 +118,7 @@ class TesterAgent(AgentBase):
         # Commit test files to the PR branch
         committed = False
         commit_note = ""
-        repo_url = context.get("repo_url", "")
+        repo_url = context.get("fork_repo_url") or context.get("repo_url", "")
         github_token = context.get("github_access_token")
 
         if repo_url and github_token and branch_name:

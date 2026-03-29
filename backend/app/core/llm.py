@@ -18,11 +18,11 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Cheapest to most expensive
+# OpenAI first — reliable JSON mode, then cheapest to most expensive
 _PROVIDER_ORDER = [
+    ("openai", lambda: settings.openai_api_key),
     ("gemini", lambda: settings.gemini_api_key),
     ("deepseek", lambda: settings.deepseek_api_key),
-    ("openai", lambda: settings.openai_api_key),
     ("haiku", lambda: settings.anthropic_api_key),
 ]
 

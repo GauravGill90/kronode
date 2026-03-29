@@ -265,17 +265,29 @@ class ContextBuilderAgent(AgentBase):
             except Exception as exc:
                 logger.warning(f"[ContextBuilder] Pattern query failed: {exc}")
 
+        # 7. Load relevant documentation chunks
+        doc_chunks = []
+        if org_id:
+            try:
+                from app.services.doc_ingestion import query_relevant_chunks
+                doc_chunks = await query_relevant_chunks(org_id, description, max_chunks=5)
+                logger.info(f"[ContextBuilder] Loaded {len(doc_chunks)} relevant doc chunks")
+            except Exception as exc:
+                logger.warning(f"[ContextBuilder] Doc chunk query failed: {exc}")
+
         return {
             "summary": (
                 f"Fetched {len(relevant_files)} relevant file(s) from repo "
                 f"({total_bytes // 1000}KB). "
                 f"{len(conventions)} conventions, {len(pitfalls)} pitfalls, "
-                f"{len(reviewer_patterns)} reviewer patterns loaded."
+                f"{len(reviewer_patterns)} reviewer patterns, "
+                f"{len(doc_chunks)} doc chunks loaded."
             ),
             "relevant_files": relevant_files,
             "conventions": conventions,
             "pitfalls": pitfalls,
             "reviewer_patterns": reviewer_patterns,
+            "doc_chunks": doc_chunks,
             "repo_structure": repo_structure_summary,
         }
 
@@ -357,8 +369,17 @@ def _heuristic_select(
             score += 2  # profile extension boost
         if previously_touched and p in previously_touched:
             score += 2  # memory boost — touched in a previous task
-        if any(w in p.lower() for w in desc_words):
-            score += 2
+
+        # Keyword matching: filename stem match is much stronger than dir match
+        stem = os.path.splitext(name)[0].lower()
+        stem_words = set(re.split(r'[\-_\.]+', stem))
+        dir_parts = set(p.lower().split('/')[:-1])
+        for w in desc_words:
+            if w in stem_words:
+                score += 5  # strong: task word matches filename
+            elif w in dir_parts:
+                score += 2  # moderate: task word matches a directory
+
         if score > 0:
             scored.append((score, p))
     scored.sort(key=lambda x: -x[0])

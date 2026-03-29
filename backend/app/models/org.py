@@ -23,7 +23,8 @@ class OnboardingConfig(Base):
     org_id: Mapped[int] = mapped_column(Integer, ForeignKey("organizations.id"), unique=True, index=True)
 
     # Step 2 — repo
-    repo_url: Mapped[str | None] = mapped_column(String(500))
+    repo_url: Mapped[str | None] = mapped_column(String(500))  # upstream repo (read: ingestion, context, conventions)
+    fork_repo_url: Mapped[str | None] = mapped_column(String(500))  # fork repo (write: branches, commits, PRs)
     repo_provider: Mapped[str | None] = mapped_column(String(50))  # github / gitlab
     repo_name: Mapped[str | None] = mapped_column(String(255))
 

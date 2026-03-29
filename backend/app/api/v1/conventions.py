@@ -6,6 +6,7 @@ from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.models.user import User
 from app.models.convention import Convention
+from app.models.doc_chunk import DocChunk
 
 router = APIRouter()
 
@@ -145,3 +146,102 @@ async def trigger_base_extraction(
     from app.pipeline.task_queue import run_base_convention_extraction
     run_base_convention_extraction.delay()
     return {"ok": True, "message": "Base convention extraction from Cal.com queued."}
+
+
+# ── Doc Chunks ──────────────────────────────────────────────────────────────────
+
+
+@router.get("/doc-chunks/stats")
+async def doc_chunk_stats(
+    user_data: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Summary stats for ingested docs."""
+    org_id = await _get_org_id(user_data, db)
+    from sqlalchemy import func
+
+    rows = (await db.execute(
+        select(DocChunk.source_type, func.count().label("count"))
+        .where(DocChunk.org_id == org_id)
+        .group_by(DocChunk.source_type)
+    )).all()
+
+    total = sum(r.count for r in rows)
+    return {
+        "total_chunks": total,
+        "by_source": {r.source_type: r.count for r in rows},
+    }
+
+
+@router.get("/doc-chunks")
+async def list_doc_chunks(
+    source_type: str | None = Query(None),
+    search: str | None = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    user_data: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List ingested doc chunks for this org."""
+    org_id = await _get_org_id(user_data, db)
+
+    query = select(DocChunk).where(DocChunk.org_id == org_id)
+    if source_type:
+        query = query.where(DocChunk.source_type == source_type)
+    if search:
+        query = query.where(DocChunk.content.ilike(f"%{search}%"))
+
+    query = query.order_by(DocChunk.created_at.desc())
+
+    from sqlalchemy import func
+    total = (await db.execute(select(func.count()).select_from(query.subquery()))).scalar() or 0
+
+    query = query.offset((page - 1) * page_size).limit(page_size)
+    chunks = (await db.execute(query)).scalars().all()
+
+    return {
+        "doc_chunks": [
+            {
+                "id": c.id,
+                "source_type": c.source_type,
+                "source_ref": c.source_ref,
+                "source_url": c.source_url,
+                "heading": c.heading,
+                "content": c.content[:500],
+                "file_sha": c.file_sha,
+                "has_embedding": c.embedding is not None,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+            }
+            for c in chunks
+        ],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+    }
+
+
+@router.get("/doc-chunks/{chunk_id}")
+async def get_doc_chunk(
+    chunk_id: int,
+    user_data: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get full content of a single doc chunk."""
+    org_id = await _get_org_id(user_data, db)
+    chunk = (await db.execute(
+        select(DocChunk).where(DocChunk.id == chunk_id, DocChunk.org_id == org_id)
+    )).scalar_one_or_none()
+    if not chunk:
+        raise HTTPException(status_code=404, detail="Doc chunk not found")
+
+    return {
+        "id": chunk.id,
+        "source_type": chunk.source_type,
+        "source_ref": chunk.source_ref,
+        "source_url": chunk.source_url,
+        "heading": chunk.heading,
+        "content": chunk.content,
+        "metadata": chunk.extra,
+        "has_embedding": chunk.embedding is not None,
+        "created_at": chunk.created_at.isoformat() if chunk.created_at else None,
+    }

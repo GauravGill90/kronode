@@ -62,7 +62,7 @@ class GuardrailsAgent(AgentBase):
         for path in all_files:
             if not _allowed_dir(path, allowed_dirs):
                 violations.append(
-                    f"Outside {profile.PROFILE_NAME} scope: {path} "
+                    f"Outside allowed scope: {path} "
                     f"(allowed dirs: {', '.join(allowed_dirs[:3])}{'...' if len(allowed_dirs) > 3 else ''})"
                 )
 
@@ -72,7 +72,7 @@ class GuardrailsAgent(AgentBase):
                 continue
             ext = os.path.splitext(path)[1]
             if ext and ext not in allowed_extensions:
-                violations.append(f"Disallowed extension {ext} for {profile.PROFILE_NAME}: {path}")
+                violations.append(f"Disallowed extension {ext}: {path}")
 
         # Check 4: max files per task
         if estimated_files > max_files:

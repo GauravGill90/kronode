@@ -2,41 +2,44 @@ import json
 import logging
 import re
 
-import anthropic
-
 from app.agents.base import AgentBase
 from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-MAX_REVIEWER_BYTES = 25_000
-MAX_FILE_BYTES = 3_000
-
 SYSTEM_PROMPT = """You are a senior code reviewer performing a structured critic pass.
 
 You will receive:
+- A task description
 - A Definition of Done checklist
-- Implementation files written by a coding agent
-- Test file paths (if any were generated)
+- The agent's summary of what it did
+- Files that were changed
+- Coding conventions the team follows
 
-For each DoD item, determine if the implementation satisfies it based on the provided files.
+For each DoD item, determine if the implementation likely satisfies it.
+
+Also check for common issues:
+- Unnecessary reformatting of unchanged code
+- Overly broad catch clauses that swallow errors
+- Scope creep (changes beyond what the task asked for)
+- Missing error handling or edge cases
 
 Rules:
-- "approved": true only if ALL DoD items are satisfied (or no items were provided)
+- "approved": true only if ALL DoD items are satisfied and no significant issues found
 - "changes_requested": list of concrete, actionable follow-up items (empty if approved)
-- "verdict": one sentence human-readable summary of the review outcome
+- "needs_revision": true if the coder should retry before opening a PR
+- "verdict": one sentence summary
 
-Respond with valid JSON only. No markdown, no explanation outside the JSON.
+Respond with valid JSON only.
 
-JSON structure:
 {
   "approved": true,
+  "needs_revision": false,
   "dod_review": [
-    {"item": "UI matches design", "satisfied": true, "notes": "Component renders all required props"},
-    {"item": "Tests written", "satisfied": false, "notes": "No test files found for the auth module"}
+    {"item": "Returns 404 for missing booking", "satisfied": true, "notes": "Handled in getBookingToDelete.ts"}
   ],
-  "changes_requested": ["Add unit tests for the auth module"],
-  "verdict": "Approved with minor gaps. Tests are missing for the auth module."
+  "changes_requested": [],
+  "verdict": "All DoD items satisfied. Approved."
 }
 """
 
@@ -47,102 +50,105 @@ class ReviewerAgent(AgentBase):
     async def run(self, context: dict) -> dict:
         planner_result = context.get("planner_agent", {})
         dod = planner_result.get("definition_of_done", [])
-
         coder_result = context.get("coder_agent", {})
-        impl_files = coder_result.get("files", [])
-
-        tester_result = context.get("tester_agent", {})
-        test_files = tester_result.get("test_files", [])
 
         if not dod:
             logger.info("[Reviewer] No DoD items — auto-approving")
+            return _approved("No Definition of Done items — auto-approved.")
+
+        # If coder failed or produced no changes, don't pretend it passed
+        files_changed = coder_result.get("files_changed", [])
+        coder_error = coder_result.get("error")
+        if coder_error or not files_changed:
+            reason = coder_error or "Coder produced no file changes"
+            logger.warning(f"[Reviewer] Coder failed — rejecting: {reason}")
             return {
-                "approved": True,
-                "dod_review": [],
-                "changes_requested": [],
-                "verdict": "No Definition of Done items provided — auto-approved.",
-                "summary": "Reviewer: no DoD items to check. Auto-approved.",
+                "approved": False,
+                "needs_revision": True,
+                "dod_review": [{"item": d, "satisfied": False, "notes": "Coder did not produce changes"} for d in dod],
+                "changes_requested": [f"Coder failed: {reason}. All DoD items unverified."],
+                "verdict": f"Rejected — coder did not produce changes: {reason}",
+                "summary": f"Rejected — coder failed: {reason}",
             }
 
-        # Build capped implementation files section
-        file_sections: list[str] = []
-        total = 0
-        for f in impl_files:
-            snippet = f.get("content", "")
-            if len(snippet) > MAX_FILE_BYTES:
-                snippet = snippet[:MAX_FILE_BYTES] + "\n… [truncated]"
-            section = f"### {f['path']}\n```\n{snippet}\n```"
-            if total + len(section) > MAX_REVIEWER_BYTES:
-                break
-            file_sections.append(section)
-            total += len(section)
+        # Build review context from the coder's output
+        files_changed = coder_result.get("files_changed", [])
+        agent_response = coder_result.get("agent_response", "")
+        cost = coder_result.get("cost_usd", 0)
+        num_turns = coder_result.get("num_turns", 0)
 
-        truncation_note = ""
-        if len(file_sections) < len(impl_files):
-            truncation_note = (
-                f"\nNote: only {len(file_sections)} of {len(impl_files)} "
-                f"implementation files are shown due to context limits."
-            )
-
-        test_paths = [f["path"] for f in test_files]
-
-        user_message = (
-            f"Definition of Done:\n{json.dumps(dod, indent=2)}\n\n"
-            f"Implementation files:{truncation_note}\n"
-            + ("\n\n".join(file_sections) if file_sections else "none provided")
-            + f"\n\nTest files generated: {json.dumps(test_paths) if test_paths else 'none'}\n"
+        # Get conventions for the reviewer to check against
+        context_bundle = context.get("context_builder", {})
+        conventions = context_bundle.get("conventions", [])
+        conv_text = "\n".join(
+            f"- {c['rule']}" if isinstance(c, dict) else f"- {c}"
+            for c in conventions[:15]
         )
 
-        approved = True
-        dod_review: list[dict] = []
-        changes_requested: list[str] = []
-        verdict = "Review complete."
+        user_message = f"""Task: {context.get('description', '')}
+
+Definition of Done:
+{json.dumps(dod, indent=2)}
+
+Files changed: {json.dumps(files_changed)}
+
+Agent summary:
+{agent_response[:3000] if agent_response else coder_result.get('summary', 'No summary')}
+
+Key conventions to verify:
+{conv_text or 'none'}
+
+Cost: ${cost:.4f}, Turns: {num_turns}
+"""
 
         try:
-            client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-            message = await client.messages.create(
-                model="claude-haiku-4-5-20251001",
-                max_tokens=1024,
-                system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": user_message}],
-            )
-            raw = message.content[0].text.strip()
-            raw = re.sub(r"^```[a-z]*\n?", "", raw)
+            from app.core.llm import cheap
+            raw = await cheap(system=SYSTEM_PROMPT, user_message=user_message, max_tokens=1024)
+            raw = re.sub(r"^```[a-z]*\n?", "", raw.strip())
             raw = re.sub(r"\n?```$", "", raw)
 
-            try:
-                review = json.loads(raw)
-            except json.JSONDecodeError:
-                # Try extracting a JSON object from prose output
-                match = re.search(r"\{[\s\S]*\}", raw)
-                if match:
-                    review = json.loads(match.group())
-                else:
-                    raise ValueError("No JSON object found in response")
-
-            approved = bool(review.get("approved", True))
-            dod_review = review.get("dod_review", [])
-            changes_requested = review.get("changes_requested", [])
-            verdict = review.get("verdict", "Review complete.")
-
+            review = json.loads(raw)
+        except json.JSONDecodeError:
+            match = re.search(r"\{[\s\S]*\}", raw)
+            if match:
+                review = json.loads(match.group())
+            else:
+                logger.warning(f"[Reviewer] JSON parse failed — auto-approving")
+                return _approved("Review parse failed — auto-approved.")
         except Exception as exc:
-            logger.warning(f"[Reviewer] LLM call or parse failed: {exc} — defaulting to approved")
-            approved = True
-            verdict = f"Review skipped ({exc}) — defaulting to approved."
+            logger.warning(f"[Reviewer] LLM call failed: {exc} — auto-approving")
+            return _approved(f"Review skipped ({exc}) — auto-approved.")
 
-        satisfied_count = sum(1 for item in dod_review if item.get("satisfied"))
-        total_count = len(dod_review) or len(dod)
+        approved = bool(review.get("approved", True))
+        needs_revision = bool(review.get("needs_revision", False))
+        dod_review = review.get("dod_review", [])
+        changes_requested = review.get("changes_requested", [])
+        verdict = review.get("verdict", "Review complete.")
+
+        satisfied = sum(1 for item in dod_review if item.get("satisfied"))
+        total = len(dod_review) or len(dod)
         summary = (
-            f"Critic pass complete. {satisfied_count}/{total_count} DoD items satisfied. "
+            f"Critic pass: {satisfied}/{total} DoD items satisfied. "
             f"{'Approved.' if approved else f'Changes requested: {len(changes_requested)} item(s).'}"
         )
         logger.info(f"[Reviewer] {summary}")
 
         return {
             "approved": approved,
+            "needs_revision": needs_revision,
             "dod_review": dod_review,
             "changes_requested": changes_requested,
             "verdict": verdict,
             "summary": summary,
-            # Never set blocked=True in M5 — reviewer is advisory only
         }
+
+
+def _approved(reason: str) -> dict:
+    return {
+        "approved": True,
+        "needs_revision": False,
+        "dod_review": [],
+        "changes_requested": [],
+        "verdict": reason,
+        "summary": f"Reviewer: {reason}",
+    }
