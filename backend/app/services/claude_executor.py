@@ -29,6 +29,7 @@ async def execute_task(
     review_feedback: dict | None = None,
     model_override: str | None = None,
     max_turns: int | None = None,
+    jira_ticket_id: str | None = None,
 ) -> dict:
     """Run Claude Code agent against a cloned repo.
 
@@ -55,8 +56,7 @@ async def execute_task(
 
         # 2. Create branch
         subtasks = plan.get("subtasks", [])
-        slug = re.sub(r"[^a-z0-9]+", "-", task_description[:40].lower()).strip("-")
-        branch_name = f"feature/{slug}"
+        branch_name = _make_branch_name(task_description, jira_ticket_id)
 
         subprocess.run(
             ["git", "checkout", "-b", branch_name],
@@ -376,6 +376,19 @@ def _get_changed_files(clone_dir: str) -> list[str]:
         if line.strip():
             files.add(line.strip())
     return sorted(files)
+
+
+def _make_branch_name(task_description: str, jira_ticket_id: str | None = None) -> str:
+    """Generate a git branch name from a task description and optional Jira ticket ID.
+
+    With ticket:    feature/kron-18-fix-login-button
+    Without ticket: feature/fix-login-button
+    """
+    slug = re.sub(r"[^a-z0-9]+", "-", task_description[:40].lower()).strip("-")
+    if jira_ticket_id:
+        ticket_slug = re.sub(r"[^a-z0-9]+", "-", jira_ticket_id.lower()).strip("-")
+        return f"feature/{ticket_slug}-{slug}"
+    return f"feature/{slug}"
 
 
 def _sanitize_title(description: str, max_len: int = 72) -> str:
