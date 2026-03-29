@@ -55,8 +55,16 @@ async def execute_task(
 
         # 2. Create branch
         subtasks = plan.get("subtasks", [])
-        slug = re.sub(r"[^a-z0-9]+", "-", task_description[:40].lower()).strip("-")
-        branch_name = f"feature/{slug}"
+        # Extract Jira ticket ID if present (e.g., [KRON-16])
+        ticket_match = re.match(r"\[([A-Z]+-\d+)\]", task_description.strip())
+        ticket_id = ticket_match.group(1).lower() if ticket_match else None
+
+        # Build slug from task description (excluding ticket ID)
+        slug_text = re.sub(r"^\[[\w-]+\]\s*", "", task_description).strip()[:40]
+        slug = re.sub(r"[^a-z0-9]+", "-", slug_text.lower()).strip("-")
+
+        # Include ticket ID in branch name if available
+        branch_name = f"feature/{ticket_id}-{slug}" if ticket_id else f"feature/{slug}"
 
         subprocess.run(
             ["git", "checkout", "-b", branch_name],
