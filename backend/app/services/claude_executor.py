@@ -29,6 +29,7 @@ async def execute_task(
     review_feedback: dict | None = None,
     model_override: str | None = None,
     max_turns: int | None = None,
+    jira_ticket_id: str | None = None,
 ) -> dict:
     """Run Claude Code agent against a cloned repo.
 
@@ -56,7 +57,11 @@ async def execute_task(
         # 2. Create branch
         subtasks = plan.get("subtasks", [])
         slug = re.sub(r"[^a-z0-9]+", "-", task_description[:40].lower()).strip("-")
-        branch_name = f"feature/{slug}"
+        if jira_ticket_id:
+            ticket_slug = re.sub(r"[^a-z0-9]+", "-", jira_ticket_id.lower()).strip("-")
+            branch_name = f"feature/{ticket_slug}-{slug}"
+        else:
+            branch_name = f"feature/{slug}"
 
         subprocess.run(
             ["git", "checkout", "-b", branch_name],
