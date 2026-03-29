@@ -15,7 +15,7 @@ async def _get_org_id(user_data: dict, db: AsyncSession) -> int:
     result = await db.execute(select(User).where(User.clerk_id == user_data["user_id"]))
     user = result.scalar_one_or_none()
     if not user or not user.org_id:
-        raise HTTPException(status_code=400, detail="Onboarding not complete")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Onboarding not complete")
     return user.org_id
 
 
@@ -91,7 +91,7 @@ async def update_convention(
     )
     conv = result.scalar_one_or_none()
     if not conv:
-        raise HTTPException(status_code=404, detail="Convention not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Convention not found")
 
     if "rule" in body:
         conv.rule = body["rule"]
@@ -118,7 +118,7 @@ async def suppress_convention(
     )
     conv = result.scalar_one_or_none()
     if not conv:
-        raise HTTPException(status_code=404, detail="Convention not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Convention not found")
 
     conv.suppressed = True
     await db.commit()
@@ -232,7 +232,7 @@ async def get_doc_chunk(
         select(DocChunk).where(DocChunk.id == chunk_id, DocChunk.org_id == org_id)
     )).scalar_one_or_none()
     if not chunk:
-        raise HTTPException(status_code=404, detail="Doc chunk not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Doc chunk not found")
 
     return {
         "id": chunk.id,

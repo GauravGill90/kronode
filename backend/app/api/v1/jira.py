@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -14,11 +14,11 @@ async def _get_config(user_data: dict, db: AsyncSession) -> OnboardingConfig:
     result = await db.execute(select(User).where(User.clerk_id == user_data["user_id"]))
     user = result.scalar_one_or_none()
     if not user or not user.org_id:
-        raise HTTPException(status_code=400, detail="Onboarding not complete")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Onboarding not complete")
     result = await db.execute(select(OnboardingConfig).where(OnboardingConfig.org_id == user.org_id))
     config = result.scalar_one_or_none()
     if not config:
-        raise HTTPException(status_code=400, detail="Onboarding not complete")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Onboarding not complete")
     return config
 
 
