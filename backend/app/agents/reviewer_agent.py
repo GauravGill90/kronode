@@ -74,8 +74,20 @@ class ReviewerAgent(AgentBase):
         # Build review context from the coder's output
         files_changed = coder_result.get("files_changed", [])
         agent_response = coder_result.get("agent_response", "")
+        pr_url = coder_result.get("pr_url")
         cost = coder_result.get("cost_usd", 0)
         num_turns = coder_result.get("num_turns", 0)
+
+        # Fetch actual PR diff if available
+        diff_text = ""
+        if pr_url:
+            github_token = context.get("github_access_token")
+            if github_token:
+                try:
+                    diff_text = await _fetch_pr_diff(pr_url, github_token)
+                    logger.info(f"[Reviewer] Fetched PR diff: {len(diff_text)} chars")
+                except Exception as exc:
+                    logger.warning(f"[Reviewer] Failed to fetch PR diff: {exc}")
 
         # Get conventions for the reviewer to check against
         context_bundle = context.get("context_builder", {})
@@ -85,6 +97,11 @@ class ReviewerAgent(AgentBase):
             for c in conventions[:15]
         )
 
+        review_source = diff_text[:8000] if diff_text else (
+            agent_response[:3000] if agent_response else coder_result.get('summary', 'No summary')
+        )
+        source_label = "PR Diff" if diff_text else "Agent Summary"
+
         user_message = f"""Task: {context.get('description', '')}
 
 Definition of Done:
@@ -92,8 +109,8 @@ Definition of Done:
 
 Files changed: {json.dumps(files_changed)}
 
-Agent summary:
-{agent_response[:3000] if agent_response else coder_result.get('summary', 'No summary')}
+{source_label}:
+{review_source}
 
 Key conventions to verify:
 {conv_text or 'none'}
@@ -141,6 +158,38 @@ Cost: ${cost:.4f}, Turns: {num_turns}
             "verdict": verdict,
             "summary": summary,
         }
+
+
+async def _fetch_pr_diff(pr_url: str, token: str) -> str:
+    """Fetch the actual diff from a GitHub PR."""
+    import httpx
+    from app.services.github_service import _parse_pr_url, _auth_headers, GITHUB_API
+
+    owner, repo, number = _parse_pr_url(pr_url)
+    headers = _auth_headers(token)
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        resp = await client.get(
+            f"{GITHUB_API}/repos/{owner}/{repo}/pulls/{number}/files",
+            headers=headers,
+            params={"per_page": 30},
+        )
+        if not resp.is_success:
+            return ""
+
+        files = resp.json()
+        patches = []
+        total = 0
+        for f in files:
+            patch = f.get("patch", "")
+            header = f"--- {f['filename']} (+{f.get('additions', 0)} -{f.get('deletions', 0)})"
+            section = f"{header}\n{patch}"
+            if total + len(section) > 8000:
+                break
+            patches.append(section)
+            total += len(section)
+
+        return "\n\n".join(patches)
 
 
 def _approved(reason: str) -> dict:
