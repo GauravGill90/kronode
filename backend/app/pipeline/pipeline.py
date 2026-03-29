@@ -17,11 +17,11 @@ AGENT_CHAIN = [
     "planner_agent",
     "plan_approval_agent",  # post plan for human approval, pause pipeline
     "guardrails_agent",     # runs after planner so it can check files_affected
-    "coder_agent",
+    "coder_agent",          # retries with model escalation on failure (no reviewer needed)
     "tester_agent",
     "execution_verifier",
-    "reviewer_agent",
     "memory_agent",
+    # reviewer_agent removed — PR bots + human reviewers handle code review
 ]
 
 
@@ -177,6 +177,13 @@ async def run_pipeline(task_id_str: str):
             # Simple fast-path: skip context builder and planner for trivial tasks
             if routing["complexity"] == "simple":
                 routing["agents"] = ["coder_agent", "memory_agent"]
+                # Inject a minimal plan so the coder has structure
+                context["planner_agent"] = {
+                    "subtasks": [{"order": 1, "description": context["description"], "agent": "coder_agent", "files_affected": []}],
+                    "definition_of_done": [],
+                    "risk_flags": [],
+                    "assumptions": [],
+                }
                 await emit_event(
                     task_id, "router", "completed",
                     "Simple task — fast path: skipping context builder and planner.", routing,
@@ -248,39 +255,35 @@ async def run_pipeline(task_id_str: str):
 
             await emit_event(task_id, agent_name, "completed", result.get("summary", f"{agent.display_name} complete."), result)
 
-            # Reviewer → Coder retry loop
-            if agent_name == "reviewer_agent" and result.get("needs_revision") and revision_count < MAX_REVISIONS:
-                revision_count += 1
-                changes = result.get("changes_requested", [])
-                await emit_event(
-                    task_id, "pipeline", "progress",
-                    f"Reviewer requested changes (revision {revision_count}/{MAX_REVISIONS}): {'; '.join(changes[:3])}",
-                    {"revision": revision_count, "changes_requested": changes},
-                )
-                # Inject review feedback into context for the coder
-                context["review_feedback"] = {
-                    "changes_requested": changes,
-                    "verdict": result.get("verdict", ""),
-                    "revision_number": revision_count,
-                }
-                # Jump back to coder_agent
-                coder_idx = agent_list.index("coder_agent") if "coder_agent" in agent_list else None
-                if coder_idx is not None:
-                    i = coder_idx
+            # Coder failure → escalate model and retry
+            if agent_name == "coder_agent" and revision_count < MAX_REVISIONS:
+                coder_failed = bool(result.get("error")) or not result.get("files_changed")
+                if coder_failed:
+                    revision_count += 1
+                    error_msg = result.get("error", "No file changes produced")
+                    await emit_event(
+                        task_id, "pipeline", "progress",
+                        f"Coder failed (attempt {revision_count}/{MAX_REVISIONS + 1}): {error_msg}. Retrying with stronger model...",
+                        {"revision": revision_count},
+                    )
+                    context["review_feedback"] = {
+                        "changes_requested": [f"Previous attempt failed: {error_msg}"],
+                        "verdict": "Coder produced no changes",
+                        "revision_number": revision_count,
+                    }
+                    # Don't advance — retry coder_agent
                     continue
 
             i += 1
 
         # Determine final status
         coder_result = context.get("coder_agent", {})
-        reviewer_result = context.get("reviewer_agent", {})
         has_pr = bool(coder_result.get("pr_url"))
         coder_failed = bool(coder_result.get("error")) or not coder_result.get("files_changed")
-        reviewer_rejected = reviewer_result.get("approved") is False
 
         if has_pr:
             final_status = "in_review"
-        elif coder_failed or reviewer_rejected:
+        elif coder_failed:
             final_status = "failed"
         else:
             final_status = "done"

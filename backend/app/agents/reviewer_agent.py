@@ -25,10 +25,13 @@ Also check for common issues:
 - Missing error handling or edge cases
 
 Rules:
-- "approved": true only if ALL DoD items are satisfied and no significant issues found
+- "approved": true only if ALL non-N/A DoD items are satisfied and no significant issues found
 - "changes_requested": list of concrete, actionable follow-up items (empty if approved)
 - "needs_revision": true if the coder should retry before opening a PR
 - "verdict": one sentence summary
+- If a DoD item references tests but no test files exist for the module, mark it "satisfied": false with "status": "n/a" and explain why (e.g. "No test files exist for this module")
+- If a DoD item's precondition does not exist (e.g. "linting passes" but no linter configured), mark it "status": "n/a"
+- N/A items do NOT block approval
 
 Respond with valid JSON only.
 
@@ -36,7 +39,8 @@ Respond with valid JSON only.
   "approved": true,
   "needs_revision": false,
   "dod_review": [
-    {"item": "Returns 404 for missing booking", "satisfied": true, "notes": "Handled in getBookingToDelete.ts"}
+    {"item": "Returns 404 for missing booking", "satisfied": true, "status": "pass", "notes": "Handled in getBookingToDelete.ts"},
+    {"item": "All tests pass", "satisfied": false, "status": "n/a", "notes": "No test files exist for this module"}
   ],
   "changes_requested": [],
   "verdict": "All DoD items satisfied. Approved."
@@ -142,10 +146,13 @@ Cost: ${cost:.4f}, Turns: {num_turns}
         changes_requested = review.get("changes_requested", [])
         verdict = review.get("verdict", "Review complete.")
 
-        satisfied = sum(1 for item in dod_review if item.get("satisfied"))
+        na_count = sum(1 for item in dod_review if item.get("status") == "n/a")
+        satisfied = sum(1 for item in dod_review if item.get("satisfied") and item.get("status") != "n/a")
         total = len(dod_review) or len(dod)
+        actionable = total - na_count
         summary = (
-            f"Critic pass: {satisfied}/{total} DoD items satisfied. "
+            f"Critic pass: {satisfied}/{actionable} DoD items satisfied"
+            f"{f' ({na_count} N/A)' if na_count else ''}. "
             f"{'Approved.' if approved else f'Changes requested: {len(changes_requested)} item(s).'}"
         )
         logger.info(f"[Reviewer] {summary}")

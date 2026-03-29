@@ -54,6 +54,14 @@ class CoderAgent(AgentBase):
                 model_override = settings.agent_sdk_fallback_model
                 logger.info(f"CoderAgent: revision {revision} — escalating to {model_override}")
 
+        # Cap turns for simple tasks
+        complexity = context.get("routing", {}).get("complexity", "medium")
+        max_turns = (
+            settings.agent_sdk_max_turns_simple
+            if complexity == "simple"
+            else settings.agent_sdk_max_turns
+        )
+
         result = await execute_task(
             task_description=description,
             plan=plan,
@@ -66,6 +74,7 @@ class CoderAgent(AgentBase):
             on_event=on_event,
             review_feedback=review_feedback,
             model_override=model_override,
+            max_turns=max_turns,
         )
 
         return result

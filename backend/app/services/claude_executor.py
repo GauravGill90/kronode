@@ -28,6 +28,7 @@ async def execute_task(
     on_event: callable = None,
     review_feedback: dict | None = None,
     model_override: str | None = None,
+    max_turns: int | None = None,
 ) -> dict:
     """Run Claude Code agent against a cloned repo.
 
@@ -83,6 +84,7 @@ async def execute_task(
             task_prompt=task_prompt,
             on_event=on_event,
             model_override=model_override,
+            max_turns=max_turns,
         )
 
         # 6. Collect changes via git
@@ -104,7 +106,7 @@ async def execute_task(
             await on_event(f"Agent modified {len(files_changed)} file(s). Pushing...")
 
         # 7. Commit and push
-        commit_message = f"fix: {task_description[:72]}"
+        commit_message = _sanitize_title(task_description, max_len=72)
         subprocess.run(["git", "add", "-A"], cwd=clone_dir, capture_output=True)
         subprocess.run(
             ["git", "commit", "-m", commit_message],
@@ -120,7 +122,7 @@ async def execute_task(
         logger.info(f"[ClaudeExecutor] Pushed branch {branch_name}")
 
         # 8. Open PR via GitHub API
-        pr_title = f"fix: {task_description[:70]}"
+        pr_title = _sanitize_title(task_description, max_len=72)
         pr_description = _build_pr_description(task_description, plan, files_changed, agent_result)
 
         from app.services.github_service import _parse_repo, _auth_headers, GITHUB_API
@@ -198,6 +200,7 @@ async def _run_agent(
     task_prompt: str,
     on_event: callable = None,
     model_override: str | None = None,
+    max_turns: int | None = None,
 ) -> dict:
     """Run Claude Agent SDK and collect results."""
     from claude_agent_sdk import query, ClaudeAgentOptions, AssistantMessage, ResultMessage
@@ -223,7 +226,7 @@ async def _run_agent(
             cwd=cwd,
             system_prompt=system_prompt,
             model=model_override or settings.agent_sdk_model,
-            max_turns=settings.agent_sdk_max_turns,
+            max_turns=max_turns or settings.agent_sdk_max_turns,
             env=agent_env,
         ),
     ):
@@ -351,7 +354,9 @@ def _build_task_prompt(task_description: str, plan: dict, review_feedback: dict 
         prompt += "\n\n## Assumptions\n"
         prompt += "\n".join(f"- {a}" for a in assumptions)
 
-    prompt += "\n\nImplement the plan above. Only modify files necessary for the fix. Do not reformat unchanged code. Run any relevant tests if possible."
+    prompt += "\n\nImplement the plan above. Only modify files necessary for the fix. Do not reformat unchanged code."
+    prompt += "\nIf the fix is a pattern-level issue (e.g. inconsistent style, naming, imports), check sibling files in the same directory for the same problem and fix those too."
+    prompt += "\nFor simple refactors, make the changes directly — do not explore repo structure or search for tests unless the task requires it."
     return prompt
 
 
@@ -371,6 +376,48 @@ def _get_changed_files(clone_dir: str) -> list[str]:
         if line.strip():
             files.add(line.strip())
     return sorted(files)
+
+
+def _sanitize_title(description: str, max_len: int = 72) -> str:
+    """Build a clean commit/PR title from task description.
+
+    - Ensures a single conventional-commit prefix (fix:/feat:/chore:/refactor:)
+    - Strips duplicate prefixes like "fix: fix:" or "fix: [KRON-16] fix:"
+    - Truncates at word boundary with ellipsis if over max_len
+    """
+    text = description.strip()
+
+    # Strip leading conventional-commit prefix if present (we'll re-add it)
+    prefix_pattern = re.compile(r"^(fix|feat|chore|refactor|docs|test|ci|style|perf):\s*", re.IGNORECASE)
+    prefix = "fix"
+    m = prefix_pattern.match(text)
+    if m:
+        prefix = m.group(1).lower()
+        text = text[m.end():]
+    # Strip again in case of double prefix: "[KRON-16] fix: ..."
+    m2 = prefix_pattern.match(text)
+    if m2:
+        prefix = m2.group(1).lower()
+        text = text[m2.end():]
+    # Also handle prefix after ticket tag: "[KRON-16] fix: ..."
+    ticket_then_prefix = re.match(r"(\[[\w-]+\])\s*" + prefix_pattern.pattern, text, re.IGNORECASE)
+    if ticket_then_prefix:
+        ticket_tag = ticket_then_prefix.group(1)
+        inner_prefix = ticket_then_prefix.group(2).lower()
+        text = ticket_tag + " " + text[ticket_then_prefix.end():]
+        prefix = inner_prefix
+
+    title = f"{prefix}: {text}"
+
+    if len(title) <= max_len:
+        return title
+
+    # Truncate at word boundary
+    truncated = title[:max_len - 1]
+    last_space = truncated.rfind(" ")
+    if last_space > len(prefix) + 5:
+        truncated = truncated[:last_space]
+    return truncated.rstrip(" ,.;:-") + "…"
 
 
 def _inject_token(repo_url: str, token: str) -> str:
