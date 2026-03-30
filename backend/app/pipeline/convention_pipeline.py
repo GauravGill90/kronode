@@ -13,7 +13,6 @@ from sqlalchemy import select
 from app.core.database import AsyncSessionLocal
 from app.models.convention import Convention
 from app.models.org import OnboardingConfig
-from app.services.github_service import fetch_merged_prs
 from app.services.convention_extractor import (
     extract_conventions_from_pr,
     deduplicate_conventions,
@@ -40,8 +39,12 @@ async def run_extraction(org_id: int, pr_count: int = 200) -> int:
         logger.warning(f"[ConventionPipeline] Org {org_id}: no repo or token configured — skipping")
         return 0
 
-    # Step 1: Fetch merged PRs
-    logger.info(f"[ConventionPipeline] Org {org_id}: fetching up to {pr_count} merged PRs")
+    # Step 1: Fetch merged PRs (route to correct provider)
+    logger.info(f"[ConventionPipeline] Org {org_id}: fetching up to {pr_count} merged PRs (provider={config.repo_provider})")
+    if config.repo_provider == "bitbucket":
+        from app.services.bitbucket_service import fetch_merged_prs
+    else:
+        from app.services.github_service import fetch_merged_prs
     prs = await fetch_merged_prs(
         repo_url=config.repo_url,
         token=config.github_access_token,
