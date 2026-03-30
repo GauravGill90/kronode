@@ -79,6 +79,7 @@ class CoderAgent(AgentBase):
             model_override=model_override,
             max_turns=max_turns,
             jira_ticket_id=context.get("jira_ticket_id"),
+            repo_provider=context.get("repo_provider", "github"),
         )
 
         return result

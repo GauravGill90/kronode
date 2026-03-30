@@ -160,7 +160,7 @@ async def execute_task(
             owner, repo = _parse_repo(write_repo)
             headers = _auth_headers(github_token)
 
-            async with httpx.AsyncClient(timeout=30) as client:
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
                 resp = await client.get(
                     f"{BITBUCKET_API}/repositories/{owner}/{repo}",
                     headers=headers,
