@@ -119,7 +119,7 @@ async def get_repo_tree(repo_url: str, token: str) -> list[str]:
     workspace, repo_slug = _parse_repo(repo_url)
     headers = _auth_headers(token)
 
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
         resp = await client.get(
             f"{BITBUCKET_API}/repositories/{workspace}/{repo_slug}",
             headers=headers,
@@ -150,7 +150,7 @@ async def get_file_content(repo_url: str, path: str, token: str) -> str | None:
     workspace, repo_slug = _parse_repo(repo_url)
     headers = _auth_headers(token)
 
-    async with httpx.AsyncClient(timeout=20) as client:
+    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
         resp = await client.get(
             f"{BITBUCKET_API}/repositories/{workspace}/{repo_slug}/src/HEAD/{path}",
             headers=headers,
@@ -182,7 +182,7 @@ async def create_pull_request(
     workspace, repo_slug = _parse_repo(repo_url)
     headers = _auth_headers(token)
 
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
         # 1. Get default branch and its HEAD commit hash
         resp = await client.get(
             f"{BITBUCKET_API}/repositories/{workspace}/{repo_slug}",
@@ -265,7 +265,7 @@ async def add_files_to_branch(
     headers = _auth_headers(token)
 
     try:
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
             form_data: dict[str, str] = {
                 "message": commit_message,
                 "branch": branch_name,
@@ -315,7 +315,7 @@ async def get_pr_status(pr_url: str, token: str) -> dict:
         }
 
     headers = _auth_headers(token)
-    async with httpx.AsyncClient(timeout=20) as client:
+    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
         resp = await client.get(
             f"{BITBUCKET_API}/repositories/{workspace}/{repo_slug}/pullrequests/{pr_id}",
             headers=headers,
@@ -396,7 +396,7 @@ async def fetch_merged_prs(
         f"?state=MERGED&pagelen=50&sort=-updated_on"
     )
 
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
         while url and len(prs) < count:
             resp = await client.get(url, headers=headers)
             if not resp.is_success:
