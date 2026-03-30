@@ -8,12 +8,11 @@ import {
   updateConvention,
   suppressConvention,
   triggerExtraction,
-  triggerBaseExtraction,
   type Convention,
 } from "@/lib/api";
 
 const CATEGORIES = ["all", "architecture", "style", "naming", "error_handling", "testing", "logging"];
-const LAYERS = ["all", "customer", "base"];
+const LAYERS: string[] = []; // Only customer conventions now — no layer filter needed
 
 export default function ConventionsClient() {
   const { getToken } = useAuth();
@@ -86,17 +85,6 @@ export default function ConventionsClient() {
     }
   }
 
-  async function handleBaseExtract() {
-    setExtracting(true);
-    try {
-      await triggerBaseExtraction();
-    } catch {
-      // ignore
-    } finally {
-      setExtracting(false);
-    }
-  }
-
   const confColor = (c: number) => {
     if (c >= 0.7) return "#34d399";
     if (c >= 0.4) return "#fbbf24";
@@ -119,24 +107,14 @@ export default function ConventionsClient() {
               {total} conventions learned from your codebase. Edit or suppress any rule.
             </p>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={handleExtract}
-              disabled={extracting}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium"
-              style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", color: "#a5b4fc" }}
-            >
-              {extracting ? "Running…" : "Re-extract"}
-            </button>
-            <button
-              onClick={handleBaseExtract}
-              disabled={extracting}
-              className="px-3 py-1.5 rounded-lg text-xs font-medium"
-              style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.3)", color: "#34d399" }}
-            >
-              {extracting ? "Running…" : "Extract base (Cal.com)"}
-            </button>
-          </div>
+          <button
+            onClick={handleExtract}
+            disabled={extracting}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium"
+            style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", color: "#a5b4fc" }}
+          >
+            {extracting ? "Running…" : "Re-extract"}
+          </button>
         </div>
 
         {/* Filters */}

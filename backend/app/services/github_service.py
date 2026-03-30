@@ -495,6 +495,12 @@ async def fetch_merged_prs(
                         r["body"] for r in reviews
                         if r.get("body", "").strip() and r.get("state") in ("CHANGES_REQUESTED", "COMMENTED")
                     ]
+                    # Attributed comments for reviewer pattern extraction
+                    pr_record["attributed_comments"] = [
+                        {"body": r["body"], "reviewer": r.get("user", {}).get("login", ""), "state": r.get("state", "")}
+                        for r in reviews
+                        if r.get("body", "").strip() and r.get("user")
+                    ]
                 else:
                     pr_record["reviewers"] = []
                     pr_record["review_comments"] = []

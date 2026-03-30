@@ -65,6 +65,7 @@ async def list_conventions(
                 "confidence": c.confidence,
                 "layer": c.layer,
                 "source_prs": c.source_prs or [],
+                "enforced_by": c.enforced_by or [],
                 "suppressed": c.suppressed,
                 "created_at": c.created_at.isoformat() if c.created_at else None,
             }
@@ -136,16 +137,6 @@ async def trigger_extraction(
     from app.pipeline.task_queue import run_convention_extraction
     run_convention_extraction.delay(org_id)
     return {"ok": True, "message": "Convention extraction queued."}
-
-
-@router.post("/conventions/extract-base", status_code=status.HTTP_202_ACCEPTED)
-async def trigger_base_extraction(
-    user_data: dict = Depends(get_current_user),
-):
-    """Trigger base convention extraction from Cal.com (TypeScript base layer)."""
-    from app.pipeline.task_queue import run_base_convention_extraction
-    run_base_convention_extraction.delay()
-    return {"ok": True, "message": "Base convention extraction from Cal.com queued."}
 
 
 # ── Doc Chunks ──────────────────────────────────────────────────────────────────

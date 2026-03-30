@@ -79,6 +79,14 @@ function DashboardInner() {
         <WelcomeBanner userName={data.user_name ?? null} />
         {data.agent && <AgentHeader agent={data.agent} />}
         <IntegrationRow integrations={data.integrations} />
+        <a
+          href="/dashboard/conventions"
+          className="flex items-center gap-2 text-xs px-3 py-1.5 rounded-full font-medium w-fit"
+          style={{ background: "rgba(99,102,241,0.08)", color: "#a5b4fc", border: "1px solid rgba(99,102,241,0.2)" }}
+        >
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: "#6366f1" }}></span>
+          Conventions
+        </a>
         <TaskInput prefill={prefill} onPrefillConsumed={() => setPrefill(null)} />
         <JiraTickets onSelect={handleTicketSelect} />
         <div className="space-y-3">

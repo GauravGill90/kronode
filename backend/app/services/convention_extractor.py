@@ -9,29 +9,33 @@ import re
 
 logger = logging.getLogger(__name__)
 
-EXTRACTION_PROMPT = """You are a coding convention extractor. Analyse this PR diff, description, and review comments to extract coding conventions the team follows.
+EXTRACTION_PROMPT = """You are extracting TEAM-SPECIFIC coding conventions from a PR — patterns unique to THIS project, not universal best practices.
 
-A convention is a recurring pattern or rule the team enforces — not a one-off decision. Look for:
-- Naming patterns (variables, files, components)
-- Error handling patterns
-- Testing patterns
-- Import/export style
-- Architecture patterns (where things go, how they're structured)
-- Code style preferences
-- Logging conventions
+DO NOT extract:
+- Universal language features everyone uses (optional chaining, async/await, destructuring, arrow functions)
+- Generic advice any developer knows ("use clear naming", "handle errors", "separate concerns", "write tests")
+- Linter-enforceable rules (semicolons, indentation, quotes, trailing commas)
+- One-off decisions specific to this single PR that won't recur
 
-For each convention found, provide:
-- rule: a clear, actionable statement (e.g. "Use named exports for React components")
+DO extract:
+- Project-specific naming patterns (e.g. "Handler suffix for API route files in packages/api/")
+- Team architecture decisions (e.g. "All DB queries go through repository classes in lib/repos/")
+- Non-obvious conventions a new team member would NOT guess (e.g. "Prisma schema changes require a migration script in packages/prisma/")
+- Testing patterns specific to this project (e.g. "Use TestContext factory from tests/fixtures/ for integration tests")
+- Import/export conventions beyond the obvious (e.g. "Barrel exports only in packages/*, not in apps/*")
+- Tool/library-specific usage patterns (e.g. "Use tRPC routers in packages/trpc/server/routers/, never REST endpoints")
+
+IMPORTANT: Every "rule" MUST reference a concrete project-specific detail — a file path pattern, directory, library name, component name, or tool. If the rule could apply to ANY project in this language without modification, it is too generic — DO NOT include it.
+
+For each convention, provide:
+- rule: a clear, actionable statement with project-specific detail
 - category: one of naming, error_handling, testing, logging, architecture, style
 
-Only extract conventions you're confident about. Skip trivial formatting (spacing, semicolons — those belong in linters).
+Respond with ONLY a JSON object. No markdown, no code blocks, no explanation.
 
-IMPORTANT: Respond with ONLY a JSON object. No markdown, no code blocks, no explanation.
-Do NOT include code snippets in the JSON — only the rule text and category string.
+{"conventions": [{"rule": "Use tRPC routers in packages/trpc/server/routers/ instead of REST endpoints in pages/api/", "category": "architecture"}]}
 
-{"conventions": [{"rule": "Use named exports for React components", "category": "style"}]}
-
-If no conventions are apparent, respond: {"conventions": []}
+If no project-specific conventions are apparent, respond: {"conventions": []}
 """
 
 
@@ -92,33 +96,22 @@ async def extract_conventions_from_pr(pr: dict) -> list[dict]:
         return []
 
 
-def deduplicate_conventions(conventions: list[dict]) -> list[dict]:
-    """Deduplicate conventions by rule similarity. Groups by exact match on lowercased rule text,
-    keeps the version with the highest frequency, and merges examples.
+async def deduplicate_conventions(conventions: list[dict]) -> list[dict]:
+    """Deduplicate conventions in two passes:
+    1. Exact text match (fast, cheap — catches identical rephrasing)
+    2. Semantic similarity via embeddings (catches "Use named exports" ≈ "Prefer named exports over default exports")
 
     Each convention should have: rule, category, example, source_prs (list), frequency.
     """
-    seen: dict[str, dict] = {}  # normalised_rule -> convention
+    # Pass 1: Exact text dedup (same as before)
+    seen: dict[str, dict] = {}
 
     for c in conventions:
-        # Normalise: lowercase, strip punctuation, collapse whitespace
         key = re.sub(r"[^\w\s]", "", c["rule"].lower())
         key = re.sub(r"\s+", " ", key).strip()
 
         if key in seen:
-            existing = seen[key]
-            existing["frequency"] += c.get("frequency", 1)
-            # Merge examples (keep unique)
-            if c.get("example") and c["example"] not in (existing.get("examples") or []):
-                existing.setdefault("examples", []).append(c["example"])
-            # Merge source PRs
-            for pr_url in c.get("source_prs", []):
-                if pr_url not in (existing.get("source_prs") or []):
-                    existing.setdefault("source_prs", []).append(pr_url)
-            # Merge source files
-            current_files = set(existing.get("source_files") or [])
-            current_files.update(c.get("source_files", []))
-            existing["source_files"] = list(current_files)[:50]
+            _merge_convention(seen[key], c)
         else:
             seen[key] = {
                 "rule": c["rule"],
@@ -129,21 +122,85 @@ def deduplicate_conventions(conventions: list[dict]) -> list[dict]:
                 "frequency": c.get("frequency", 1),
             }
 
-    return list(seen.values())
+    unique = list(seen.values())
+
+    # Pass 2: Semantic dedup via embeddings
+    if len(unique) < 2:
+        return unique
+
+    try:
+        from app.core.embeddings import get_embeddings_batch, cosine_similarity
+
+        rules = [c["rule"] for c in unique]
+        embeddings = await get_embeddings_batch(rules)
+
+        # Check if we got valid embeddings
+        if not any(e is not None for e in embeddings):
+            logger.info("[Dedup] No embeddings available — using text-only dedup")
+            return unique
+
+        # Greedy clustering: sort by frequency desc, absorb similar conventions
+        indexed = sorted(enumerate(unique), key=lambda x: x[1].get("frequency", 1), reverse=True)
+        absorbed = set()
+        SIMILARITY_THRESHOLD = 0.85
+
+        for i, (idx_a, conv_a) in enumerate(indexed):
+            if idx_a in absorbed:
+                continue
+            emb_a = embeddings[idx_a]
+            if emb_a is None:
+                continue
+
+            for idx_b, conv_b in indexed[i + 1:]:
+                if idx_b in absorbed:
+                    continue
+                emb_b = embeddings[idx_b]
+                if emb_b is None:
+                    continue
+
+                sim = cosine_similarity(emb_a, emb_b)
+                if sim >= SIMILARITY_THRESHOLD:
+                    _merge_convention(conv_a, conv_b)
+                    absorbed.add(idx_b)
+
+        result = [c for i, c in enumerate(unique) if i not in absorbed]
+        logger.info(f"[Dedup] Semantic pass: {len(unique)} → {len(result)} (absorbed {len(absorbed)})")
+        return result
+
+    except Exception as exc:
+        logger.warning(f"[Dedup] Semantic dedup failed: {exc} — using text-only results")
+        return unique
+
+
+def _merge_convention(target: dict, source: dict) -> None:
+    """Merge source convention into target, accumulating frequency and sources."""
+    target["frequency"] = target.get("frequency", 1) + source.get("frequency", 1)
+    if source.get("example") and source["example"] not in (target.get("examples") or []):
+        target.setdefault("examples", []).append(source["example"])
+    for pr_url in source.get("source_prs", []):
+        if pr_url not in (target.get("source_prs") or []):
+            target.setdefault("source_prs", []).append(pr_url)
+    current_files = set(target.get("source_files") or [])
+    current_files.update(source.get("source_files", []))
+    target["source_files"] = list(current_files)[:50]
 
 
 def score_conventions(conventions: list[dict]) -> list[dict]:
-    """Score conventions by frequency. Higher frequency = higher confidence."""
+    """Score conventions by frequency using log scale. Higher frequency = higher confidence."""
     if not conventions:
         return []
 
+    import math
     max_freq = max(c.get("frequency", 1) for c in conventions)
 
     for c in conventions:
         freq = c.get("frequency", 1)
-        # Confidence: 0.3 base + up to 0.7 based on relative frequency
-        c["confidence"] = round(0.3 + 0.7 * (freq / max_freq), 2)
+        if max_freq <= 1:
+            # All singletons — no frequency signal, baseline confidence
+            c["confidence"] = 0.3
+        else:
+            # Log scale: freq 1→2 is a bigger jump than 50→51
+            c["confidence"] = round(0.3 + 0.7 * (math.log(freq) / math.log(max_freq)), 2)
 
-    # Sort by confidence descending
     conventions.sort(key=lambda c: c["confidence"], reverse=True)
     return conventions

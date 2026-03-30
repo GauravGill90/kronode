@@ -21,10 +21,11 @@ def run_convention_extraction(org_id: int, pr_count: int = 200):
     asyncio.run(run_extraction(org_id, pr_count))
 
 
-@celery_app.task(name="run_base_convention_extraction")
-def run_base_convention_extraction(repo_url: str = "https://github.com/calcom/cal.com", pr_count: int = 200):
-    from app.pipeline.convention_pipeline import run_base_extraction
-    asyncio.run(run_base_extraction(repo_url=repo_url, pr_count=pr_count))
+@celery_app.task(name="reset_and_reextract_conventions")
+def reset_and_reextract_conventions(org_id: int, pr_count: int = 200):
+    """Nuke all non-suppressed customer conventions for an org and re-extract from scratch."""
+    from app.pipeline.convention_pipeline import reset_and_reextract
+    asyncio.run(reset_and_reextract(org_id, pr_count))
 
 
 @celery_app.task(name="refresh_conventions_all_orgs")

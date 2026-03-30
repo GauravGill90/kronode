@@ -288,7 +288,7 @@ async def _analyse_codebase_structure(
         c["source_prs"] = []
         c["frequency"] = 1
 
-    deduped = deduplicate_conventions(conventions)
+    deduped = await deduplicate_conventions(conventions)
     scored = score_conventions(deduped)
 
     # Store as customer conventions

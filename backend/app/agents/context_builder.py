@@ -140,20 +140,11 @@ class ContextBuilderAgent(AgentBase):
                         org_stack = oc.docs_scope  # stores detected primary stack
 
             async with AsyncSessionLocal() as db:
-                # Load all customer conventions + base conventions matching org's stack
+                # Load customer conventions for this org only
                 query = sa_select(Convention).where(
+                    Convention.org_id == org_id,
                     Convention.suppressed == False,  # noqa: E712
                 )
-                if org_stack:
-                    # Customer conventions for this org + base conventions matching stack
-                    query = query.where(
-                        (Convention.org_id == org_id) |
-                        ((Convention.org_id.is_(None)) & ((Convention.stack == org_stack) | (Convention.stack.is_(None))))
-                    )
-                else:
-                    query = query.where(
-                        (Convention.org_id == org_id) | (Convention.org_id.is_(None))
-                    )
                 conv_rows = (await db.execute(query)).scalars().all()
 
                 # Score each convention for relevance to THIS task
@@ -552,16 +543,6 @@ async def _rank_conventions(
             "relevance_score": round(score, 2),
         }))
 
-    # Sort by relevance score descending
+    # Sort by relevance score descending, take top N
     scored.sort(key=lambda x: -x[0])
-
-    # Always include ALL customer conventions (they're team-specific, never skip)
-    customer = [(s, d) for s, d in scored if d["layer"] == "customer"]
-    base = [(s, d) for s, d in scored if d["layer"] == "base"]
-
-    # Take all customer + fill remaining slots with top-scoring base
-    result = [d for _, d in customer]
-    remaining = max_conventions - len(result)
-    result.extend(d for _, d in base[:remaining])
-
-    return result
+    return [d for _, d in scored[:max_conventions]]
