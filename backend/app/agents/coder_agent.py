@@ -75,6 +75,7 @@ class CoderAgent(AgentBase):
             review_feedback=review_feedback,
             model_override=model_override,
             max_turns=max_turns,
+            jira_ticket_id=context.get("jira_ticket_id"),
         )
 
         return result
