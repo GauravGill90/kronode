@@ -10,7 +10,7 @@ import { useOnboardingStore } from "@/lib/store";
 export default function Step2Repo() {
   const router = useRouter();
   const { setRepo, setStep } = useOnboardingStore();
-  const [provider, setProvider] = useState<"github" | "gitlab">("github");
+  const [provider, setProvider] = useState<"github" | "bitbucket" | "gitlab">("github");
   const [repoUrl, setRepoUrl] = useState("");
   const [forkRepoUrl, setForkRepoUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -47,7 +47,7 @@ export default function Step2Repo() {
       <div className="space-y-4">
         {/* Provider toggle */}
         <div className="flex gap-2">
-          {(["github", "gitlab"] as const).map((p) => (
+          {(["github", "bitbucket", "gitlab"] as const).map((p) => (
             <button
               key={p}
               type="button"
@@ -65,7 +65,7 @@ export default function Step2Repo() {
 
         <Input
           label="Source Repository URL"
-          placeholder={`https://${provider}.com/your-org/your-repo`}
+          placeholder={`https://${provider === "bitbucket" ? "bitbucket.org" : `${provider}.com`}/your-org/your-repo`}
           value={repoUrl}
           onChange={(e) => setRepoUrl(e.target.value)}
           hint="The repo your agent reads from — conventions, docs, and context are ingested from here"
@@ -80,7 +80,7 @@ export default function Step2Repo() {
 
         <Input
           label="Fork URL (optional)"
-          placeholder={`https://${provider}.com/your-user/your-repo`}
+          placeholder={`https://${provider === "bitbucket" ? "bitbucket.org" : `${provider}.com`}/your-user/your-repo`}
           value={forkRepoUrl}
           onChange={(e) => setForkRepoUrl(e.target.value)}
           hint="If set, PRs and branches go here instead of the source repo. Use for open-source repos you've forked."

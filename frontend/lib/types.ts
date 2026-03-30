@@ -53,8 +53,22 @@ export interface TaskSummary {
   id: string;
   description: string;
   status: TaskStatus;
+  pr_url: string | null;
+  cost_usd: number | null;
+  num_turns: number | null;
   created_at: string;
   completed_at: string | null;
+}
+
+export interface PRStats {
+  total_prs: number;
+  merged: number;
+  in_review: number;
+  rejected: number;
+  failed: number;
+  acceptance_rate: number | null;
+  avg_cost_usd: number | null;
+  avg_turns: number | null;
 }
 
 export interface DashboardData {
@@ -62,6 +76,7 @@ export interface DashboardData {
   agent: AgentConfig | null;
   integrations: IntegrationStatus;
   recent_tasks: TaskSummary[];
+  pr_stats: PRStats;
   onboarding_complete: boolean;
 }
 

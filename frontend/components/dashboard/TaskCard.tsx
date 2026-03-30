@@ -15,9 +15,33 @@ export default function TaskCard({ task }: { task: TaskSummary }) {
         <p className="text-sm line-clamp-2 flex-1" style={{ color: "#e2e8f0" }}>{task.description}</p>
         <Badge variant={statusToBadge(task.status)}>{task.status}</Badge>
       </div>
-      <p className="text-xs mt-1.5" style={{ color: "#334155" }}>
-        {new Date(task.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-      </p>
+      <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+        <span className="text-xs" style={{ color: "#334155" }}>
+          {new Date(task.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+        </span>
+        {task.pr_url && (
+          <a
+            href={task.pr_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs"
+            style={{ color: "#6366f1" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            PR
+          </a>
+        )}
+        {task.cost_usd != null && (
+          <span className="text-xs" style={{ color: "#475569" }}>
+            ${task.cost_usd.toFixed(2)}
+          </span>
+        )}
+        {task.num_turns != null && (
+          <span className="text-xs" style={{ color: "#475569" }}>
+            {task.num_turns} turns
+          </span>
+        )}
+      </div>
     </Link>
   );
 }

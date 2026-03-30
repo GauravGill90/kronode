@@ -342,36 +342,31 @@ async def get_pr_status(pr_url: str, token: str) -> dict:
         changes_requested = any(
             p.get("state") == "changes_requested" for p in participants
         )
-        review_comments = [
-            {
-                "body": p.get("user", {}).get("display_name", ""),
-                "reviewer": p.get("user", {}).get("nickname", "unknown"),
-                "state": p.get("state", ""),
-            }
-            for p in participants
-            if p.get("state") == "changes_requested"
-        ]
         reviewers = [
             p.get("user", {}).get("nickname", "")
             for p in participants
             if p.get("user", {}).get("nickname")
         ]
 
-        # Inline comments from the PR comment thread
+        # Fetch actual comments from the PR comment thread
         comments_resp = await client.get(
             f"{BITBUCKET_API}/repositories/{workspace}/{repo_slug}/pullrequests/{pr_id}/comments",
             headers=headers,
             params={"pagelen": 50},
         )
+        review_comments: list[dict] = []
         inline_comments: list[dict] = []
         if comments_resp.is_success:
             for c in comments_resp.json().get("values", []):
                 body = (c.get("content") or {}).get("raw", "").strip()
                 if not body:
                     continue
-                inline_path = (c.get("inline") or {}).get("path", "")
                 reviewer = (c.get("user") or {}).get("nickname", "unknown")
-                inline_comments.append({"path": inline_path, "body": body, "reviewer": reviewer})
+                inline_path = (c.get("inline") or {}).get("path", "")
+                if inline_path:
+                    inline_comments.append({"path": inline_path, "body": body, "reviewer": reviewer})
+                else:
+                    review_comments.append({"body": body, "reviewer": reviewer, "state": "COMMENTED"})
 
     return {
         "merged": merged,
@@ -445,7 +440,7 @@ async def fetch_merged_prs(
                 )
                 pr_record["diff"] = diff_resp.text[:4000] if diff_resp.is_success else ""
 
-                # Participants as reviewers/comments
+                # Participants → reviewers
                 pr_detail_resp = await client.get(
                     f"{BITBUCKET_API}/repositories/{workspace}/{repo_slug}/pullrequests/{pr_id}",
                     headers=headers,
@@ -457,14 +452,32 @@ async def fetch_merged_prs(
                         for p in participants
                         if p.get("user", {}).get("nickname")
                     })
-                    pr_record["review_comments"] = [
-                        p.get("user", {}).get("display_name", "")
-                        for p in participants
-                        if p.get("state") in ("changes_requested", "approved")
-                    ]
                 else:
                     pr_record["reviewers"] = []
+
+                # Actual review comments from comment thread
+                comments_resp = await client.get(
+                    f"{BITBUCKET_API}/repositories/{workspace}/{repo_slug}/pullrequests/{pr_id}/comments",
+                    headers=headers,
+                    params={"pagelen": 30},
+                )
+                if comments_resp.is_success:
+                    pr_record["review_comments"] = [
+                        (c.get("content") or {}).get("raw", "").strip()
+                        for c in comments_resp.json().get("values", [])
+                        if (c.get("content") or {}).get("raw", "").strip()
+                    ]
+                    pr_record["attributed_comments"] = [
+                        {
+                            "body": (c.get("content") or {}).get("raw", "").strip(),
+                            "reviewer": (c.get("user") or {}).get("nickname", ""),
+                        }
+                        for c in comments_resp.json().get("values", [])
+                        if (c.get("content") or {}).get("raw", "").strip() and (c.get("user") or {}).get("nickname")
+                    ]
+                else:
                     pr_record["review_comments"] = []
+                    pr_record["attributed_comments"] = []
 
             except Exception as exc:
                 logger.warning(f"[Bitbucket] Failed to enrich PR #{pr_id}: {exc}")

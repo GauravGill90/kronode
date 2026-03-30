@@ -565,7 +565,7 @@ function RepoForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void 
         <FieldLabel>Repository URL</FieldLabel>
         <input
           style={inputCls}
-          placeholder={`https://${provider}.com/your-org/your-repo`}
+          placeholder={`https://${provider === "bitbucket" ? "bitbucket.org" : `${provider}.com`}/your-org/your-repo`}
           value={repoUrl}
           onChange={(e) => setRepoUrl(e.target.value)}
           onFocus={focusBorder}
@@ -600,22 +600,38 @@ function RepoForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void 
         <input
           style={inputCls}
           type="password"
-          placeholder={hasExistingToken ? "••••••••  (already saved)" : "ghp_xxxxxxxxxxxxxxxxxxxx"}
+          placeholder={hasExistingToken ? "••••••••  (already saved)" : provider === "bitbucket" ? "ATBB_xxxxxxxxxxxx" : "ghp_xxxxxxxxxxxxxxxxxxxx"}
           value={pat}
           onChange={(e) => setPat(e.target.value)}
           onFocus={focusBorder}
           onBlur={blurBorder}
         />
         <p className="text-xs mt-1.5" style={{ color: "#475569" }}>
-          Needs <code style={{ color: "#6366f1" }}>repo</code> scope.{" "}
-          <a
-            href="https://github.com/settings/tokens/new?scopes=repo&description=Kronode"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "#6366f1", textDecoration: "underline" }}
-          >
-            Generate one →
-          </a>
+          {provider === "bitbucket" ? (
+            <>
+              Needs <code style={{ color: "#6366f1" }}>Repositories: Read/Write</code> and <code style={{ color: "#6366f1" }}>Pull requests: Read/Write</code> permissions.{" "}
+              <a
+                href="https://bitbucket.org/account/settings/app-passwords/"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "#6366f1", textDecoration: "underline" }}
+              >
+                Create API token →
+              </a>
+            </>
+          ) : (
+            <>
+              Needs <code style={{ color: "#6366f1" }}>repo</code> scope.{" "}
+              <a
+                href="https://github.com/settings/tokens/new?scopes=repo&description=Kronode"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: "#6366f1", textDecoration: "underline" }}
+              >
+                Generate one →
+              </a>
+            </>
+          )}
         </p>
       </div>
       <div
