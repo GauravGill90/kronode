@@ -16,6 +16,9 @@ class CoderAgent(AgentBase):
         plan = context.get("planner_agent", {})
         context_bundle = context.get("context_builder", {})
 
+        # Inject stack info into context bundle for the executor
+        context_bundle["stack_info"] = context.get("agent_profile", "")
+
         # Use fork_repo_url for writes (PRs), fall back to repo_url
         repo_url = context.get("repo_url", "")
         fork_repo_url = context.get("fork_repo_url")

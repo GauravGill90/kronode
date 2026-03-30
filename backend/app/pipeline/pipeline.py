@@ -68,6 +68,7 @@ async def run_pipeline(task_id_str: str):
         "org_id": task.org_id,
         "project_context": config.project_context if config else "",
         "repo_url": config.repo_url if config else "",
+        "repo_provider": config.repo_provider if config else "github",
         "fork_repo_url": config.fork_repo_url if config else None,
         "github_access_token": config.github_access_token if config else None,
         "guardrails": config.guardrails if config else {},
@@ -255,12 +256,35 @@ async def run_pipeline(task_id_str: str):
 
             await emit_event(task_id, agent_name, "completed", result.get("summary", f"{agent.display_name} complete."), result)
 
-            # Coder failure → escalate model and retry
+            # Coder failure → record failure + escalate model and retry
             if agent_name == "coder_agent" and revision_count < MAX_REVISIONS:
                 coder_failed = bool(result.get("error")) or not result.get("files_changed")
                 if coder_failed:
                     revision_count += 1
                     error_msg = result.get("error", "No file changes produced")
+
+                    # Record failure for future tasks (the compounding loop)
+                    try:
+                        from app.models.memory import MemoryRecord
+                        async with AsyncSessionLocal() as db:
+                            db.add(MemoryRecord(
+                                org_id=task.org_id,
+                                task_id=task_id,
+                                record_type="coder_failure",
+                                content={
+                                    "task_description": context.get("description", "")[:200],
+                                    "error": error_msg[:500],
+                                    "files_attempted": result.get("files_changed", []),
+                                    "model_used": result.get("model_used", ""),
+                                    "turns_used": result.get("num_turns", 0),
+                                    "revision": revision_count,
+                                },
+                                source="pipeline",
+                            ))
+                            await db.commit()
+                    except Exception:
+                        pass  # Never fail the pipeline for a memory write
+
                     await emit_event(
                         task_id, "pipeline", "progress",
                         f"Coder failed (attempt {revision_count}/{MAX_REVISIONS + 1}): {error_msg}. Retrying with stronger model...",

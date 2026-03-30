@@ -10,7 +10,7 @@ from sqlalchemy import select
 from app.core.database import AsyncSessionLocal
 from app.models.org import OnboardingConfig
 from app.models.memory import MemoryRecord
-from app.services.github_service import get_repo_tree, fetch_merged_prs
+# Provider-specific imports resolved at runtime based on config.repo_provider
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +82,10 @@ async def run_onboarding(org_id: int) -> None:
 
     # Step 1: Analyse repo structure and detect stack
     try:
+        if config.repo_provider == "bitbucket":
+            from app.services.bitbucket_service import get_repo_tree, get_file_content
+        else:
+            from app.services.github_service import get_repo_tree, get_file_content
         all_paths = await get_repo_tree(config.repo_url, config.github_access_token)
     except Exception as exc:
         logger.warning(f"[SelfOnboarding] Failed to fetch repo tree: {exc}")
@@ -166,7 +170,7 @@ async def run_onboarding(org_id: int) -> None:
 
     # Step 4: Analyse current codebase structure (read key files, extract conventions)
     try:
-        await _analyse_codebase_structure(config.repo_url, config.github_access_token, org_id, all_paths)
+        await _analyse_codebase_structure(config.repo_url, config.github_access_token, org_id, all_paths, repo_provider=config.repo_provider or "github")
     except Exception as exc:
         logger.warning(f"[SelfOnboarding] Codebase analysis failed: {exc}")
 
@@ -230,11 +234,14 @@ _SOURCE_EXTS = {".ts", ".tsx", ".js", ".jsx", ".py", ".go", ".rb", ".rs"}
 
 
 async def _analyse_codebase_structure(
-    repo_url: str, token: str, org_id: int, all_paths: list[str]
+    repo_url: str, token: str, org_id: int, all_paths: list[str], repo_provider: str = "github"
 ) -> None:
     """Read key config files + sample source files to extract conventions from the current codebase."""
     import os
-    from app.services.github_service import get_file_content
+    if repo_provider == "bitbucket":
+        from app.services.bitbucket_service import get_file_content
+    else:
+        from app.services.github_service import get_file_content
     from app.services.convention_extractor import extract_conventions_from_pr, deduplicate_conventions, score_conventions
 
     logger.info(f"[SelfOnboarding] Analysing codebase structure for org {org_id}")

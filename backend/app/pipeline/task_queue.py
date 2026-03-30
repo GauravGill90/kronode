@@ -260,6 +260,39 @@ async def _poll_pr_outcomes():
                             f"reviewers: {status.get('reviewers', [])})"
                         )
 
+                        # Classify and record as coder_failure for the learning loop
+                        try:
+                            all_comments = " ".join(
+                                c.get("body", c) if isinstance(c, dict) else str(c)
+                                for c in status["review_comments"][:5]
+                            )
+                            from app.core.llm import cheap
+                            category = await cheap(
+                                system="Classify this PR review rejection into exactly one category. Respond with just the category name, nothing else.\nCategories: wrong_path, missing_import, style_violation, logic_error, missing_test, api_misuse, scope_creep, breaking_change",
+                                user_message=f"Task: {task.description[:200]}\nReview comments: {all_comments[:500]}",
+                                max_tokens=20,
+                            )
+                            category = category.strip().lower().replace(" ", "_")
+
+                            db.add(MemoryRecord(
+                                org_id=org_id,
+                                task_id=task_id,
+                                record_type="coder_failure",
+                                content={
+                                    "task_description": task.description[:200],
+                                    "failure_category": category,
+                                    "review_summary": all_comments[:300],
+                                    "reviewer": status.get("reviewers", [None])[0],
+                                    "files_affected": task.result.get("files_changed", []) if task.result else [],
+                                    "pr_url": pr_url,
+                                },
+                                source=pr_url,
+                            ))
+                            await db.commit()
+                            logger.info(f"[PollPR] Classified rejection as '{category}' for task {task_id}")
+                        except Exception as exc:
+                            logger.warning(f"[PollPR] Failure classification failed: {exc}")
+
                         # Notify Slack — only on first detection (same gate as pitfall write)
                         if cfg.slack_bot_token and cfg.slack_channel_id:
                             try:

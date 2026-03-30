@@ -93,6 +93,7 @@ async def execute_task(
             context_bundle=context_bundle,
             profile_injection=profile_injection,
             coding_standards=coding_standards,
+            stack_info=context_bundle.get("stack_info", ""),
         )
 
         # 4. Build task prompt
@@ -325,17 +326,25 @@ def _build_system_prompt(
     context_bundle: dict,
     profile_injection: str,
     coding_standards: str,
+    stack_info: str = "",
 ) -> str:
     """Build system prompt injecting Kronode's organizational context."""
     conventions = context_bundle.get("conventions", [])
     doc_chunks = context_bundle.get("doc_chunks", [])
     reviewer_patterns = context_bundle.get("reviewer_patterns", [])
     pitfalls = context_bundle.get("pitfalls", [])
+    repo_structure = context_bundle.get("repo_structure", "")
 
     parts = []
 
     if profile_injection:
         parts.append(profile_injection)
+
+    if stack_info:
+        parts.append(f"## Tech Stack\n{stack_info}")
+
+    if repo_structure:
+        parts.append(f"## Repository Structure\n{repo_structure}")
 
     if coding_standards:
         parts.append(f"## Team Coding Standards\n{coding_standards}")
@@ -368,6 +377,18 @@ def _build_system_prompt(
         pit_lines = [f"- {p.get('description', '')}" for p in pitfalls[:5]]
         if pit_lines:
             parts.append(f"## Known Pitfalls\n" + "\n".join(pit_lines))
+
+    # Past failures — the compounding learning loop
+    past_failures = context_bundle.get("past_failures", [])
+    if past_failures:
+        fail_lines = []
+        for f in past_failures[:5]:
+            task = f.get("task", "")
+            error = f.get("error", "")
+            category = f.get("category", "")
+            cat_label = f" ({category})" if category else ""
+            fail_lines.append(f"- \"{task}\"{cat_label}: {error}")
+        parts.append(f"## Past Mistakes (never repeat these)\n" + "\n".join(fail_lines))
 
     return "\n\n---\n\n".join(parts) if parts else ""
 
@@ -408,6 +429,22 @@ def _build_task_prompt(task_description: str, plan: dict, review_feedback: dict 
         prompt += "\n\n## Assumptions\n"
         prompt += "\n".join(f"- {a}" for a in assumptions)
 
+    # Confidence and risk flags from planner
+    confidence_level = plan.get("confidence_level", "medium")
+    risk_flags = plan.get("risk_flags", [])
+    unseen_files = plan.get("unseen_files", [])
+
+    if confidence_level and confidence_level != "high":
+        prompt += f"\n\n## Plan Confidence: {confidence_level} ({plan.get('confidence_score', '?')})"
+        if unseen_files:
+            prompt += "\nThese file paths are guessed — verify they exist before editing:"
+            for f in unseen_files:
+                prompt += f"\n- {f}"
+
+    if risk_flags:
+        prompt += "\n\n## Risk Flags\n"
+        prompt += "\n".join(f"- {r}" for r in risk_flags)
+
     # Collect all unique files from the plan
     all_planned_files = []
     for st in subtasks:
@@ -420,9 +457,18 @@ def _build_task_prompt(task_description: str, plan: dict, review_feedback: dict 
     for f in all_planned_files:
         prompt += f"\n- [ ] Modified: {f}"
     prompt += "\n\nDo NOT skip any subtask. If the plan says to modify a file, modify it."
-    prompt += "\nDo NOT explore the repo structure — go directly to the files listed above."
-    prompt += "\nDo NOT search for or create tests unless a subtask explicitly says to."
-    prompt += "\nIf the fix is a pattern-level issue, also check sibling files for the same problem."
+
+    # Confidence-dependent exploration instructions
+    if confidence_level == "high":
+        prompt += "\nGo directly to the files listed above. Do NOT explore the repo structure."
+    elif confidence_level == "medium":
+        prompt += "\nVerify unseen files exist before editing. Read files before making changes."
+    else:
+        prompt += "\nThis is a low-confidence plan. Read each file before editing to confirm path and structure."
+
+    prompt += "\nBefore editing a shared utility or hook, grep for files that import it and update all consumers."
+    prompt += "\nIf this is a pattern-level fix, check sibling files in the same directory for the same pattern."
+    prompt += "\nIf modifying a file, check if it has tests (*.test.ts, *.spec.ts, __tests__/) and ensure they still pass."
     prompt += "\nDo not reformat unchanged code."
     return prompt
 

@@ -53,7 +53,11 @@ class ContextBuilderAgent(AgentBase):
         cached_conventions: list[str] | None,
         context: dict,
     ) -> dict:
-        from app.services.github_service import get_repo_tree, get_file_content
+        repo_provider = context.get("repo_provider", "github")
+        if repo_provider == "bitbucket":
+            from app.services.bitbucket_service import get_repo_tree, get_file_content
+        else:
+            from app.services.github_service import get_repo_tree, get_file_content
 
         # 1. Get full repo file tree
         all_paths = await get_repo_tree(repo_url, token)
@@ -256,7 +260,33 @@ class ContextBuilderAgent(AgentBase):
             except Exception as exc:
                 logger.warning(f"[ContextBuilder] Pattern query failed: {exc}")
 
-        # 7. Load relevant documentation chunks
+        # 7. Load past failures (the compounding learning loop)
+        past_failures = []
+        if org_id:
+            try:
+                async with AsyncSessionLocal() as db:
+                    failure_rows = (await db.execute(
+                        sa_select(MemoryRecord)
+                        .where(
+                            MemoryRecord.org_id == org_id,
+                            MemoryRecord.record_type == "coder_failure",
+                        )
+                        .order_by(MemoryRecord.id.desc())
+                        .limit(20)
+                    )).scalars().all()
+                    for r in failure_rows:
+                        content = r.content or {}
+                        past_failures.append({
+                            "task": content.get("task_description", "")[:100],
+                            "error": content.get("error", content.get("review_summary", ""))[:200],
+                            "category": content.get("failure_category", ""),
+                            "files": content.get("files_attempted", content.get("files_affected", [])),
+                        })
+                    logger.info(f"[ContextBuilder] Loaded {len(past_failures)} past failures")
+            except Exception as exc:
+                logger.warning(f"[ContextBuilder] Failure query failed: {exc}")
+
+        # 8. Load relevant documentation chunks
         doc_chunks = []
         if org_id:
             try:
@@ -278,6 +308,7 @@ class ContextBuilderAgent(AgentBase):
             "conventions": conventions,
             "pitfalls": pitfalls,
             "reviewer_patterns": reviewer_patterns,
+            "past_failures": past_failures,
             "doc_chunks": doc_chunks,
             "repo_structure": repo_structure_summary,
         }
