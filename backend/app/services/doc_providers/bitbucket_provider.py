@@ -49,7 +49,7 @@ class BitbucketDocProvider(DocProvider):
         workspace, repo_slug = _parse_repo(repo_url)
         headers = _auth_headers(token)
 
-        async with httpx.AsyncClient(timeout=30) as client:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
             # Get default branch
             resp = await client.get(
                 f"{BITBUCKET_API}/repositories/{workspace}/{repo_slug}",
@@ -105,7 +105,7 @@ class BitbucketDocProvider(DocProvider):
         )
 
         raw_docs: list[RawDoc] = []
-        async with httpx.AsyncClient(timeout=20) as client:
+        async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
             for item, file_sha in to_fetch:
                 path = item["path"]
                 try:

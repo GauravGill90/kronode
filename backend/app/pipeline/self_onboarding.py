@@ -173,7 +173,8 @@ async def run_onboarding(org_id: int) -> None:
     # Step 5: Ingest documentation from repo (markdown files)
     try:
         from app.services.doc_ingestion import ingest_docs
-        chunk_count = await ingest_docs(org_id, source_type="git")
+        doc_source = "bitbucket" if config.repo_provider == "bitbucket" else "git"
+        chunk_count = await ingest_docs(org_id, source_type=doc_source)
         logger.info(f"[SelfOnboarding] Ingested {chunk_count} doc chunks for org {org_id}")
     except Exception as exc:
         logger.warning(f"[SelfOnboarding] Doc ingestion failed (non-blocking): {exc}")

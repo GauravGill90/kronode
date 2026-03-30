@@ -321,7 +321,8 @@ async def trigger_doc_ingestion(
     if not config.repo_url or not config.github_access_token:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No repo or GitHub token configured")
     from app.pipeline.task_queue import run_doc_ingestion
-    run_doc_ingestion.delay(org.id, "git")
+    doc_source = "bitbucket" if config.repo_provider == "bitbucket" else "git"
+    run_doc_ingestion.delay(org.id, doc_source)
     return {"ok": True, "message": f"Doc ingestion queued for org {org.id}"}
 
 
@@ -341,7 +342,8 @@ async def refresh_all_ingestion(
     queued.append("self-onboarding")
     run_convention_extraction.delay(org.id, 200)
     queued.append("convention extraction (200 PRs)")
-    run_doc_ingestion.delay(org.id, "git")
+    doc_source = "bitbucket" if config.repo_provider == "bitbucket" else "git"
+    run_doc_ingestion.delay(org.id, doc_source)
     queued.append("doc ingestion")
 
     return {"ok": True, "queued": queued, "message": f"Queued {len(queued)} jobs for org {org.id}"}
