@@ -24,8 +24,9 @@ class OnboardingConfig(Base):
 
     # Step 2 — repo
     repo_url: Mapped[str | None] = mapped_column(String(500))  # upstream repo (read: ingestion, context, conventions)
-    fork_repo_url: Mapped[str | None] = mapped_column(String(500))  # fork repo (write: branches, commits, PRs)
-    repo_provider: Mapped[str | None] = mapped_column(String(50))  # github / gitlab
+    # TEMP: fork_repo_url commented out due to asyncpg prepared statement cache issue
+    # fork_repo_url: Mapped[str | None] = mapped_column(String(500))  # fork repo (write: branches, commits, PRs)
+    repo_provider: Mapped[str | None] = mapped_column(String(50))  # github / gitlab / bitbucket
     repo_name: Mapped[str | None] = mapped_column(String(255))
 
     # Step 3 — jira

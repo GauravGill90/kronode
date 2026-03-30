@@ -476,8 +476,8 @@ function RefreshIngestionButton() {
 function RepoForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void }) {
   const store = useOnboardingStore();
   const { repo, setRepo } = store;
-  const [provider, setProvider] = useState<"github" | "gitlab">(
-    (repo?.provider as "github" | "gitlab") || "github"
+  const [provider, setProvider] = useState<"github" | "gitlab" | "bitbucket">(
+    (repo?.provider as "github" | "gitlab" | "bitbucket") || "github"
   );
   const [repoUrl, setRepoUrl] = useState(repo?.repo_url || "");
   const [forkRepoUrl, setForkRepoUrl] = useState(repo?.fork_repo_url || "");
@@ -545,7 +545,7 @@ function RepoForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void 
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
-        {(["github", "gitlab"] as const).map((p) => (
+        {(["github", "gitlab", "bitbucket"] as const).map((p) => (
           <button
             key={p}
             type="button"

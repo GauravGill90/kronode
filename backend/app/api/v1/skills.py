@@ -98,23 +98,42 @@ async def save_assigned_skills(
     db: AsyncSession = Depends(get_db),
 ):
     """Save the org's selected skills. Accepts skill_ids or a preset name."""
-    # Import the helper from onboarding to get or create org
-    from app.api.v1.onboarding import _get_or_create_org
-    _, org, _ = await _get_or_create_org(user_data, db)
-    org_id = org.id
+    try:
+        # Import the helper from onboarding to get or create org
+        from app.api.v1.onboarding import _get_or_create_org
+        _, org, _ = await _get_or_create_org(user_data, db)
+        org_id = org.id
 
-    # Resolve preset to skill IDs if provided
-    skill_ids = list(payload.skill_ids)
-    if payload.preset and not skill_ids:
-        from app.skills.presets import PRESETS
-        skill_keys = PRESETS.get(payload.preset, [])
-        if not skill_keys:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unknown preset: {payload.preset}")
-        result = await db.execute(select(Skill.id).where(Skill.key.in_(skill_keys)))
-        skill_ids = list(result.scalars().all())
+        print(f"[SKILLS] Saving skills for org_id={org_id}, preset={payload.preset}, skill_ids={payload.skill_ids}")
 
-    if not skill_ids:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No skills selected")
+        # Resolve preset to skill IDs if provided
+        skill_ids = list(payload.skill_ids)
+        if payload.preset and not skill_ids:
+            from app.skills.presets import PRESETS
+            skill_keys = PRESETS.get(payload.preset, [])
+            print(f"[SKILLS] Preset '{payload.preset}' resolved to keys: {skill_keys}")
+            if not skill_keys:
+                raise HTTPException(status_code=400, detail=f"Unknown preset: {payload.preset}")
+
+            # Check what skills exist in DB
+            all_skills = await db.execute(select(Skill.key, Skill.id))
+            all_skills_list = [(k, i) for k, i in all_skills.all()]
+            print(f"[SKILLS] All skills in DB: {all_skills_list}")
+
+            result = await db.execute(select(Skill.id).where(Skill.key.in_(skill_keys)))
+            skill_ids = list(result.scalars().all())
+            print(f"[SKILLS] Found skill IDs for keys {skill_keys}: {skill_ids}")
+
+        if not skill_ids:
+            print(f"[SKILLS] No skills found! preset={payload.preset}, payload.skill_ids={payload.skill_ids}")
+            raise HTTPException(status_code=400, detail="No skills selected")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[SKILLS] Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
     # Clear existing assignments
     existing = (await db.execute(
@@ -122,6 +141,7 @@ async def save_assigned_skills(
     )).scalars().all()
     for e in existing:
         await db.delete(e)
+    await db.flush()  # Flush deletions before adding new records
 
     # Assign new skills in order
     for i, sid in enumerate(skill_ids):
