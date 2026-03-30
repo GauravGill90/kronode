@@ -43,6 +43,7 @@ async def execute_task(
     model_override: str | None = None,
     max_turns: int | None = None,
     jira_ticket_id: str | None = None,
+    repo_provider: str = "github",
 ) -> dict:
     """Run Claude Code agent against a cloned repo.
 
@@ -144,33 +145,63 @@ async def execute_task(
 
         logger.info(f"[ClaudeExecutor] Pushed branch {branch_name}")
 
-        # 8. Open PR via GitHub API
+        # 8. Open PR via the appropriate provider API
         pr_title = _sanitize_title(task_description, max_len=72)
         pr_description = _build_pr_description(task_description, plan, files_changed, agent_result)
 
-        from app.services.github_service import _parse_repo, _auth_headers, GITHUB_API
         import httpx
-        owner, repo = _parse_repo(write_repo)
-        headers = _auth_headers(github_token)
-
-        async with httpx.AsyncClient(timeout=30) as client:
-            # Get default branch
-            resp = await client.get(f"{GITHUB_API}/repos/{owner}/{repo}", headers=headers)
-            resp.raise_for_status()
-            default_branch = resp.json()["default_branch"]
-
-            resp = await client.post(
-                f"{GITHUB_API}/repos/{owner}/{repo}/pulls",
-                headers=headers,
-                json={
-                    "title": pr_title,
-                    "body": pr_description,
-                    "head": branch_name,
-                    "base": default_branch,
-                },
+        if repo_provider == "bitbucket":
+            from app.services.bitbucket_service import (
+                _parse_repo,
+                _auth_headers,
+                BITBUCKET_API,
             )
-            resp.raise_for_status()
-            pr_url = resp.json()["html_url"]
+            owner, repo = _parse_repo(write_repo)
+            headers = _auth_headers(github_token)
+
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.get(
+                    f"{BITBUCKET_API}/repositories/{owner}/{repo}",
+                    headers=headers,
+                )
+                resp.raise_for_status()
+                default_branch = resp.json()["mainbranch"]["name"]
+
+                resp = await client.post(
+                    f"{BITBUCKET_API}/repositories/{owner}/{repo}/pullrequests",
+                    headers=headers,
+                    json={
+                        "title": pr_title,
+                        "description": pr_description,
+                        "source": {"branch": {"name": branch_name}},
+                        "destination": {"branch": {"name": default_branch}},
+                    },
+                )
+                resp.raise_for_status()
+                pr_url = resp.json()["links"]["html"]["href"]
+        else:
+            from app.services.github_service import _parse_repo, _auth_headers, GITHUB_API
+            owner, repo = _parse_repo(write_repo)
+            headers = _auth_headers(github_token)
+
+            async with httpx.AsyncClient(timeout=30) as client:
+                # Get default branch
+                resp = await client.get(f"{GITHUB_API}/repos/{owner}/{repo}", headers=headers)
+                resp.raise_for_status()
+                default_branch = resp.json()["default_branch"]
+
+                resp = await client.post(
+                    f"{GITHUB_API}/repos/{owner}/{repo}/pulls",
+                    headers=headers,
+                    json={
+                        "title": pr_title,
+                        "body": pr_description,
+                        "head": branch_name,
+                        "base": default_branch,
+                    },
+                )
+                resp.raise_for_status()
+                pr_url = resp.json()["html_url"]
 
         logger.info(f"[ClaudeExecutor] PR opened: {pr_url}")
 
@@ -457,10 +488,19 @@ def _sanitize_title(description: str, max_len: int = 72) -> str:
 
 
 def _inject_token(repo_url: str, token: str) -> str:
-    """Inject GitHub token into clone URL for auth."""
-    # https://github.com/owner/repo → https://x-access-token:TOKEN@github.com/owner/repo
+    """Inject auth credentials into a clone URL for HTTPS git operations."""
+    # GitHub: https://github.com/owner/repo → https://x-access-token:TOKEN@github.com/owner/repo
     if repo_url.startswith("https://github.com/"):
-        return repo_url.replace("https://github.com/", f"https://x-access-token:{token}@github.com/")
+        return repo_url.replace(
+            "https://github.com/",
+            f"https://x-access-token:{token}@github.com/",
+        )
+    # Bitbucket: https://bitbucket.org/workspace/repo → https://x-token-auth:TOKEN@bitbucket.org/workspace/repo
+    if repo_url.startswith("https://bitbucket.org/"):
+        return repo_url.replace(
+            "https://bitbucket.org/",
+            f"https://x-token-auth:{token}@bitbucket.org/",
+        )
     return repo_url
 
 

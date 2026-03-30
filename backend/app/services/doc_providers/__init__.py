@@ -1,8 +1,10 @@
 from app.services.doc_providers.base import DocProvider, RawDoc, ChunkData
 from app.services.doc_providers.git_provider import GitDocProvider
+from app.services.doc_providers.bitbucket_provider import BitbucketDocProvider
 
 _PROVIDERS: dict[str, type[DocProvider]] = {
     "git": GitDocProvider,
+    "bitbucket": BitbucketDocProvider,
 }
 
 
