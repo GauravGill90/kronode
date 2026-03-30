@@ -415,6 +415,43 @@ async def test_github_token(
         return {"ok": True, "login": login, "repo": f"{owner}/{repo}"}
 
 
+@router.post("/test-bitbucket-token")
+async def test_bitbucket_token(
+    payload: GitHubTokenTestPayload,
+    user_data: dict = Depends(get_current_user),
+):
+    """Validate a Bitbucket API token and confirm it has access to the given repo."""
+    import httpx
+
+    from app.services.bitbucket_service import _auth_headers, _parse_repo
+
+    headers = _auth_headers(payload.token)
+
+    try:
+        workspace, repo_slug = _parse_repo(payload.repo_url)
+    except Exception:
+        return {"ok": False, "error": "Could not parse repo URL — expected https://bitbucket.org/workspace/repo"}
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        # Verify repo access (workspace tokens can't call /2.0/user, so skip user check)
+        repo_resp = await client.get(
+            f"https://api.bitbucket.org/2.0/repositories/{workspace}/{repo_slug}",
+            headers=headers,
+        )
+        if repo_resp.status_code == 401:
+            return {"ok": False, "error": "Invalid token — check that it hasn't expired"}
+        if repo_resp.status_code == 404:
+            return {"ok": False, "error": f"Repo {workspace}/{repo_slug} not found — check the URL and token permissions"}
+        if repo_resp.status_code == 403:
+            return {"ok": False, "error": "Token doesn't have access to this repo — check Repositories: Read permission"}
+        if not repo_resp.is_success:
+            return {"ok": False, "error": "Could not verify repo access"}
+
+        repo_data = repo_resp.json()
+        owner = repo_data.get("owner", {}).get("display_name", workspace)
+        return {"ok": True, "login": owner, "repo": f"{workspace}/{repo_slug}"}
+
+
 @router.post("/complete")
 async def complete_onboarding(
     user_data: dict = Depends(get_current_user),

@@ -18,6 +18,7 @@ import {
   saveSlack,
   testSlack,
   testGithubToken,
+  testBitbucketToken,
   testJira,
   completeOnboarding,
   getOnboardingStatus,
@@ -503,7 +504,8 @@ function RepoForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void 
     setTesting(true);
     setTestResult(null);
     try {
-      const res = await testGithubToken({ token: pat.trim(), repo_url: repoUrl.trim() });
+      const testFn = provider === "bitbucket" ? testBitbucketToken : testGithubToken;
+      const res = await testFn({ token: pat.trim(), repo_url: repoUrl.trim() });
       if (res.data.ok) {
         setTestResult({ ok: true, message: `Connected as ${res.data.login} · ${res.data.repo}` });
       } else {
@@ -523,9 +525,10 @@ function RepoForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void 
     try {
       // If a new PAT was entered, validate and save it
       if (pat.trim()) {
-        const check = await testGithubToken({ token: pat.trim(), repo_url: repoUrl.trim() });
+        const testFn = provider === "bitbucket" ? testBitbucketToken : testGithubToken;
+        const check = await testFn({ token: pat.trim(), repo_url: repoUrl.trim() });
         if (!check.data.ok) {
-          setError(check.data.error || "Could not connect to GitHub — please check your token and repo URL");
+          setError(check.data.error || `Could not connect to ${provider} — please check your token and repo URL`);
           onFail?.();
           return;
         }
@@ -600,7 +603,7 @@ function RepoForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void 
         <input
           style={inputCls}
           type="password"
-          placeholder={hasExistingToken ? "••••••••  (already saved)" : provider === "bitbucket" ? "ATBB_xxxxxxxxxxxx" : "ghp_xxxxxxxxxxxxxxxxxxxx"}
+          placeholder={hasExistingToken ? "••••••••  (already saved)" : provider === "bitbucket" ? "ATCTT3xFfGN0..." : "ghp_xxxxxxxxxxxxxxxxxxxx"}
           value={pat}
           onChange={(e) => setPat(e.target.value)}
           onFocus={focusBorder}
@@ -609,9 +612,9 @@ function RepoForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void 
         <p className="text-xs mt-1.5" style={{ color: "#475569" }}>
           {provider === "bitbucket" ? (
             <>
-              Needs <code style={{ color: "#6366f1" }}>Repositories: Read/Write</code> and <code style={{ color: "#6366f1" }}>Pull requests: Read/Write</code> permissions.{" "}
+              Needs <code style={{ color: "#6366f1" }}>Repositories: Read/Write</code> and <code style={{ color: "#6366f1" }}>Pull requests: Read/Write</code> scopes.{" "}
               <a
-                href="https://bitbucket.org/account/settings/app-passwords/"
+                href="https://bitbucket.org/account/settings/api-tokens/"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{ color: "#6366f1", textDecoration: "underline" }}

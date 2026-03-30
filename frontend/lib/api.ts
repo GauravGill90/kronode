@@ -41,6 +41,9 @@ export const testSlack = (data: { bot_token: string; channel_name: string }) =>
 export const testGithubToken = (data: { token: string; repo_url: string }) =>
   api.post<{ ok: boolean; error?: string; repo?: string; login?: string }>("/onboarding/test-github-token", data);
 
+export const testBitbucketToken = (data: { token: string; repo_url: string }) =>
+  api.post<{ ok: boolean; error?: string; repo?: string; login?: string }>("/onboarding/test-bitbucket-token", data);
+
 export const saveDocs = (data: { provider: string; scope: string }) =>
   api.post("/onboarding/docs", data);
 
