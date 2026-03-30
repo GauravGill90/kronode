@@ -333,8 +333,8 @@ erDiagram
 **Key enums:**
 - `TaskStatus`: queued, running, waiting_clarification, paused, in_review, done, failed, cancelled
 - `convention.category`: naming, error_handling, testing, logging, architecture, style
-- `convention.layer`: base (community), customer (org-specific)
-- `memory.record_type`: pattern, reviewer_feedback, pitfall, convention, clarification, file_touched, pr_outcome
+- `convention.layer`: customer (org-specific only — base layer removed)
+- `memory.record_type`: pattern, pitfall, coder_failure, convention, file_touched, pr_outcome
 
 ---
 
@@ -361,15 +361,17 @@ Replaced fixed agent profiles (web/backend/fullstack) with composable skills.
 
 ---
 
-## Convention System (Two-Layer)
+## Convention System
 
-```
-Base layer    — extracted from open-source repos (Cal.com for TypeScript)
-                Solves cold-start. org_id = NULL, filtered by stack.
+Customer-only conventions extracted from org's own PR history + review feedback. No base layer — every convention must be project-specific.
 
-Customer layer — extracted from org's own PR history + review feedback
-                 Always overrides base. Grows with every merged PR.
-```
+### Extraction
+
+- Prompt requires project-specific detail (file paths, library names, component names). Generic advice is rejected.
+- Minimum frequency: 2+ PRs before a convention is stored.
+- Semantic deduplication via embeddings (cosine > 0.85) catches rephrased duplicates.
+- Semantic upsert matches new conventions against existing ones by similarity, not exact text.
+- Scoring uses log scale: `0.3 + 0.7 × (log(freq) / log(max_freq))`.
 
 ### Lifecycle
 
@@ -378,10 +380,45 @@ Customer layer — extracted from org's own PR history + review feedback
 | Onboarding | Last 200 merged PRs | Batch |
 | Weekly refresh (Celery Beat) | Last 50 PRs per org | Incremental |
 | PR merged | Review comments on that PR | Per-PR |
-| Changes requested | Reviewer corrections | Per-PR |
-| Base extraction | Cal.com 200 PRs | One-time seed |
+| Changes requested | Reviewer corrections → new conventions | Per-PR |
 
-Extraction uses cheap LLM. Deduplication by normalized rule text. Confidence = 0.3 base + 0.7 × relative frequency. Stops early if dedup rate > 80%.
+### Reviewer Patterns
+
+Extracted per-reviewer from attributed PR comments. Bot reviewers (`[bot]` suffix) are filtered out. Stored as conventions with `enforced_by` field.
+
+### Convention Ranking (per task)
+
+7 signals: customer layer boost (+2.0), keyword overlap (×1.5/word), category relevance (LLM-scored), rule-to-file word match (+1.0/word), source file match (+5.0 direct, +3.0 directory), embedding similarity (×4.0 above 0.3), frequency/confidence tiebreaker. Top 30 returned.
+
+---
+
+## Intelligence Loop (Compounding Moat)
+
+```
+Task → PR opened → Reviewed → Approved/Rejected
+                                    ↓
+                   Learn: failure memory + convention validation
+                                    ↓
+                   Next PR avoids past mistakes
+                                    ↓
+                   Acceptance rate improves over time
+```
+
+### What compounds (data only Kronode has):
+- **Failure memory** — coder crashes and PR rejections recorded with classification (wrong_path, style_violation, missing_test, etc.). Injected as "Past Mistakes" in system prompt.
+- **Convention validation** — tracks which conventions led to merged PRs. Validation score as 8th ranking signal.
+- **Reviewer models** — per-reviewer approval rates and common feedback on Kronode PRs.
+- **Resolution patterns** — failure + fix pairs reapplied to similar future tasks.
+
+### Memory record types:
+| Type | Written by | Used by |
+|------|-----------|---------|
+| `file_touched` | memory_agent | context_builder (heuristic boost +2) |
+| `pr_outcome` | memory_agent + poll_pr_outcomes | dashboard (PR stats) |
+| `pitfall` | poll_pr_outcomes (on changes_requested) | context_builder (per-file warnings) |
+| `coder_failure` | pipeline.py + poll_pr_outcomes | context_builder ("Past Mistakes" section) |
+| `pattern` | memory_agent (reviewer feedback) | context_builder (reviewer patterns) |
+| `convention` | memory_agent (cached extraction) | context_builder (convention fallback) |
 
 ---
 
@@ -390,10 +427,13 @@ Extraction uses cheap LLM. Deduplication by normalized rule text. Confidence = 0
 | Service | Status | Key Methods |
 |---------|--------|-------------|
 | **GitHub** | Impl | `get_repo_tree`, `get_file_content`, `create_pull_request`, `add_files_to_branch`, `get_pr_status`, `fetch_merged_prs` |
+| **Bitbucket** | Impl | Same interface as GitHub — `get_repo_tree`, `get_file_content`, `create_pull_request`, `add_files_to_branch`, `get_pr_status`, `fetch_merged_prs`, `attributed_comments` |
 | **Jira** | Impl | `fetch_project_tickets`, `fetch_ticket_detail`, `update_ticket_status`, `post_plan_comment` |
 | **Slack** | Impl | `post_notification`, `post_clarification`, `get_thread_replies`, `post_plan_for_approval`, `post_conventions_review` |
-| **Convention Extractor** | Impl | `extract_conventions_from_pr`, `deduplicate_conventions`, `score_conventions` |
+| **Convention Extractor** | Impl | `extract_conventions_from_pr` (semantic dedup + scoring), `deduplicate_conventions` (async, embedding-based), `score_conventions` (log-scale) |
 | **LLM Router** | Impl | `cheap()`, `quality()` with automatic failover |
+
+Provider routing: `context_builder`, `convention_pipeline`, `self_onboarding`, and `doc_ingestion` all route to GitHub or Bitbucket based on `OnboardingConfig.repo_provider`.
 
 ---
 
@@ -431,7 +471,7 @@ Extraction uses cheap LLM. Deduplication by normalized rule text. Confidence = 0
 11 POST endpoints for setup wizard steps + 3 test endpoints (GitHub, Jira, Slack).
 
 ### Dashboard
-GET `/v1/dashboard` — agent config, integrations status, recent tasks.
+GET `/v1/dashboard` — agent config, integrations status, recent tasks, PR stats (merged/in-review/rejected/failed, acceptance rate, avg cost/turns).
 
 ---
 
@@ -446,7 +486,7 @@ GET `/v1/dashboard` — agent config, integrations status, recent tasks.
 | `poll_pr_outcomes_task` | Beat | Check PR status → revision or done |
 | `run_pr_revision` | poll_pr_outcomes | Address review comments |
 | `run_convention_extraction` | POST /conventions/extract | Org convention batch |
-| `run_base_convention_extraction` | POST /conventions/extract-base | Base layer from Cal.com |
+| `reset_and_reextract_conventions` | Manual | Nuke + re-extract for org |
 | `refresh_conventions_all_orgs` | Beat (weekly) | Incremental refresh |
 | `run_self_onboarding` | Onboarding complete | Initial repo analysis |
 | `run_continuous_ingestion_task` | Beat | Background context sync |
