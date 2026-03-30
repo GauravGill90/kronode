@@ -108,8 +108,8 @@ export interface JiraTicket {
   url: string;
 }
 
-export const getJiraTickets = () =>
-  api.get<{ tickets: JiraTicket[]; configured: boolean }>("/jira/tickets");
+export const getJiraTickets = (params?: { epic?: string }) =>
+  api.get<{ tickets: JiraTicket[]; configured: boolean }>("/jira/tickets", { params });
 
 // ── Skills ────────────────────────────────────────────────────────────────────
 

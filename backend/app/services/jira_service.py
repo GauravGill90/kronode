@@ -37,12 +37,16 @@ async def fetch_project_tickets(
     email: str,
     api_token: str,
     project_key: str,
+    epic_key: str | None = None,
     max_results: int = 20,
 ) -> list[dict]:
     """Fetch open tickets from a Jira project ordered by most recently updated."""
     base = workspace_url.rstrip("/")
     headers = _auth_headers(email, api_token)
-    jql = f'project = "{project_key}" AND statusCategory != Done ORDER BY updated DESC'
+    jql = f'project = "{project_key}" AND statusCategory != Done'
+    if epic_key:
+        jql += f' AND (parent = "{epic_key}" OR "Epic Link" = "{epic_key}")'
+    jql += ' ORDER BY updated DESC'
 
     async with httpx.AsyncClient(timeout=15) as client:
         # POST /rest/api/3/search/jql — replaces deprecated GET /rest/api/3/search

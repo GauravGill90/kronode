@@ -28,15 +28,21 @@ export default function JiraTickets({ onSelect }: Props) {
   const [configured, setConfigured] = useState(false);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(true);
+  const [epicFilter, setEpicFilter] = useState("");
 
-  useEffect(() => {
-    getJiraTickets()
+  function loadTickets(epic?: string) {
+    setLoading(true);
+    getJiraTickets(epic ? { epic } : undefined)
       .then((res) => {
         setTickets(res.data.tickets);
         setConfigured(res.data.configured);
       })
       .catch(() => {})
       .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    loadTickets();
   }, []);
 
   if (!configured || loading) return null;
@@ -48,13 +54,14 @@ export default function JiraTickets({ onSelect }: Props) {
       style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(99,102,241,0.12)" }}
     >
       {/* Header */}
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center justify-between px-5 py-3"
+      <div className="flex items-center justify-between px-5 py-3"
         style={{ borderBottom: expanded ? "1px solid rgba(99,102,241,0.1)" : "none" }}
       >
-        <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex items-center gap-2"
+        >
           <span className="text-sm font-medium" style={{ color: "#94a3b8" }}>
             Jira backlog
           </span>
@@ -62,13 +69,49 @@ export default function JiraTickets({ onSelect }: Props) {
             className="text-xs px-1.5 py-0.5 rounded-full"
             style={{ background: "rgba(99,102,241,0.15)", color: "#a5b4fc" }}
           >
-            {tickets.length}
+            {loading ? "…" : tickets.length}
           </span>
-        </div>
-        <span className="text-xs" style={{ color: "#475569" }}>
-          {expanded ? "▲" : "▼"}
-        </span>
-      </button>
+          <span className="text-xs" style={{ color: "#475569" }}>
+            {expanded ? "▲" : "▼"}
+          </span>
+        </button>
+        {expanded && (
+          <form
+            onSubmit={(e) => { e.preventDefault(); loadTickets(epicFilter.trim() || undefined); }}
+            className="flex items-center gap-1.5"
+          >
+            <input
+              className="text-xs px-2 py-1 rounded-md w-28"
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(99,102,241,0.2)",
+                color: "#e2e8f0",
+                outline: "none",
+              }}
+              placeholder="Epic key..."
+              value={epicFilter}
+              onChange={(e) => setEpicFilter(e.target.value)}
+            />
+            <button
+              type="submit"
+              className="text-xs px-2 py-1 rounded-md"
+              style={{ color: "#a5b4fc", background: "rgba(99,102,241,0.1)" }}
+            >
+              Filter
+            </button>
+            {epicFilter && (
+              <button
+                type="button"
+                onClick={() => { setEpicFilter(""); loadTickets(); }}
+                className="text-xs px-1"
+                style={{ color: "#64748b" }}
+              >
+                Clear
+              </button>
+            )}
+          </form>
+        )}
+      </div>
 
       {/* Ticket list */}
       {expanded && (

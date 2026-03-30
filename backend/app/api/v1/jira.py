@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -24,6 +24,7 @@ async def _get_config(user_data: dict, db: AsyncSession) -> OnboardingConfig:
 
 @router.get("/jira/tickets")
 async def get_jira_tickets(
+    epic: str | None = Query(None, description="Filter by epic key (e.g. DEECO-1234)"),
     user_data: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -38,5 +39,6 @@ async def get_jira_tickets(
         email=config.jira_email,
         api_token=config.jira_api_token,
         project_key=config.jira_project_key,
+        epic_key=epic,
     )
     return {"tickets": tickets, "configured": True}

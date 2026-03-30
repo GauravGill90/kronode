@@ -69,7 +69,7 @@ async def run_pipeline(task_id_str: str):
         "project_context": config.project_context if config else "",
         "repo_url": config.repo_url if config else "",
         "repo_provider": config.repo_provider if config else "github",
-        "fork_repo_url": config.fork_repo_url if config else None,
+        "fork_repo_url": getattr(config, "fork_repo_url", None) if config else None,
         "github_access_token": config.github_access_token if config else None,
         "guardrails": config.guardrails if config else {},
         "capabilities": config.capabilities if config else {},
