@@ -12,11 +12,22 @@ Given a task description and project context, decide whether the task is ambiguo
 to require clarification before work begins.
 
 Rules:
-- If the task is clear and specific → {"needs_clarification": false, "questions": []}
-- If the task is ambiguous or under-specified → {"needs_clarification": true, "questions": ["q1", ...]}
-- Maximum 3 questions. Each question must be specific and actionable.
-- Ask only what is truly necessary to start the work. Do not ask for information already in the description.
+- Default to NOT asking. Most tasks are clear enough to start. Bias heavily toward {"needs_clarification": false}.
+- Only ask when the task CANNOT be started without an answer — e.g. the target file/module is unclear, or two valid interpretations would lead to completely different implementations.
+- NEVER ask about hypothetical edge cases, future extensibility, or "what if" scenarios. The agent can handle edge cases with sensible defaults.
+- NEVER ask about things that can be inferred from the codebase (e.g. "what branch naming convention?" — just read the code).
+- NEVER ask about multiple linked tickets, all branch types, or naming conventions unless the task is specifically about those topics and the answer is genuinely ambiguous.
+- Maximum 2 questions. Each must be specific, actionable, and blocking.
 - Respond with valid JSON only. No markdown, no explanation outside the JSON.
+
+Examples of when NOT to ask:
+- "Include Jira ID in branch name" → clear, just do it, fall back gracefully if no ID
+- "Replace raw status codes with constants" → clear, mechanical refactor
+- "Fix the login button color" → clear, find and fix it
+
+Examples of when to ask:
+- "Refactor the auth system" → which auth system? There are two (JWT + OAuth)
+- "Add a new API endpoint" → for what resource? No details given
 """
 
 
@@ -30,6 +41,11 @@ class ClarificationAgent(AgentBase):
             logger.info("[Clarification] Simple task — skipping")
             return _skip("Simple task — clarification not needed.")
 
+        # Skip if we already have a clarification answer (pipeline resumed after first round)
+        if context.get("clarification_answer"):
+            logger.info("[Clarification] Already have answer — skipping second round")
+            return _skip("Clarification already provided — skipping.")
+
         slack_token = context.get("slack_bot_token")
         slack_channel = context.get("slack_channel_id")
         if not slack_token or not slack_channel:
@@ -42,9 +58,20 @@ class ClarificationAgent(AgentBase):
         interpreter_ambiguities = structured_task.get("ambiguities", [])
 
         if interpreter_ambiguities:
-            logger.info(f"[Clarification] Using {len(interpreter_ambiguities)} ambiguity(ies) from ticket interpreter")
-            needs_clarification = True
-            questions = interpreter_ambiguities[:3]  # max 3 questions
+            # Filter out non-blocking ambiguities — only keep genuinely blocking ones
+            blocking_keywords = ["which", "what module", "what resource", "conflicting", "two valid", "unclear target"]
+            filtered = [
+                q for q in interpreter_ambiguities
+                if any(kw in q.lower() for kw in blocking_keywords)
+            ]
+            if filtered:
+                logger.info(f"[Clarification] {len(filtered)} blocking ambiguity(ies) from interpreter (filtered from {len(interpreter_ambiguities)})")
+                needs_clarification = True
+                questions = filtered[:2]
+            else:
+                logger.info(f"[Clarification] {len(interpreter_ambiguities)} interpreter ambiguity(ies) filtered out — none blocking")
+                needs_clarification = False
+                questions = []
         else:
             # Fall back to LLM-based ambiguity detection
             description = context.get("description", "")

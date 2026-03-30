@@ -1,4 +1,4 @@
-.PHONY: help infra backend worker beat frontend install migrate stop restart dev test-orchestrator test-quick logs status
+.PHONY: help infra backend worker beat frontend install migrate stop nuke restart dev test-orchestrator test-quick logs status
 
 # Start Postgres + Redis
 infra:
@@ -37,6 +37,24 @@ stop:
 	@pkill -f "next dev" 2>/dev/null || true
 	@sleep 1
 	@echo "All services stopped."
+
+# Force kill everything (SIGKILL) — use when stop doesn't work
+nuke:
+	@pkill -9 -f "uvicorn app.main:app" 2>/dev/null || true
+	@pkill -9 -f "celery -A app.celery_app" 2>/dev/null || true
+	@pkill -9 -f "watchfiles.*celery" 2>/dev/null || true
+	@pkill -9 -f "next dev" 2>/dev/null || true
+	@sleep 1
+	@remaining=$$(ps aux | grep -E "(uvicorn app.main|celery -A app|watchfiles.*celery|next dev)" | grep -v grep | wc -l | tr -d ' '); \
+	if [ "$$remaining" -gt 0 ]; then \
+		echo "$$remaining process(es) still alive — sending another SIGKILL..."; \
+		pkill -9 -f "uvicorn app.main:app" 2>/dev/null || true; \
+		pkill -9 -f "celery -A app.celery_app" 2>/dev/null || true; \
+		pkill -9 -f "watchfiles.*celery" 2>/dev/null || true; \
+		pkill -9 -f "next dev" 2>/dev/null || true; \
+		sleep 1; \
+	fi
+	@echo "All services nuked."
 
 # Stop everything, then start backend + worker + beat in background
 restart: stop

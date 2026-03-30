@@ -53,10 +53,20 @@ async def execute_task(
 
         logger.info(f"[ClaudeExecutor] Cloned {write_repo} to {clone_dir}")
 
-        # 2. Create branch
+        # 2. Create branch (with collision handling)
         subtasks = plan.get("subtasks", [])
         slug = re.sub(r"[^a-z0-9]+", "-", task_description[:40].lower()).strip("-")
         branch_name = f"feature/{slug}"
+
+        # Check if branch already exists on remote — append suffix if so
+        check_remote = subprocess.run(
+            ["git", "ls-remote", "--heads", "origin", branch_name],
+            cwd=clone_dir, capture_output=True, text=True, timeout=30,
+        )
+        if check_remote.stdout.strip():
+            import time
+            branch_name = f"{branch_name}-{int(time.time()) % 10000}"
+            logger.info(f"[ClaudeExecutor] Branch collision — using {branch_name}")
 
         subprocess.run(
             ["git", "checkout", "-b", branch_name],
@@ -354,9 +364,22 @@ def _build_task_prompt(task_description: str, plan: dict, review_feedback: dict 
         prompt += "\n\n## Assumptions\n"
         prompt += "\n".join(f"- {a}" for a in assumptions)
 
-    prompt += "\n\nImplement the plan above. Only modify files necessary for the fix. Do not reformat unchanged code."
-    prompt += "\nIf the fix is a pattern-level issue (e.g. inconsistent style, naming, imports), check sibling files in the same directory for the same problem and fix those too."
-    prompt += "\nFor simple refactors, make the changes directly — do not explore repo structure or search for tests unless the task requires it."
+    # Collect all unique files from the plan
+    all_planned_files = []
+    for st in subtasks:
+        for f in st.get("files_affected", []):
+            if f not in all_planned_files:
+                all_planned_files.append(f)
+
+    prompt += "\n\n## Mandatory Checklist"
+    prompt += "\nYou MUST complete every subtask above and modify every file listed. Before finishing, verify:"
+    for f in all_planned_files:
+        prompt += f"\n- [ ] Modified: {f}"
+    prompt += "\n\nDo NOT skip any subtask. If the plan says to modify a file, modify it."
+    prompt += "\nDo NOT explore the repo structure — go directly to the files listed above."
+    prompt += "\nDo NOT search for or create tests unless a subtask explicitly says to."
+    prompt += "\nIf the fix is a pattern-level issue, also check sibling files for the same problem."
+    prompt += "\nDo not reformat unchanged code."
     return prompt
 
 

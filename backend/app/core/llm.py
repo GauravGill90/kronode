@@ -97,7 +97,10 @@ async def _openai_compat(system: str, user_message: str, max_tokens: int,
             {"role": "user", "content": user_message},
         ],
     )
-    return response.choices[0].message.content.strip()
+    content = response.choices[0].message.content
+    if not content:
+        raise ValueError(f"{model} returned empty content (finish_reason={response.choices[0].finish_reason})")
+    return content.strip()
 
 
 async def _gemini(system: str, user_message: str, max_tokens: int) -> str:

@@ -14,7 +14,11 @@ Rules:
 - Extract explicit requirements from the description. Each requirement should be a single, actionable item.
 - Identify what is in scope and what is out of scope.
 - Extract acceptance criteria if present in the ticket.
-- List ambiguities — things that are unclear or could be interpreted multiple ways. Only list genuine ambiguities, not things that are obvious from context.
+- List ambiguities — things that are unclear or could be interpreted multiple ways. Only list GENUINE ambiguities that would block implementation. Do NOT list:
+  - Edge cases or "what if" scenarios (the agent handles those with sensible defaults)
+  - Questions about fallback behavior when input is missing (default: keep existing behavior)
+  - Format/style questions that can be inferred from existing code
+  - If the task is clear enough to start, return an empty ambiguities list.
 - Classify the ticket type: bug_fix, feature, refactor, or chore.
 - Estimate complexity: simple (< 3 files, clear scope), medium (3-10 files, some unknowns), complex (10+ files or significant unknowns).
 - Write a clean one-line title summarising the task.
