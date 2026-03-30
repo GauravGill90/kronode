@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.config import settings
@@ -8,10 +8,12 @@ bearer_scheme = HTTPBearer(auto_error=not settings.bypass_auth)
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    as_user: str | None = Query(None, alias="as_user", description="Dev only: override user ID"),
 ) -> dict:
-    # Dev bypass — skip Clerk entirely
+    # Dev bypass — skip Clerk, optionally pick user via ?as_user=clerk_id
     if settings.bypass_auth:
-        return {"user_id": settings.bypass_auth_user_id, "session_id": "dev"}
+        user_id = as_user or settings.bypass_auth_user_id
+        return {"user_id": user_id, "session_id": "dev"}
 
     if not credentials:
         raise HTTPException(

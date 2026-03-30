@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { TaskEvent, TaskStatus } from "@/lib/types";
 import { Spinner } from "@/components/ui/Spinner";
-import EventLine from "./EventLine";
+import EventLine, { shouldShowEvent } from "./EventLine";
 
 interface ProgressStreamProps {
   liveEvents: TaskEvent[];
@@ -68,7 +68,10 @@ export default function ProgressStream({ liveEvents, historicalEvents, connected
   }
   merged.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
 
-  if (merged.length === 0 && status === "queued") {
+  // Filter out "starting..." events
+  const visible = merged.filter(shouldShowEvent);
+
+  if (visible.length === 0 && (status === "queued" || status === "running")) {
     return (
       <div
         className="rounded-2xl p-5 flex items-center gap-3 text-sm"
@@ -80,7 +83,7 @@ export default function ProgressStream({ liveEvents, historicalEvents, connected
     );
   }
 
-  const grouped = groupEvents(merged);
+  const grouped = groupEvents(visible);
 
   return (
     <div
@@ -100,7 +103,7 @@ export default function ProgressStream({ liveEvents, historicalEvents, connected
         )}
       </div>
       <div>
-        {grouped.length === 0 ? (
+        {visible.length === 0 ? (
           <div className="px-5 py-4 text-sm" style={{ color: "#475569" }}>No activity yet.</div>
         ) : (
           grouped.map((item, i) =>

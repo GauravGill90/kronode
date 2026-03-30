@@ -24,6 +24,8 @@ import {
   getOnboardingConfig,
   getSkills,
   saveSkills,
+  refreshAllIngestion,
+  getIngestionStatus,
   type SkillInfo,
 } from "@/lib/api";
 import StageBar from "./StageBar";
@@ -373,6 +375,103 @@ function AgentForm({ onSave }: { onSave: () => void }) {
     </div>
   );
 }
+
+function RefreshIngestionButton() {
+  const [loading, setLoading] = useState(false);
+  const [polling, setPolling] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [stats, setStats] = useState<{ doc_chunks: number; conventions: number; reviewer_patterns: number } | null>(null);
+
+  // Fetch initial stats on mount
+  useEffect(() => {
+    getIngestionStatus().then((res) => setStats(res.data)).catch(() => {});
+  }, []);
+
+  async function handleRefresh() {
+    setLoading(true);
+    setResult(null);
+    try {
+      const res = await refreshAllIngestion();
+      setResult({ ok: true, message: "Queued — processing..." });
+      setPolling(true);
+
+      // Poll status every 5s for up to 3 minutes
+      let polls = 0;
+      const interval = setInterval(async () => {
+        polls++;
+        try {
+          const status = await getIngestionStatus();
+          setStats(status.data);
+          // Stop polling after counts change or 3 min
+          if (polls >= 36) {
+            clearInterval(interval);
+            setPolling(false);
+            setResult({ ok: true, message: "Done" });
+          }
+        } catch {
+          clearInterval(interval);
+          setPolling(false);
+        }
+      }, 5000);
+    } catch {
+      setResult({ ok: false, message: "Failed to queue refresh" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div
+      className="rounded-xl p-4"
+      style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.15)" }}
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium" style={{ color: "#e2e8f0" }}>Refresh knowledge</p>
+          <p className="text-xs mt-0.5" style={{ color: "#475569" }}>
+            Re-ingest docs, extract conventions from PRs, and detect stack
+          </p>
+          {result && (
+            <p className="text-xs mt-1" style={{ color: result.ok ? "#34d399" : "#f87171" }}>
+              {polling ? "Processing..." : result.message}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={handleRefresh}
+          disabled={loading || polling}
+          className="text-sm px-4 py-2 rounded-lg font-medium transition-all flex-shrink-0"
+          style={{
+            background: loading || polling ? "rgba(99,102,241,0.1)" : "rgba(99,102,241,0.15)",
+            color: loading || polling ? "#475569" : "#a5b4fc",
+            border: "1px solid rgba(99,102,241,0.25)",
+            cursor: loading || polling ? "not-allowed" : "pointer",
+          }}
+        >
+          {loading ? "Queuing..." : polling ? "Processing..." : "Refresh all"}
+        </button>
+      </div>
+
+      {stats && (
+        <div className="flex gap-6 mt-3 pt-3" style={{ borderTop: "1px solid rgba(99,102,241,0.1)" }}>
+          <div>
+            <p className="text-lg font-semibold" style={{ color: "#a5b4fc" }}>{stats.doc_chunks}</p>
+            <p className="text-xs" style={{ color: "#475569" }}>Doc chunks</p>
+          </div>
+          <div>
+            <p className="text-lg font-semibold" style={{ color: "#a5b4fc" }}>{stats.conventions}</p>
+            <p className="text-xs" style={{ color: "#475569" }}>Conventions</p>
+          </div>
+          <div>
+            <p className="text-lg font-semibold" style={{ color: "#a5b4fc" }}>{stats.reviewer_patterns}</p>
+            <p className="text-xs" style={{ color: "#475569" }}>Patterns</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function RepoForm({ onSave, onFail }: { onSave: () => void; onFail?: () => void }) {
   const store = useOnboardingStore();
@@ -1595,6 +1694,9 @@ export default function OnboardingDashboard({ isSettings = false }: { isSettings
             projectContext={store.projectContext}
           />
         </div>
+
+        {/* Refresh ingestion button — visible when repo is connected */}
+        {store.repo && <RefreshIngestionButton />}
 
         {/* Launch CTA — onboarding only */}
         {!isSettings && requiredDone && (

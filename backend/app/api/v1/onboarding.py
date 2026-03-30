@@ -325,6 +325,55 @@ async def trigger_doc_ingestion(
     return {"ok": True, "message": f"Doc ingestion queued for org {org.id}"}
 
 
+@router.post("/refresh-all")
+async def refresh_all_ingestion(
+    user_data: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Refresh everything: self-onboarding (stack detection + PR patterns), convention extraction, and doc ingestion."""
+    _, org, config = await _get_or_create_org(user_data, db)
+    if not config.repo_url or not config.github_access_token:
+        raise HTTPException(status_code=400, detail="No repo or GitHub token configured")
+
+    queued = []
+    from app.pipeline.task_queue import run_self_onboarding, run_convention_extraction, run_doc_ingestion
+    run_self_onboarding.delay(org.id)
+    queued.append("self-onboarding")
+    run_convention_extraction.delay(org.id, 200)
+    queued.append("convention extraction (200 PRs)")
+    run_doc_ingestion.delay(org.id, "git")
+    queued.append("doc ingestion")
+
+    return {"ok": True, "queued": queued, "message": f"Queued {len(queued)} jobs for org {org.id}"}
+
+
+@router.get("/ingestion-status")
+async def get_ingestion_status(
+    user_data: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Check how much data has been ingested for this org."""
+    from sqlalchemy import func
+    from app.models.doc_chunk import DocChunk
+    from app.models.convention import Convention
+    from app.models.memory import MemoryRecord
+
+    _, org, config = await _get_or_create_org(user_data, db)
+    oid = org.id
+
+    doc_count = (await db.execute(select(func.count()).select_from(DocChunk).where(DocChunk.org_id == oid))).scalar() or 0
+    conv_count = (await db.execute(select(func.count()).select_from(Convention).where(Convention.org_id == oid))).scalar() or 0
+    pattern_count = (await db.execute(select(func.count()).select_from(MemoryRecord).where(MemoryRecord.org_id == oid, MemoryRecord.record_type == "pattern"))).scalar() or 0
+
+    return {
+        "org_id": oid,
+        "doc_chunks": doc_count,
+        "conventions": conv_count,
+        "reviewer_patterns": pattern_count,
+        "repo_url": config.repo_url,
+    }
+
+
 @router.post("/test-github-token")
 async def test_github_token(
     payload: GitHubTokenTestPayload,

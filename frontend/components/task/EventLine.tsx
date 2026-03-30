@@ -19,12 +19,26 @@ const AGENT_ICONS: Record<string, string> = {
   pipeline: "⚙️",
 };
 
+// Hide "starting..." events — they add noise
+export function shouldShowEvent(event: TaskEvent): boolean {
+  if (event.event_type === "started") return false;
+  return true;
+}
+
 export default function EventLine({ event }: { event: TaskEvent }) {
   const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
   const icon = AGENT_ICONS[event.agent_name] || "•";
   const isError = event.event_type === "failed";
   const isComplete = event.event_type === "completed";
   const hasPayload = event.payload && Object.keys(event.payload).length > 0;
+
+  function handleCopy() {
+    if (!event.payload) return;
+    navigator.clipboard.writeText(JSON.stringify(event.payload, null, 2));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
 
   return (
     <div
@@ -80,17 +94,28 @@ export default function EventLine({ event }: { event: TaskEvent }) {
           style={{ paddingLeft: "3.25rem" }}
         >
           <div
-            className="rounded-lg p-3 overflow-auto text-xs font-mono"
+            className="rounded-lg overflow-auto text-xs font-mono relative"
             style={{
               background: "rgba(0,0,0,0.3)",
               border: "1px solid rgba(99,102,241,0.12)",
               color: "#94a3b8",
               maxHeight: "400px",
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-word",
             }}
           >
-            {formatPayload(event.payload!)}
+            <button
+              onClick={(e) => { e.stopPropagation(); handleCopy(); }}
+              className="absolute top-2 right-2 text-xs px-2 py-1 rounded transition-colors"
+              style={{
+                background: copied ? "rgba(52,211,153,0.15)" : "rgba(99,102,241,0.15)",
+                color: copied ? "#34d399" : "#818cf8",
+                border: `1px solid ${copied ? "rgba(52,211,153,0.3)" : "rgba(99,102,241,0.25)"}`,
+              }}
+            >
+              {copied ? "Copied" : "Copy"}
+            </button>
+            <pre className="p-3 whitespace-pre-wrap break-words">
+              {formatPayload(event.payload!)}
+            </pre>
           </div>
         </div>
       )}

@@ -65,6 +65,12 @@ export const saveGithubToken = (data: { token: string }) =>
 export const completeOnboarding = () =>
   api.post("/onboarding/complete");
 
+export const refreshAllIngestion = () =>
+  api.post("/onboarding/refresh-all");
+
+export const getIngestionStatus = () =>
+  api.get("/onboarding/ingestion-status");
+
 export const getOnboardingStatus = () =>
   api.get("/onboarding/status");
 
