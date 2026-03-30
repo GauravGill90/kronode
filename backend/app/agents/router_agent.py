@@ -27,7 +27,7 @@ Respond with valid JSON only. No markdown, no explanation.
 FEW_SHOT = """Classification rules:
 - "simple": single-file, cosmetic, or mechanical changes with no ambiguity (e.g. fix a typo, change a color, replace constants)
 - "medium": changes that touch multiple files, cross-cutting patterns, infrastructure/tooling changes, or anything where related changes in sibling files are likely
-- "complex": new features spanning multiple modules, architectural changes, or tasks requiring design decisions
+- "complex": new features spanning multiple modules, architectural changes, tasks requiring design decisions, or writing unit/integration tests for existing code (tests need deep understanding of the codebase)
 
 Examples:
 
@@ -42,6 +42,9 @@ Response: {"agents": ["ticket_interpreter", "context_builder", "clarification_ag
 
 Task: "Add forgot password screen"
 Response: {"agents": ["ticket_interpreter", "context_builder", "clarification_agent", "planner_agent", "plan_approval_agent", "guardrails_agent", "coder_agent", "tester_agent", "execution_verifier", "reviewer_agent", "memory_agent"], "complexity": "medium", "steps": 11}
+
+Task: "Add unit tests for BLE auth and queue fixes"
+Response: {"agents": ["ticket_interpreter", "context_builder", "planner_agent", "guardrails_agent", "coder_agent", "reviewer_agent", "memory_agent"], "complexity": "complex", "steps": 7}
 
 Task: "Build full authentication system"
 Response: {"agents": ["ticket_interpreter", "context_builder", "clarification_agent", "planner_agent", "plan_approval_agent", "guardrails_agent", "coder_agent", "tester_agent", "execution_verifier", "reviewer_agent", "memory_agent"], "complexity": "complex", "steps": 11}

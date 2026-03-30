@@ -48,22 +48,24 @@ class CoderAgent(AgentBase):
             async def on_event(msg: str):
                 await emit_event(uuid.UUID(task_id), "coder_agent", "progress", msg)
 
-        # Escalate to fallback model on retry
-        review_feedback = context.get("review_feedback")
+        # Set model and turns based on complexity
+        complexity = context.get("routing", {}).get("complexity", "medium")
         model_override = None
+        if complexity == "complex":
+            model_override = settings.agent_sdk_fallback_model  # sonnet for complex
+            max_turns = settings.agent_sdk_max_turns_complex
+        elif complexity == "simple":
+            max_turns = settings.agent_sdk_max_turns_simple
+        else:
+            max_turns = settings.agent_sdk_max_turns
+
+        # Escalate to fallback model on retry (regardless of complexity)
+        review_feedback = context.get("review_feedback")
         if review_feedback:
             revision = review_feedback.get("revision_number", 0)
             if revision >= 1:
                 model_override = settings.agent_sdk_fallback_model
                 logger.info(f"CoderAgent: revision {revision} — escalating to {model_override}")
-
-        # Cap turns for simple tasks
-        complexity = context.get("routing", {}).get("complexity", "medium")
-        max_turns = (
-            settings.agent_sdk_max_turns_simple
-            if complexity == "simple"
-            else settings.agent_sdk_max_turns
-        )
 
         result = await execute_task(
             task_description=description,

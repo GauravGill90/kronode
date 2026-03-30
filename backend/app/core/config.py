@@ -54,8 +54,9 @@ class Settings(BaseSettings):
     # Claude Agent SDK (coder agent execution engine)
     agent_sdk_model: str = "haiku"  # haiku | sonnet | opus
     agent_sdk_fallback_model: str = "sonnet"  # model to use on retry after failure
-    agent_sdk_max_turns: int = 10  # max tool round-trips per task
+    agent_sdk_max_turns: int = 15  # max tool round-trips for medium tasks
     agent_sdk_max_turns_simple: int = 6  # max turns for simple-classified tasks
+    agent_sdk_max_turns_complex: int = 25  # max turns for complex tasks
 
     # Beat schedule — set to true to enable automatic polling
     enable_poll_pr: bool = True        # ENABLE_POLL_PR=true to auto-poll PR outcomes
