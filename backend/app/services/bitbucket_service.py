@@ -115,52 +115,91 @@ async def _list_all_files(
 
 
 async def get_repo_tree(repo_url: str, token: str) -> list[str]:
-    """Return a list of all file paths in the default branch."""
-    workspace, repo_slug = _parse_repo(repo_url)
-    headers = _auth_headers(token)
+    """Return a list of all file paths in the default branch.
 
-    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-        resp = await client.get(
-            f"{BITBUCKET_API}/repositories/{workspace}/{repo_slug}",
-            headers=headers,
+    Uses shallow git clone instead of the /src/ API endpoint because
+    Bitbucket workspace API tokens don't support /src/ browsing.
+    """
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+
+    clone_url = repo_url.rstrip("/")
+    if clone_url.startswith("https://bitbucket.org/"):
+        clone_url = clone_url.replace(
+            "https://bitbucket.org/",
+            f"https://x-token-auth:{token}@bitbucket.org/",
         )
-        resp.raise_for_status()
-        default_branch = resp.json()["mainbranch"]["name"]
 
-        # Resolve branch → commit hash
-        resp = await client.get(
-            f"{BITBUCKET_API}/repositories/{workspace}/{repo_slug}/refs/branches/{default_branch}",
-            headers=headers,
-        )
-        resp.raise_for_status()
-        commit = resp.json()["target"]["hash"]
+    clone_dir = tempfile.mkdtemp(prefix="kronode_tree_")
+    proc = subprocess.run(
+        ["git", "clone", "--depth", "1", clone_url, clone_dir],
+        capture_output=True, text=True, timeout=120,
+    )
+    if proc.returncode != 0:
+        logger.warning(f"[Bitbucket] get_repo_tree clone failed: {proc.stderr[:200]}")
+        shutil.rmtree(clone_dir, ignore_errors=True)
+        return []
 
-        all_files = await _list_all_files(client, workspace, repo_slug, commit, token)
+    # Cache for subsequent get_file_content calls
+    _clone_cache[repo_url.rstrip("/")] = clone_dir
 
-    paths = [
-        item["path"]
-        for item in all_files
-        if not _should_skip(item["path"])
-    ]
+    paths = []
+    for root, dirs, files in os.walk(clone_dir):
+        dirs[:] = [d for d in dirs if d not in _SKIP_DIRS and not d.startswith(".")]
+        for f in files:
+            full = os.path.join(root, f)
+            rel = os.path.relpath(full, clone_dir)
+            if not _should_skip(rel):
+                paths.append(rel)
     return paths
 
 
-async def get_file_content(repo_url: str, path: str, token: str) -> str | None:
-    """Fetch and return the raw content of a single file. Returns None on error."""
-    workspace, repo_slug = _parse_repo(repo_url)
-    headers = _auth_headers(token)
+# Cache the clone dir for get_file_content calls within the same process
+_clone_cache: dict[str, str] = {}
 
-    async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
-        resp = await client.get(
-            f"{BITBUCKET_API}/repositories/{workspace}/{repo_slug}/src/HEAD/{path}",
-            headers=headers,
+
+async def get_file_content(repo_url: str, path: str, token: str) -> str | None:
+    """Read a single file from the repo.
+
+    Reuses the shallow clone from get_repo_tree if available.
+    Falls back to a fresh clone if not cached.
+    """
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+
+    cache_key = repo_url.rstrip("/")
+    clone_dir = _clone_cache.get(cache_key)
+
+    if not clone_dir or not os.path.exists(clone_dir):
+        # No cached clone — do a fresh shallow clone
+        clone_url = cache_key
+        if clone_url.startswith("https://bitbucket.org/"):
+            clone_url = clone_url.replace(
+                "https://bitbucket.org/",
+                f"https://x-token-auth:{token}@bitbucket.org/",
+            )
+        clone_dir = tempfile.mkdtemp(prefix="kronode_file_")
+        proc = subprocess.run(
+            ["git", "clone", "--depth", "1", clone_url, clone_dir],
+            capture_output=True, text=True, timeout=120,
         )
-        if resp.status_code != 200:
+        if proc.returncode != 0:
+            shutil.rmtree(clone_dir, ignore_errors=True)
             return None
-        try:
-            return resp.text
-        except Exception:
-            return None
+        _clone_cache[cache_key] = clone_dir
+
+    file_path = os.path.join(clone_dir, path)
+    if not os.path.exists(file_path):
+        return None
+    try:
+        with open(file_path, "r", errors="replace") as f:
+            return f.read()
+    except Exception:
+        return None
 
 
 async def create_pull_request(
