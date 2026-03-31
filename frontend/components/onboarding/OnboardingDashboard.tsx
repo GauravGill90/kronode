@@ -25,6 +25,10 @@ import {
 import SetupCard from "./SetupCard";
 import StepMCPSetup from "./StepMCPSetup";
 import Modal from "@/components/ui/Modal";
+import {
+  User, GitBranch, FileText, AlignLeft, FlaskConical,
+  Brain, Tag, MessageSquare,
+} from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -586,10 +590,11 @@ export default function OnboardingDashboard({ isSettings = false }: { isSettings
     router.push("/dashboard");
   }
 
+  const iconCls = "w-5 h-5";
   const cards = [
     {
       id: "account",
-      icon: "👤",
+      icon: <User className={iconCls} />,
       title: "Your account",
       description: store.account ? `${store.account.name} · ${store.account.company_name}` : "Name and company",
       required: true,
@@ -597,7 +602,7 @@ export default function OnboardingDashboard({ isSettings = false }: { isSettings
     },
     {
       id: "repo",
-      icon: "🔗",
+      icon: <GitBranch className={iconCls} />,
       title: "Connect repository",
       description: store.repo ? `${store.repo.provider} · ${store.repo.repo_name}` : "GitHub, Bitbucket, or GitLab",
       required: true,
@@ -605,7 +610,7 @@ export default function OnboardingDashboard({ isSettings = false }: { isSettings
     },
     {
       id: "docs",
-      icon: "📄",
+      icon: <FileText className={iconCls} />,
       title: "Connect documentation",
       description: store.docs ? `${store.docs.provider} · ${store.docs.scope}` : "Confluence, Notion, or Google Drive",
       required: false,
@@ -613,7 +618,7 @@ export default function OnboardingDashboard({ isSettings = false }: { isSettings
     },
     {
       id: "context",
-      icon: "📝",
+      icon: <AlignLeft className={iconCls} />,
       title: "Project context",
       description: store.projectContext.length >= 20 ? store.projectContext.slice(0, 60) + "…" : "Describe your project",
       required: true,
@@ -621,7 +626,7 @@ export default function OnboardingDashboard({ isSettings = false }: { isSettings
     },
     {
       id: "ingestion",
-      icon: "🔬",
+      icon: <FlaskConical className={iconCls} />,
       title: "Run ingestion",
       description: store.ingestionDone ? "Conventions + docs extracted" : "Analyze PR history and ingest docs",
       required: true,
@@ -629,7 +634,7 @@ export default function OnboardingDashboard({ isSettings = false }: { isSettings
     },
     {
       id: "mcp_setup",
-      icon: "🧠",
+      icon: <Brain className={iconCls} />,
       title: "Connect AI tool",
       description: store.apiKeyGenerated ? "API key generated" : "Set up MCP in Claude Code, Cursor, etc.",
       required: true,
@@ -637,7 +642,7 @@ export default function OnboardingDashboard({ isSettings = false }: { isSettings
     },
     {
       id: "jira",
-      icon: "🏷️",
+      icon: <Tag className={iconCls} />,
       title: "Connect Jira",
       description: store.jira ? `${store.jira.project_key}` : "Issue tracking (optional)",
       required: false,
@@ -645,7 +650,7 @@ export default function OnboardingDashboard({ isSettings = false }: { isSettings
     },
     {
       id: "slack",
-      icon: "💬",
+      icon: <MessageSquare className={iconCls} />,
       title: "Connect Slack",
       description: store.slack ? store.slack.channel_name : "Notifications (optional)",
       required: false,

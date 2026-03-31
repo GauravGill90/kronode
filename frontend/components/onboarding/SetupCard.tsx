@@ -1,5 +1,7 @@
+import React from "react";
+
 interface SetupCardProps {
-  icon: string;
+  icon: React.ReactNode;
   title: string;
   description: string;
   status: "completed" | "pending" | "optional" | "failed";

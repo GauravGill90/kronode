@@ -4,6 +4,7 @@ import { SignInButton, SignUpButton, useUser } from "@clerk/nextjs";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { colors, gradients } from "@/tokens/colors";
+import { Brain, Plug, Shield } from "lucide-react";
 
 export default function WelcomePage() {
   const { isSignedIn, isLoaded } = useUser();
@@ -103,19 +104,19 @@ export default function WelcomePage() {
         {/* Trust signals */}
         <div className="grid grid-cols-3 gap-2">
           {[
-            { icon: "🧠", title: "Learns from PRs", desc: "Extracts conventions automatically" },
-            { icon: "🔌", title: "Works everywhere", desc: "Any MCP-compatible AI tool" },
-            { icon: "🔒", title: "Your data, yours", desc: "Encrypted, org-isolated" },
+            { icon: <Brain className="w-5 h-5" />, title: "Learns from PRs", desc: "Extracts conventions automatically" },
+            { icon: <Plug className="w-5 h-5" />, title: "Works everywhere", desc: "Any MCP-compatible AI tool" },
+            { icon: <Shield className="w-5 h-5" />, title: "Your data, yours", desc: "Encrypted, org-isolated" },
           ].map(({ icon, title, desc }) => (
             <div
               key={title}
-              className="rounded-xl p-3 text-center"
+              className="rounded-xl p-4 text-center"
               style={{
                 background: colors.bg.raised,
                 border: `1px solid ${colors.border.default}`,
               }}
             >
-              <div className="text-lg mb-1">{icon}</div>
+              <div className="flex justify-center mb-2" style={{ color: colors.brand.primary }}>{icon}</div>
               <div className="text-xs font-semibold mb-0.5" style={{ color: colors.text.primary }}>{title}</div>
               <div className="text-xs" style={{ color: colors.text.secondary }}>{desc}</div>
             </div>

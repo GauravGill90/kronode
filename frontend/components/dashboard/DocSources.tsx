@@ -2,6 +2,7 @@
 
 import { refreshAllIngestion } from "@/lib/api";
 import { useState } from "react";
+import { GitBranch, FileText, Globe, BookOpen, FolderOpen } from "lucide-react";
 
 interface DocSource {
   source_type: string;
@@ -53,8 +54,12 @@ export default function DocSources({ sources, totalChunks }: Props) {
         <div className="space-y-2">
           {sources.map((src) => (
             <div key={src.source_type} className="flex items-center gap-3 py-2">
-              <div className="w-7 h-7 rounded-lg bg-surface-overlay flex items-center justify-center text-xs font-bold text-text-secondary">
-                {src.source_type[0].toUpperCase()}
+              <div className="w-7 h-7 rounded-lg bg-surface-overlay flex items-center justify-center text-text-secondary">
+                {src.source_type === "confluence" ? <Globe className="w-3.5 h-3.5" /> :
+                 src.source_type === "notion" ? <BookOpen className="w-3.5 h-3.5" /> :
+                 src.source_type === "gdrive" ? <FolderOpen className="w-3.5 h-3.5" /> :
+                 src.source_type === "git" ? <GitBranch className="w-3.5 h-3.5" /> :
+                 <FileText className="w-3.5 h-3.5" />}
               </div>
               <div className="flex-1">
                 <p className="text-sm text-text-primary">{sourceLabel(src.source_type)}</p>
