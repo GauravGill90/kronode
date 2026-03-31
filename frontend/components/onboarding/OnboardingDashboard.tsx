@@ -300,7 +300,7 @@ function JiraForm({ onSave, onFail }: { onSave: () => void; onFail: () => void }
     setTesting(true);
     try {
       const res = await testJira(form);
-      setTestResult({ ok: res.data.ok, message: res.data.ok ? `Connected to ${form.project_key}` : res.data.error });
+      setTestResult({ ok: res.data.ok, message: res.data.ok ? `Connected to ${form.project_key}` : (res.data.error || "Connection failed") });
     } catch (e: any) {
       setTestResult({ ok: false, message: "Connection failed" });
     }

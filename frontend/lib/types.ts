@@ -17,7 +17,7 @@ export interface Task {
   description: string;
   status: TaskStatus;
   jira_ticket_id: string | null;
-  result: Record<string, unknown> | null;
+  result: Record<string, any> | null;  // eslint-disable-line @typescript-eslint/no-explicit-any
   error: string | null;
   created_at: string;
   completed_at: string | null;

@@ -66,7 +66,7 @@ export default function ProgressStream({ liveEvents, historicalEvents, connected
       merged.push(e);
     }
   }
-  merged.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  merged.sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
 
   // Filter out "starting..." events
   const visible = merged.filter(shouldShowEvent);
