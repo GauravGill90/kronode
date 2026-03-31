@@ -88,6 +88,14 @@ class GitProvider(ABC):
         ...
 
     @abstractmethod
+    async def list_org_repos(self, org_or_workspace: str, token: str) -> list[dict]:
+        """List all repos in a GitHub org / Bitbucket workspace / GitLab group.
+
+        Returns list of dicts with: repo_url, repo_name, default_branch, description.
+        """
+        ...
+
+    @abstractmethod
     async def validate_token(self, token: str, repo_url: str) -> dict:
         """Validate the token and return repo metadata.
 

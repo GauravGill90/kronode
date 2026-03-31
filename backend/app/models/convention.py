@@ -12,6 +12,7 @@ class Convention(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     org_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("organizations.id"), index=True)  # null = base convention
+    repo_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("repositories.id"), index=True)  # null = org-wide
 
     rule: Mapped[str] = mapped_column(Text)
     category: Mapped[str] = mapped_column(String(50), index=True)  # naming | error_handling | testing | logging | architecture | style

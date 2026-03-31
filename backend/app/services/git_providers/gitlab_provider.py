@@ -405,6 +405,35 @@ class GitLabProvider(GitProvider):
         logger.info(f"[GitLab] fetched {len(prs)} merged MRs")
         return prs
 
+    async def list_org_repos(self, org_or_workspace: str, token: str) -> list[dict]:
+        # org_or_workspace is the group name/path. We need to URL-encode it.
+        from urllib.parse import quote_plus
+        headers = _auth_headers(token)
+        repos: list[dict] = []
+        group_encoded = quote_plus(org_or_workspace)
+        page = 1
+        async with httpx.AsyncClient(timeout=30) as client:
+            while True:
+                resp = await client.get(
+                    f"https://gitlab.com/api/v4/groups/{group_encoded}/projects",
+                    headers=headers,
+                    params={"per_page": 100, "page": page, "archived": "false"},
+                )
+                if resp.status_code != 200:
+                    break
+                items = resp.json()
+                if not items:
+                    break
+                for r in items:
+                    repos.append({
+                        "repo_url": r.get("web_url", ""),
+                        "repo_name": r.get("path_with_namespace", ""),
+                        "default_branch": r.get("default_branch", "main"),
+                        "description": r.get("description") or "",
+                    })
+                page += 1
+        return repos
+
     async def validate_token(self, token: str, repo_url: str) -> dict:
         api_base, project = _parse_repo(repo_url)
         headers = _auth_headers(token)

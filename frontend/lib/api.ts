@@ -114,6 +114,20 @@ export const getOnboardingStatus = () =>
 export const getOnboardingConfig = () =>
   api.get("/onboarding/config");
 
+// ── Repos ─────────────────────────────────────────────────────────────────────
+
+export const discoverRepos = (data: { provider: string; org_name: string }) =>
+  api.post("/repos/discover", data);
+
+export const listRepos = () =>
+  api.get("/repos");
+
+export const toggleRepo = (repoId: number, active: boolean) =>
+  api.patch(`/repos/${repoId}`, { active });
+
+export const ingestRepo = (repoId: number) =>
+  api.post(`/repos/${repoId}/ingest`);
+
 // ── Dashboard ──────────────────────────────────────────────────────────────────
 
 export const getDashboard = () =>

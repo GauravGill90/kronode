@@ -22,8 +22,9 @@ class OnboardingConfig(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     org_id: Mapped[int] = mapped_column(Integer, ForeignKey("organizations.id"), unique=True, index=True)
 
-    # Step 2 — repo
-    repo_url: Mapped[str | None] = mapped_column(String(500))  # upstream repo (read: ingestion, context, conventions)
+    # Step 2 — git org/workspace (multi-repo)
+    git_org_name: Mapped[str | None] = mapped_column(String(255))  # GitHub org / Bitbucket workspace / GitLab group
+    repo_url: Mapped[str | None] = mapped_column(String(500))  # primary repo (backward compat)
     # TEMP: fork_repo_url commented out due to asyncpg prepared statement cache issue
     # fork_repo_url: Mapped[str | None] = mapped_column(String(500))  # fork repo (write: branches, commits, PRs)
     repo_provider: Mapped[str | None] = mapped_column(String(50))  # github / gitlab / bitbucket

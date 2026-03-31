@@ -12,6 +12,7 @@ class DocChunk(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     org_id: Mapped[int] = mapped_column(Integer, ForeignKey("organizations.id"), index=True)
+    repo_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("repositories.id"), index=True)
 
     source_type: Mapped[str] = mapped_column(String(50), index=True)  # git | confluence | gdrive | notion
     source_ref: Mapped[str] = mapped_column(String(500), index=True)  # unique id within source, e.g. "owner/repo:path/to/file.md"

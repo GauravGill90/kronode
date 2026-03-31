@@ -76,6 +76,29 @@ class BitbucketProvider(GitProvider):
     ) -> list[dict]:
         return await bitbucket_service.fetch_merged_prs(repo_url, token, count)
 
+    async def list_org_repos(self, org_or_workspace: str, token: str) -> list[dict]:
+        import httpx
+        headers = bitbucket_service._auth_headers(token)
+        repos: list[dict] = []
+        url = f"{bitbucket_service.BITBUCKET_API}/repositories/{org_or_workspace}"
+        async with httpx.AsyncClient(timeout=30) as client:
+            while url:
+                resp = await client.get(url, headers=headers, params={"pagelen": 100})
+                if resp.status_code != 200:
+                    break
+                data = resp.json()
+                for r in data.get("values", []):
+                    clone_links = r.get("links", {}).get("clone", [])
+                    https_url = next((l["href"] for l in clone_links if l["name"] == "https"), "")
+                    repos.append({
+                        "repo_url": f"https://bitbucket.org/{r.get('full_name', '')}",
+                        "repo_name": r.get("full_name", ""),
+                        "default_branch": r.get("mainbranch", {}).get("name", "main"),
+                        "description": r.get("description") or "",
+                    })
+                url = data.get("next")  # pagination
+        return repos
+
     async def validate_token(self, token: str, repo_url: str) -> dict:
         """Validate Bitbucket token by fetching repo metadata."""
         import httpx

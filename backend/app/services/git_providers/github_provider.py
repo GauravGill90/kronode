@@ -75,6 +75,42 @@ class GitHubProvider(GitProvider):
     ) -> list[dict]:
         return await github_service.fetch_merged_prs(repo_url, token, count)
 
+    async def list_org_repos(self, org_or_workspace: str, token: str) -> list[dict]:
+        import httpx
+        headers = github_service._auth_headers(token)
+        repos: list[dict] = []
+        page = 1
+        async with httpx.AsyncClient(timeout=30) as client:
+            while True:
+                resp = await client.get(
+                    f"{github_service.GITHUB_API}/orgs/{org_or_workspace}/repos",
+                    headers=headers,
+                    params={"per_page": 100, "page": page, "type": "all"},
+                )
+                if resp.status_code != 200:
+                    # Try as user repos if org fails
+                    resp = await client.get(
+                        f"{github_service.GITHUB_API}/users/{org_or_workspace}/repos",
+                        headers=headers,
+                        params={"per_page": 100, "page": page},
+                    )
+                    if resp.status_code != 200:
+                        break
+                items = resp.json()
+                if not items:
+                    break
+                for r in items:
+                    if r.get("archived"):
+                        continue
+                    repos.append({
+                        "repo_url": r.get("html_url", ""),
+                        "repo_name": r.get("full_name", ""),
+                        "default_branch": r.get("default_branch", "main"),
+                        "description": r.get("description") or "",
+                    })
+                page += 1
+        return repos
+
     async def validate_token(self, token: str, repo_url: str) -> dict:
         """Validate GitHub token by fetching repo metadata."""
         import httpx
