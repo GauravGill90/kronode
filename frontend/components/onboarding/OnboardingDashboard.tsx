@@ -30,9 +30,9 @@ import Modal from "@/components/ui/Modal";
 
 const inputCls: React.CSSProperties = {
   background: "rgba(255,255,255,0.04)",
-  border: "1px solid rgba(99,102,241,0.2)",
+  border: "1px solid rgba(212,168,83,0.2)",
   borderRadius: "10px",
-  color: "#e2e8f0",
+  color: "#e7e0d8",
   padding: "10px 14px",
   fontSize: "14px",
   width: "100%",
@@ -40,10 +40,10 @@ const inputCls: React.CSSProperties = {
 };
 
 function focusBorder(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
-  e.currentTarget.style.borderColor = "rgba(99,102,241,0.6)";
+  e.currentTarget.style.borderColor = "rgba(212,168,83,0.5)";
 }
 function blurBorder(e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
-  e.currentTarget.style.borderColor = "rgba(99,102,241,0.2)";
+  e.currentTarget.style.borderColor = "rgba(212,168,83,0.2)";
 }
 
 function SaveBtn({
@@ -64,7 +64,7 @@ function SaveBtn({
       disabled={disabled || loading}
       className="w-full py-3 rounded-xl font-semibold text-white text-sm transition-all mt-5"
       style={{
-        background: disabled || loading ? "rgba(99,102,241,0.2)" : "linear-gradient(135deg, #6366f1, #a78bfa)",
+        background: disabled || loading ? "rgba(212,168,83,0.2)" : "#d4a853",
         cursor: disabled || loading ? "not-allowed" : "pointer",
         opacity: loading ? 0.7 : 1,
       }}
@@ -76,7 +76,7 @@ function SaveBtn({
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <label className="text-sm font-medium block mb-1.5" style={{ color: "#94a3b8" }}>
+    <label className="text-sm font-medium block mb-1.5" style={{ color: "#a39e96" }}>
       {children}
     </label>
   );
@@ -186,7 +186,7 @@ function RepoForm({ onSave, onFail }: { onSave: () => void; onFail: () => void }
         <p className="text-xs mt-1" style={{ color: "#475569" }}>Needs read access to repo, PRs, and branches</p>
       </div>
       {valid && (
-        <button type="button" onClick={handleTest} disabled={testing} className="w-full py-2 rounded-lg text-sm font-medium transition-all" style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", color: "#a5b4fc" }}>
+        <button type="button" onClick={handleTest} disabled={testing} className="w-full py-2 rounded-lg text-sm font-medium transition-all" style={{ background: "rgba(212,168,83,0.1)", border: "1px solid rgba(212,168,83,0.3)", color: "#d4a853" }}>
           {testing ? "Testing…" : "Test connection"}
         </button>
       )}
@@ -336,7 +336,7 @@ function JiraForm({ onSave, onFail }: { onSave: () => void; onFail: () => void }
         <input style={inputCls} type="password" value={form.api_token} onChange={(e) => setForm({ ...form, api_token: e.target.value })} onFocus={focusBorder} onBlur={blurBorder} placeholder="Atlassian API token" />
       </div>
       {valid && (
-        <button type="button" onClick={handleTest} disabled={testing} className="w-full py-2 rounded-lg text-sm font-medium" style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", color: "#a5b4fc" }}>
+        <button type="button" onClick={handleTest} disabled={testing} className="w-full py-2 rounded-lg text-sm font-medium" style={{ background: "rgba(212,168,83,0.1)", border: "1px solid rgba(212,168,83,0.3)", color: "#d4a853" }}>
           {testing ? "Testing…" : "Test connection"}
         </button>
       )}
@@ -422,12 +422,12 @@ function IngestionForm({ onSave }: { onSave: () => void }) {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm" style={{ color: "#94a3b8" }}>
+      <p className="text-sm" style={{ color: "#a39e96" }}>
         Kronode will analyze your PR history to extract team conventions, ingest documentation, and learn reviewer patterns. This takes 1-3 minutes.
       </p>
 
       {status === "idle" && (
-        <button type="button" onClick={handleRun} className="w-full py-3 rounded-xl font-semibold text-white text-sm" style={{ background: "linear-gradient(135deg, #6366f1, #a78bfa)" }}>
+        <button type="button" onClick={handleRun} className="w-full py-3 rounded-xl font-semibold text-white text-sm" style={{ background: "#d4a853" }}>
           Start Ingestion
         </button>
       )}
@@ -436,7 +436,7 @@ function IngestionForm({ onSave }: { onSave: () => void }) {
         <div className="space-y-3">
           <div className="flex items-center gap-3">
             <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm" style={{ color: "#a5b4fc" }}>Analyzing PRs, ingesting docs, extracting conventions...</p>
+            <p className="text-sm" style={{ color: "#d4a853" }}>Analyzing PRs, ingesting docs, extracting conventions...</p>
           </div>
           {stats && (
             <div className="grid grid-cols-3 gap-2 text-center">
@@ -479,7 +479,7 @@ function IngestionForm({ onSave }: { onSave: () => void }) {
               </div>
             </div>
           )}
-          <button type="button" onClick={onSave} className="w-full py-3 rounded-xl font-semibold text-white text-sm" style={{ background: "linear-gradient(135deg, #6366f1, #a78bfa)" }}>
+          <button type="button" onClick={onSave} className="w-full py-3 rounded-xl font-semibold text-white text-sm" style={{ background: "#d4a853" }}>
             Continue
           </button>
         </div>
@@ -665,21 +665,21 @@ export default function OnboardingDashboard({ isSettings = false }: { isSettings
         {/* Header */}
         {isSettings ? (
           <div>
-            <a href="/dashboard" className="text-sm font-medium inline-flex items-center gap-1.5 mb-3" style={{ color: "#6366f1" }}>
+            <a href="/dashboard" className="text-sm font-medium inline-flex items-center gap-1.5 mb-3" style={{ color: "#d4a853" }}>
               ← Back to dashboard
             </a>
-            <h1 className="text-2xl font-bold" style={{ color: "#e2e8f0" }}>Settings</h1>
-            <p className="text-sm mt-1" style={{ color: "#64748b" }}>Update your integrations and configuration.</p>
+            <h1 className="text-2xl font-bold" style={{ color: "#e7e0d8" }}>Settings</h1>
+            <p className="text-sm mt-1" style={{ color: "#6b6560" }}>Update your integrations and configuration.</p>
           </div>
         ) : (
           <div>
-            <p className="text-sm font-medium mb-1" style={{ color: "#6366f1" }}>
+            <p className="text-sm font-medium mb-1" style={{ color: "#d4a853" }}>
               {firstName ? `Welcome, ${firstName}!` : "Welcome!"}
             </p>
-            <h1 className="text-2xl font-bold" style={{ color: "#e2e8f0" }}>
+            <h1 className="text-2xl font-bold" style={{ color: "#e7e0d8" }}>
               Set up Kronode
             </h1>
-            <p className="text-sm mt-1" style={{ color: "#64748b" }}>
+            <p className="text-sm mt-1" style={{ color: "#6b6560" }}>
               Connect your repo and docs. Kronode learns your team's conventions, then serves them to any AI coding tool.
             </p>
           </div>
@@ -722,8 +722,8 @@ export default function OnboardingDashboard({ isSettings = false }: { isSettings
             disabled={launching}
             className="w-full py-4 rounded-xl font-semibold text-white text-sm transition-all"
             style={{
-              background: "linear-gradient(135deg, #6366f1, #a78bfa)",
-              boxShadow: "0 0 30px rgba(99,102,241,0.35)",
+              background: "#d4a853",
+              boxShadow: "0 0 30px rgba(212,168,83,0.25)",
               opacity: launching ? 0.7 : 1,
             }}
           >
@@ -732,7 +732,7 @@ export default function OnboardingDashboard({ isSettings = false }: { isSettings
         )}
 
         {!isSettings && !requiredDone && (
-          <p className="text-xs text-center" style={{ color: "#334155" }}>
+          <p className="text-xs text-center" style={{ color: "#6b6560" }}>
             {cards.filter((c) => c.required && !c.completed).length} required {cards.filter((c) => c.required && !c.completed).length === 1 ? "step" : "steps"} remaining
           </p>
         )}

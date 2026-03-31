@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kronode — Brand Color Preview</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #121010;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, sans-serif;
+    padding: 40px 24px;
+    min-height: 100vh;
+  }
+  h1.page-title {
+    text-align: center;
+    color: #e0ddd8;
+    font-size: 28px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+  p.page-sub {
+    text-align: center;
+    color: #7a7770;
+    font-size: 14px;
+    margin-bottom: 40px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 420px);
+    gap: 32px;
+    justify-content: center;
+  }
+  .theme-col {
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .theme-label {
+    text-align: center;
+    padding: 14px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .color-swatch {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-family: 'SF Mono', Menlo, monospace;
+  }
+  .swatch-dot {
+    width: 12px; height: 12px; border-radius: 50%;
+  }
+  .dashboard {
+    padding: 20px;
+  }
+  .dash-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+  }
+  .logo-mark {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 14px; color: #fff;
+  }
+  .dash-header .logo-text { font-size: 16px; font-weight: 700; }
+  .dash-header .org-name { font-size: 12px; margin-left: auto; }
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+  .stat-card {
+    padding: 12px 14px;
+    border-radius: 8px;
+  }
+  .stat-card .stat-num { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+  .stat-card .stat-label { font-size: 10px; margin-top: 2px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .sources-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 18px;
+    flex-wrap: wrap;
+  }
+  .source-badge {
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-weight: 500;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .section { margin-bottom: 16px; }
+  .section-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 8px;
+  }
+  .tool-item, .conv-item {
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 6px;
+  }
+  .conv-item code {
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 11px;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  /* CTA button */
+  .cta-btn {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    margin-top: 12px;
+    letter-spacing: 0.3px;
+  }
+
+  /* ── Shared warm dark base ── */
+  .t1, .t2, .t3 { background: #1c1917; }
+  .t1 .dash-header, .t2 .dash-header, .t3 .dash-header { border-bottom: 1px solid #2e2a27; }
+  .t1 .logo-text, .t2 .logo-text, .t3 .logo-text { color: #e7e0d8; }
+  .t1 .org-name, .t2 .org-name, .t3 .org-name { color: #a39e96; }
+  .t1 .stat-card, .t2 .stat-card, .t3 .stat-card {
+    background: #231f1d;
+    border: 1px solid #2e2a27;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  }
+  .t1 .stat-label, .t2 .stat-label, .t3 .stat-label { color: #a39e96; }
+  .t1 .source-badge.off, .t2 .source-badge.off, .t3 .source-badge.off { background: #2a2623; color: #6b6560; }
+  .t1 .section-title, .t2 .section-title, .t3 .section-title { color: #a39e96; }
+  .t1 .tool-item, .t2 .tool-item, .t3 .tool-item { background: #2a2623; color: #e7e0d8; }
+  .t1 .conv-item, .t2 .conv-item, .t3 .conv-item { background: #231f1d; border: 1px solid #2e2a27; color: #e7e0d8; }
+
+  /* ── Theme 1: Teal (#3dd6a5) ── */
+  .t1 .theme-label { background: #231f1d; color: #3dd6a5; }
+  .t1 .color-swatch { background: #1c1917; color: #a39e96; }
+  .t1 .swatch-dot { background: #3dd6a5; }
+  .t1 .logo-mark { background: #3dd6a5; }
+  .t1 .stat-num { color: #3dd6a5; }
+  .t1 .source-badge.on { background: rgba(61,214,165,0.12); color: #3dd6a5; border: 1px solid rgba(61,214,165,0.2); }
+  .t1 .conv-item code { background: rgba(61,214,165,0.1); color: #3dd6a5; }
+  .t1 .cta-btn { background: #3dd6a5; color: #1c1917; }
+
+  /* ── Theme 2: Warm Gold (#d4a853) ── */
+  .t2 .theme-label { background: #231f1d; color: #d4a853; }
+  .t2 .color-swatch { background: #1c1917; color: #a39e96; }
+  .t2 .swatch-dot { background: #d4a853; }
+  .t2 .logo-mark { background: #d4a853; }
+  .t2 .stat-num { color: #d4a853; }
+  .t2 .source-badge.on { background: rgba(212,168,83,0.12); color: #d4a853; border: 1px solid rgba(212,168,83,0.2); }
+  .t2 .conv-item code { background: rgba(212,168,83,0.1); color: #d4a853; }
+  .t2 .cta-btn { background: #d4a853; color: #1c1917; }
+
+  /* ── Theme 3: Slate Blue (#6b8aed) ── */
+  .t3 .theme-label { background: #231f1d; color: #6b8aed; }
+  .t3 .color-swatch { background: #1c1917; color: #a39e96; }
+  .t3 .swatch-dot { background: #6b8aed; }
+  .t3 .logo-mark { background: #6b8aed; }
+  .t3 .stat-num { color: #6b8aed; }
+  .t3 .source-badge.on { background: rgba(107,138,237,0.12); color: #6b8aed; border: 1px solid rgba(107,138,237,0.2); }
+  .t3 .conv-item code { background: rgba(107,138,237,0.1); color: #6b8aed; }
+  .t3 .cta-btn { background: #6b8aed; color: #fff; }
+
+  @media (max-width: 1400px) {
+    .grid { grid-template-columns: 1fr; max-width: 440px; margin: 0 auto; }
+  }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">Kronode — Pick Your Brand Color</h1>
+<p class="page-sub">Same warm dark base &middot; Three accent colors</p>
+
+<div class="grid">
+
+  <!-- TEAL -->
+  <div class="theme-col t1">
+    <div class="theme-label">Teal</div>
+    <div class="color-swatch"><span class="swatch-dot"></span> #3dd6a5 &mdash; fresh, trust, knowledge</div>
+    <div class="dashboard">
+      <div class="dash-header">
+        <div class="logo-mark">K</div>
+        <span class="logo-text">Kronode</span>
+        <span class="org-name">Armstrong Fluid Tech</span>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-num">142</div><div class="stat-label">Conventions</div></div>
+        <div class="stat-card"><div class="stat-num">214</div><div class="stat-label">Doc Chunks</div></div>
+        <div class="stat-card"><div class="stat-num">1,230</div><div class="stat-label">MCP Calls</div></div>
+        <div class="stat-card"><div class="stat-num">8</div><div class="stat-label">Reviewer Patterns</div></div>
+        <div class="stat-card"><div class="stat-num">23</div><div class="stat-label">Failures</div></div>
+        <div class="stat-card"><div class="stat-num">2</div><div class="stat-label">API Keys</div></div>
+      </div>
+      <div class="sources-row">
+        <span class="source-badge on">Bitbucket &#10003;</span>
+        <span class="source-badge on">Confluence &#10003;</span>
+        <span class="source-badge on">Jira &#10003;</span>
+        <span class="source-badge off">Slack &#9675;</span>
+      </div>
+      <div class="section">
+        <div class="section-title">MCP Tools</div>
+        <div class="tool-item">get_context</div>
+        <div class="tool-item">get_file_companions</div>
+        <div class="tool-item">get_reviewer_guidance</div>
+      </div>
+      <div class="section">
+        <div class="section-title">Top Conventions</div>
+        <div class="conv-item">Use <code>Tamagui styled()</code> not StyleSheet.create</div>
+        <div class="conv-item">All <code>6+ locale files</code> must have every new string</div>
+        <div class="conv-item">Use <code>disconnectDevice()</code> from helpers for BLE</div>
+      </div>
+      <button class="cta-btn">Setup MCP Server</button>
+    </div>
+  </div>
+
+  <!-- WARM GOLD -->
+  <div class="theme-col t2">
+    <div class="theme-label">Warm Gold</div>
+    <div class="color-swatch"><span class="swatch-dot"></span> #d4a853 &mdash; premium, wisdom, institutional</div>
+    <div class="dashboard">
+      <div class="dash-header">
+        <div class="logo-mark">K</div>
+        <span class="logo-text">Kronode</span>
+        <span class="org-name">Armstrong Fluid Tech</span>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-num">142</div><div class="stat-label">Conventions</div></div>
+        <div class="stat-card"><div class="stat-num">214</div><div class="stat-label">Doc Chunks</div></div>
+        <div class="stat-card"><div class="stat-num">1,230</div><div class="stat-label">MCP Calls</div></div>
+        <div class="stat-card"><div class="stat-num">8</div><div class="stat-label">Reviewer Patterns</div></div>
+        <div class="stat-card"><div class="stat-num">23</div><div class="stat-label">Failures</div></div>
+        <div class="stat-card"><div class="stat-num">2</div><div class="stat-label">API Keys</div></div>
+      </div>
+      <div class="sources-row">
+        <span class="source-badge on">Bitbucket &#10003;</span>
+        <span class="source-badge on">Confluence &#10003;</span>
+        <span class="source-badge on">Jira &#10003;</span>
+        <span class="source-badge off">Slack &#9675;</span>
+      </div>
+      <div class="section">
+        <div class="section-title">MCP Tools</div>
+        <div class="tool-item">get_context</div>
+        <div class="tool-item">get_file_companions</div>
+        <div class="tool-item">get_reviewer_guidance</div>
+      </div>
+      <div class="section">
+        <div class="section-title">Top Conventions</div>
+        <div class="conv-item">Use <code>Tamagui styled()</code> not StyleSheet.create</div>
+        <div class="conv-item">All <code>6+ locale files</code> must have every new string</div>
+        <div class="conv-item">Use <code>disconnectDevice()</code> from helpers for BLE</div>
+      </div>
+      <button class="cta-btn">Setup MCP Server</button>
+    </div>
+  </div>
+
+  <!-- SLATE BLUE -->
+  <div class="theme-col t3">
+    <div class="theme-label">Slate Blue</div>
+    <div class="color-swatch"><span class="swatch-dot"></span> #6b8aed &mdash; calm, professional, reliable</div>
+    <div class="dashboard">
+      <div class="dash-header">
+        <div class="logo-mark">K</div>
+        <span class="logo-text">Kronode</span>
+        <span class="org-name">Armstrong Fluid Tech</span>
+      </div>
+      <div class="stat-grid">
+        <div class="stat-card"><div class="stat-num">142</div><div class="stat-label">Conventions</div></div>
+        <div class="stat-card"><div class="stat-num">214</div><div class="stat-label">Doc Chunks</div></div>
+        <div class="stat-card"><div class="stat-num">1,230</div><div class="stat-label">MCP Calls</div></div>
+        <div class="stat-card"><div class="stat-num">8</div><div class="stat-label">Reviewer Patterns</div></div>
+        <div class="stat-card"><div class="stat-num">23</div><div class="stat-label">Failures</div></div>
+        <div class="stat-card"><div class="stat-num">2</div><div class="stat-label">API Keys</div></div>
+      </div>
+      <div class="sources-row">
+        <span class="source-badge on">Bitbucket &#10003;</span>
+        <span class="source-badge on">Confluence &#10003;</span>
+        <span class="source-badge on">Jira &#10003;</span>
+        <span class="source-badge off">Slack &#9675;</span>
+      </div>
+      <div class="section">
+        <div class="section-title">MCP Tools</div>
+        <div class="tool-item">get_context</div>
+        <div class="tool-item">get_file_companions</div>
+        <div class="tool-item">get_reviewer_guidance</div>
+      </div>
+      <div class="section">
+        <div class="section-title">Top Conventions</div>
+        <div class="conv-item">Use <code>Tamagui styled()</code> not StyleSheet.create</div>
+        <div class="conv-item">All <code>6+ locale files</code> must have every new string</div>
+        <div class="conv-item">Use <code>disconnectDevice()</code> from helpers for BLE</div>
+      </div>
+      <button class="cta-btn">Setup MCP Server</button>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

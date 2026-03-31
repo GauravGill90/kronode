@@ -125,30 +125,30 @@ export default function StepMCPSetup({ onDone }: Props) {
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-white mb-1">Connect Your AI Tool</h3>
-        <p className="text-sm text-zinc-400">
+        <p className="text-sm text-text-secondary">
           Generate an API key and add Kronode to your AI coding tool.
         </p>
       </div>
 
       {/* Step 1: Generate API Key */}
       <div className="space-y-3">
-        <label className="block text-sm font-medium text-zinc-300">1. Generate API Key</label>
+        <label className="block text-sm font-medium text-text-primary">1. Generate API Key</label>
         {apiKey ? (
-          <div className="bg-zinc-900 rounded-lg p-3 border border-zinc-700">
-            <code className="text-green-400 text-sm break-all">{apiKey}</code>
-            <p className="text-xs text-zinc-500 mt-1">Save this key — it won't be shown again.</p>
+          <div className="bg-surface-raised rounded-lg p-3 border border-surface-border">
+            <code className="text-status-success text-sm break-all">{apiKey}</code>
+            <p className="text-xs text-text-muted mt-1">Save this key — it won't be shown again.</p>
           </div>
         ) : (
           <div>
             {existingKeys.length > 0 && (
-              <p className="text-xs text-zinc-500 mb-2">
+              <p className="text-xs text-text-muted mb-2">
                 You have {existingKeys.length} existing key(s). Generate a new one for this setup.
               </p>
             )}
             <button
               onClick={handleGenerateKey}
               disabled={loading}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm disabled:opacity-50"
+              className="px-4 py-2 bg-brand hover:bg-brand-500 text-white rounded-lg text-sm disabled:opacity-50"
             >
               {loading ? "Generating..." : "Generate API Key"}
             </button>
@@ -159,7 +159,7 @@ export default function StepMCPSetup({ onDone }: Props) {
       {/* Step 2: Select AI Tool */}
       {apiKey && (
         <div className="space-y-3">
-          <label className="block text-sm font-medium text-zinc-300">2. Select Your AI Tool</label>
+          <label className="block text-sm font-medium text-text-primary">2. Select Your AI Tool</label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {Object.entries(AGENT_CONFIGS).map(([key, info]) => (
               <button
@@ -167,8 +167,8 @@ export default function StepMCPSetup({ onDone }: Props) {
                 onClick={() => setSelectedAgent(key)}
                 className={`px-3 py-2 rounded-lg text-sm text-left transition ${
                   selectedAgent === key
-                    ? "bg-indigo-600 text-white"
-                    : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                    ? "bg-brand text-white"
+                    : "bg-surface-overlay text-text-primary hover:bg-surface-border"
                 }`}
               >
                 {info.name}
@@ -178,16 +178,16 @@ export default function StepMCPSetup({ onDone }: Props) {
 
           {/* Transport toggle */}
           <div className="flex items-center gap-3 mt-2">
-            <label className="text-sm text-zinc-400">Transport:</label>
+            <label className="text-sm text-text-secondary">Transport:</label>
             <button
               onClick={() => setUseRemote(false)}
-              className={`px-3 py-1 rounded text-xs ${!useRemote ? "bg-indigo-600 text-white" : "bg-zinc-800 text-zinc-400"}`}
+              className={`px-3 py-1 rounded text-xs ${!useRemote ? "bg-brand text-white" : "bg-surface-overlay text-text-secondary"}`}
             >
               Local (stdio)
             </button>
             <button
               onClick={() => setUseRemote(true)}
-              className={`px-3 py-1 rounded text-xs ${useRemote ? "bg-indigo-600 text-white" : "bg-zinc-800 text-zinc-400"}`}
+              className={`px-3 py-1 rounded text-xs ${useRemote ? "bg-brand text-white" : "bg-surface-overlay text-text-secondary"}`}
             >
               Remote (HTTP)
             </button>
@@ -198,19 +198,19 @@ export default function StepMCPSetup({ onDone }: Props) {
       {/* Step 3: Config */}
       {config && (
         <div className="space-y-3">
-          <label className="block text-sm font-medium text-zinc-300">
-            3. Add to <code className="text-indigo-400">{agentInfo.file}</code>
+          <label className="block text-sm font-medium text-text-primary">
+            3. Add to <code className="text-brand">{agentInfo.file}</code>
           </label>
           {agentInfo.note && (
-            <p className="text-xs text-zinc-500">{agentInfo.note}</p>
+            <p className="text-xs text-text-muted">{agentInfo.note}</p>
           )}
           <div className="relative">
-            <pre className="bg-zinc-900 rounded-lg p-4 border border-zinc-700 text-sm text-zinc-300 overflow-x-auto max-h-64">
+            <pre className="bg-surface-raised rounded-lg p-4 border border-surface-border text-sm text-text-primary overflow-x-auto max-h-64">
               {config}
             </pre>
             <button
               onClick={handleCopy}
-              className="absolute top-2 right-2 px-3 py-1 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs"
+              className="absolute top-2 right-2 px-3 py-1 bg-zinc-700 hover:bg-surface-border-light text-white rounded text-xs"
             >
               {copied ? "Copied!" : "Copy"}
             </button>
@@ -223,7 +223,7 @@ export default function StepMCPSetup({ onDone }: Props) {
         <div className="pt-4">
           <button
             onClick={onDone}
-            className="w-full py-3 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium"
+            className="w-full py-3 bg-brand hover:bg-brand-500 text-white rounded-lg font-medium"
           >
             Done — Start Using Kronode
           </button>

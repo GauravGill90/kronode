@@ -9,28 +9,41 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        dark: {
-          900: "#080810",
-          800: "#0d0d1a",
-          700: "#111120",
-          600: "#161628",
-          500: "#1e1e30",
-          400: "#2a2a42",
-          300: "#3d3d5c",
+        // Warm dark base
+        surface: {
+          DEFAULT: "#1c1917",
+          raised: "#231f1d",
+          overlay: "#2a2623",
+          border: "#2e2a27",
+          "border-light": "#3a3530",
         },
+        // Warm gold brand
         brand: {
-          50: "#eef2ff",
-          100: "#e0e7ff",
-          300: "#a5b4fc",
-          400: "#818cf8",
-          500: "#6366f1",
-          600: "#4f46e5",
-          700: "#4338ca",
+          50: "#fdf8ef",
+          100: "#f9efd9",
+          200: "#f0dbb0",
+          300: "#e4c37d",
+          400: "#d4a853",
+          DEFAULT: "#d4a853",
+          500: "#c99a3e",
+          600: "#b07f2e",
+          700: "#8f6425",
+          800: "#6b4c1f",
+          900: "#4a351b",
         },
-        accent: {
-          purple: "#a78bfa",
-          blue: "#38bdf8",
-          green: "#34d399",
+        // Text colors
+        text: {
+          primary: "#e7e0d8",
+          secondary: "#a39e96",
+          muted: "#6b6560",
+          inverse: "#1c1917",
+        },
+        // Status colors
+        status: {
+          success: "#4ade80",
+          warning: "#fbbf24",
+          error: "#f87171",
+          info: "#60a5fa",
         },
       },
       fontFamily: {

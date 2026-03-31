@@ -49,11 +49,11 @@ export default function WelcomePage() {
           <div
             className="w-16 h-16 rounded-2xl flex items-center justify-center"
             style={{
-              background: gradients.brandLogo,
+              background: colors.brand.primary,
               boxShadow: `0 0 40px ${colors.glow.primary}`,
             }}
           >
-            <span className="text-white font-bold text-2xl">K</span>
+            <span className="text-white font-bold text-2xl" style={{ color: colors.bg.base }}>K</span>
           </div>
           <div>
             <h1
@@ -70,7 +70,7 @@ export default function WelcomePage() {
               className="text-sm mt-1 tracking-widest uppercase font-medium"
               style={{ color: colors.brand.primary }}
             >
-              autonomous AI developer
+              organizational memory
             </p>
           </div>
         </div>
@@ -81,7 +81,7 @@ export default function WelcomePage() {
             className="text-2xl font-semibold leading-snug"
             style={{ color: colors.text.primary }}
           >
-            Describe what to build.{" "}
+            Your team&apos;s conventions.{" "}
             <span
               style={{
                 background: gradients.brandAccent,
@@ -89,44 +89,35 @@ export default function WelcomePage() {
                 WebkitTextFillColor: "transparent",
               }}
             >
-              Your agent ships the PR.
+              In every AI tool.
             </span>
           </h2>
           <p
             className="text-sm leading-relaxed max-w-sm mx-auto"
             style={{ color: colors.text.secondary }}
           >
-            Connect GitHub, Jira, and Slack. Write a task in plain English.
-            Kronode plans, codes, tests, and opens a pull request — you approve
-            and merge.
+            Kronode learns your team&apos;s coding conventions, reviewer preferences, and documentation — then serves them to Claude Code, Cursor, Copilot, and 10+ other AI tools via MCP.
           </p>
         </div>
 
         {/* Trust signals */}
         <div className="grid grid-cols-3 gap-2">
           {[
-            { icon: "🔀", title: "Branches only", desc: "Never touches main" },
-            { icon: "✅", title: "You approve", desc: "Every PR reviewed by you" },
-            { icon: "🛡️", title: "Guardrails", desc: "You set the limits" },
+            { icon: "🧠", title: "Learns from PRs", desc: "Extracts conventions automatically" },
+            { icon: "🔌", title: "Works everywhere", desc: "Any MCP-compatible AI tool" },
+            { icon: "🔒", title: "Your data, yours", desc: "Encrypted, org-isolated" },
           ].map(({ icon, title, desc }) => (
             <div
               key={title}
               className="rounded-xl p-3 text-center"
               style={{
-                background: colors.bg.surface,
+                background: colors.bg.raised,
                 border: `1px solid ${colors.border.default}`,
               }}
             >
               <div className="text-lg mb-1">{icon}</div>
-              <div
-                className="text-xs font-semibold mb-0.5"
-                style={{ color: colors.text.primary }}
-              >
-                {title}
-              </div>
-              <div className="text-xs" style={{ color: colors.text.secondary }}>
-                {desc}
-              </div>
+              <div className="text-xs font-semibold mb-0.5" style={{ color: colors.text.primary }}>{title}</div>
+              <div className="text-xs" style={{ color: colors.text.secondary }}>{desc}</div>
             </div>
           ))}
         </div>
@@ -137,8 +128,8 @@ export default function WelcomePage() {
             <button
               className="px-6 py-3 rounded-xl text-sm font-semibold transition-all"
               style={{
-                background: gradients.brandLogo,
-                color: colors.text.white,
+                background: colors.brand.primary,
+                color: colors.bg.base,
                 boxShadow: `0 0 20px ${colors.glow.primarySoft}`,
               }}
             >
@@ -149,7 +140,7 @@ export default function WelcomePage() {
             <button
               className="px-6 py-3 rounded-xl text-sm font-semibold transition-all"
               style={{
-                background: colors.bg.surface,
+                background: colors.bg.raised,
                 color: colors.text.primary,
                 border: `1px solid ${colors.border.default}`,
               }}
@@ -159,7 +150,6 @@ export default function WelcomePage() {
           </SignInButton>
         </div>
 
-        {/* Footer note */}
         <p className="text-xs" style={{ color: colors.text.muted }}>
           No credit card required · Free during beta
         </p>

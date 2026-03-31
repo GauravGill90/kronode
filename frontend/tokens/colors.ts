@@ -1,83 +1,68 @@
 /**
- * Kronode Design System — Color Tokens
- *
- * All color values used across the application must be imported from here.
- * Never use raw hex or rgba values directly in components.
+ * Kronode Design System — Color Tokens (Warm Gold Theme)
  */
 
 export const colors = {
-  // ─── Brand ───────────────────────────────────────────────────────────────
   brand: {
-    primary: "#6366f1",       // indigo-500  — primary accent
-    secondary: "#a78bfa",     // violet-400  — secondary accent
-    sky: "#38bdf8",           // sky-400     — tertiary accent
+    primary: "#d4a853",
+    secondary: "#e4c37d",
+    tertiary: "#b07f2e",
   },
 
-  // ─── Background ──────────────────────────────────────────────────────────
   bg: {
-    base: "#080810",          // deepest background
-    surface: "rgba(255,255,255,0.03)",   // card / tile surface
-    surfaceHover: "rgba(255,255,255,0.05)",
+    base: "#1c1917",
+    surface: "rgba(255,255,255,0.02)",
+    surfaceHover: "rgba(255,255,255,0.04)",
     overlay: "rgba(0,0,0,0.4)",
+    raised: "#231f1d",
   },
 
-  // ─── Border ──────────────────────────────────────────────────────────────
   border: {
-    subtle: "rgba(99,102,241,0.12)",
-    default: "rgba(99,102,241,0.2)",
-    strong: "rgba(99,102,241,0.4)",
-    muted: "rgba(255,255,255,0.08)",
+    subtle: "rgba(212,168,83,0.1)",
+    default: "rgba(212,168,83,0.2)",
+    strong: "rgba(212,168,83,0.4)",
+    muted: "rgba(255,255,255,0.06)",
   },
 
-  // ─── Text ────────────────────────────────────────────────────────────────
   text: {
-    primary: "#e2e8f0",       // slate-200
-    secondary: "#94a3b8",     // slate-400
-    muted: "#64748b",         // slate-500
-    accent: "#6366f1",        // same as brand.primary
+    primary: "#e7e0d8",
+    secondary: "#a39e96",
+    muted: "#6b6560",
+    accent: "#d4a853",
     white: "#ffffff",
   },
 
-  // ─── Status ──────────────────────────────────────────────────────────────
   status: {
-    success: "#22c55e",       // green-500
-    successBg: "rgba(34,197,94,0.15)",
-    successBorder: "rgba(34,197,94,0.3)",
-
-    warning: "#f59e0b",       // amber-500
-    warningBg: "rgba(245,158,11,0.15)",
-    warningBorder: "rgba(245,158,11,0.3)",
-
-    error: "#ef4444",         // red-500
-    errorBg: "rgba(239,68,68,0.15)",
-    errorBorder: "rgba(239,68,68,0.3)",
-
-    info: "#38bdf8",          // sky-400
-    infoBg: "rgba(56,189,248,0.15)",
-    infoBorder: "rgba(56,189,248,0.3)",
+    success: "#4ade80",
+    successBg: "rgba(74,222,128,0.1)",
+    successBorder: "rgba(74,222,128,0.25)",
+    warning: "#fbbf24",
+    warningBg: "rgba(251,191,36,0.1)",
+    warningBorder: "rgba(251,191,36,0.25)",
+    error: "#f87171",
+    errorBg: "rgba(248,113,113,0.1)",
+    errorBorder: "rgba(248,113,113,0.25)",
+    info: "#60a5fa",
+    infoBg: "rgba(96,165,250,0.1)",
+    infoBorder: "rgba(96,165,250,0.25)",
   },
 
-  // ─── Glow / Ambient ──────────────────────────────────────────────────────
   glow: {
-    primary: "rgba(99,102,241,0.4)",
-    primarySoft: "rgba(99,102,241,0.15)",
-    primaryFaint: "rgba(99,102,241,0.08)",
-    primaryGrid: "rgba(99,102,241,0.04)",
-    secondary: "rgba(167,139,250,0.08)",
-    sky: "rgba(56,189,248,0.08)",
+    primary: "rgba(212,168,83,0.3)",
+    primarySoft: "rgba(212,168,83,0.12)",
+    primaryFaint: "rgba(212,168,83,0.06)",
+    primaryGrid: "rgba(212,168,83,0.03)",
+    secondary: "rgba(228,195,125,0.06)",
+    warm: "rgba(176,127,46,0.06)",
   },
 } as const;
 
-// ─── Gradient helpers ────────────────────────────────────────────────────────
 export const gradients = {
-  brandLogo: `linear-gradient(135deg, ${colors.brand.primary}, ${colors.brand.secondary})`,
-  brandText: `linear-gradient(135deg, ${colors.text.primary} 0%, #a5b4fc 100%)`,
-  brandAccent: `linear-gradient(90deg, ${colors.brand.secondary}, ${colors.brand.sky})`,
+  brandLogo: colors.brand.primary,
+  brandText: `linear-gradient(135deg, ${colors.text.primary} 0%, ${colors.brand.secondary} 100%)`,
+  brandAccent: `linear-gradient(90deg, ${colors.brand.primary}, ${colors.brand.secondary})`,
   glowTop: `radial-gradient(ellipse, ${colors.glow.primarySoft} 0%, transparent 70%)`,
   glowBottomLeft: `radial-gradient(ellipse, ${colors.glow.secondary} 0%, transparent 70%)`,
-  glowBottomRight: `radial-gradient(ellipse, ${colors.glow.sky} 0%, transparent 70%)`,
+  glowBottomRight: `radial-gradient(ellipse, ${colors.glow.warm} 0%, transparent 70%)`,
   gridOverlay: `linear-gradient(${colors.glow.primaryGrid} 1px, transparent 1px), linear-gradient(90deg, ${colors.glow.primaryGrid} 1px, transparent 1px)`,
 } as const;
-
-export type ColorToken = typeof colors;
-export type GradientToken = typeof gradients;
