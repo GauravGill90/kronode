@@ -19,14 +19,14 @@ mcp = FastMCP(
     name="kronode",
     instructions=(
         "Kronode provides organizational memory for your engineering team. "
-        "ALWAYS call get_context at the START of any coding task — pass the task description "
-        "AND the list of files you plan to touch. The response includes file-specific conventions "
-        "(rules extracted from PRs that modified those exact files), reviewer preferences for "
-        "likely reviewers, past failures on similar tasks, and relevant documentation. "
-        "Conventions with file_match=true are the most important — they come from the exact "
-        "files you're editing. Before committing, call check_completeness with your changed "
-        "files to catch missed companion files (translations, tests, types). "
-        "Use get_doc to read full documentation when a doc chunk is truncated."
+        "For the best results, call kronode_workflow at the START of any coding task — it runs "
+        "all tools in one call and returns conventions, pitfalls, reviewer guidance, file companions, "
+        "completeness check, and a PR-ready checklist. Alternatively, call individual tools: "
+        "get_context for conventions/docs, get_file_companions for co-changing files, "
+        "get_reviewer_guidance for reviewer preferences, check_completeness before committing, "
+        "and get_doc for full documentation pages. "
+        "Conventions with file_match=true are the most important — they come from PRs that "
+        "modified the exact files you're editing."
     ),
 )
 
@@ -393,3 +393,85 @@ async def get_doc(query: str) -> dict:
             "similarity": round(matches[0][0], 2),
             "other_matches": other_pages,
         }
+
+
+@mcp.tool(
+    name="kronode_workflow",
+    description=(
+        "Run the full Kronode workflow in a single call. Returns everything you need: "
+        "conventions, pitfalls, reviewer guidance, file companions, completeness check, "
+        "and relevant documentation — all at once. Use this instead of calling individual "
+        "tools separately. Pass the task description, the files you plan to touch, and "
+        "optionally the files you've already changed (for completeness check)."
+    ),
+)
+async def kronode_workflow(
+    task_description: str,
+    files_touched: list[str],
+    files_changed: list[str] | None = None,
+) -> dict:
+    """Run all Kronode tools in one call — full context for a coding task."""
+    if not _org_id:
+        return {"error": "MCP server not configured — missing org_id"}
+
+    # 1. Get full context (conventions, pitfalls, past failures, docs)
+    context = await get_context(task_description, files_touched)
+
+    # 2. File companions for each touched file (top 3 files to keep it fast)
+    all_companions: list[dict] = []
+    seen_companion_paths: set[str] = set()
+    for file_path in files_touched[:5]:
+        try:
+            result = await get_file_companions(file_path)
+            for comp in result.get("companions", []):
+                if comp.get("path") not in seen_companion_paths:
+                    seen_companion_paths.add(comp["path"])
+                    all_companions.append({**comp, "companion_of": file_path})
+        except Exception:
+            pass
+
+    # 3. Reviewer guidance
+    reviewer = await get_reviewer_guidance(files_touched)
+
+    # 4. Completeness check
+    check_files = files_changed or files_touched
+    completeness = await check_completeness(task_description, check_files)
+
+    # 5. Build PR-ready checklist
+    checklist: list[str] = []
+
+    # File-matched conventions
+    file_matched = [c for c in context.get("conventions", []) if c.get("file_match")]
+    if file_matched:
+        checklist.append(f"Follow {len(file_matched)} file-specific conventions (see conventions with file_match=true)")
+
+    # Reviewer preferences
+    guidance = reviewer.get("guidance", [])
+    for g in guidance[:3]:
+        reviewer_name = g.get("reviewer", "")
+        prefs = g.get("preferences", [])
+        if prefs:
+            checklist.append(f"{reviewer_name} will check: {prefs[0][:100]}")
+
+    # Missing companions
+    missing = completeness.get("missing", [])
+    if missing:
+        checklist.append(f"Don't forget: {', '.join(m['file'] for m in missing[:5])}")
+
+    # Past failures
+    failures = context.get("past_failures", [])
+    if failures:
+        checklist.append(f"Avoid past mistake: {failures[0].get('error', '')[:100]}")
+
+    return {
+        "conventions": context.get("conventions", []),
+        "pitfalls": context.get("pitfalls", []),
+        "past_failures": context.get("past_failures", []),
+        "doc_chunks": context.get("doc_chunks", []),
+        "reviewer_patterns": context.get("reviewer_patterns", []),
+        "file_companions": all_companions[:15],
+        "reviewer_guidance": guidance,
+        "completeness": completeness,
+        "pr_ready_checklist": checklist,
+        "org_id": _org_id,
+    }
