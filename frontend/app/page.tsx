@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { colors, gradients } from "@/tokens/colors";
 import { Brain, Plug, Shield } from "lucide-react";
+import KronodeLogo from "@/components/ui/KronodeLogo";
 
 export default function WelcomePage() {
   const { isSignedIn, isLoaded } = useUser();
@@ -47,14 +48,8 @@ export default function WelcomePage() {
       <div className="relative z-10 max-w-md w-full text-center space-y-10">
         {/* Logo */}
         <div className="flex flex-col items-center gap-4">
-          <div
-            className="w-16 h-16 rounded-2xl flex items-center justify-center"
-            style={{
-              background: colors.brand.primary,
-              boxShadow: `0 0 40px ${colors.glow.primary}`,
-            }}
-          >
-            <span className="text-white font-bold text-2xl" style={{ color: colors.bg.base }}>K</span>
+          <div style={{ filter: `drop-shadow(0 0 30px ${colors.glow.primary})` }}>
+            <KronodeLogo size={64} />
           </div>
           <div>
             <h1
