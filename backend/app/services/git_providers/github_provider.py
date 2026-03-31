@@ -107,6 +107,10 @@ class GitHubProvider(GitProvider):
                         "repo_name": r.get("full_name", ""),
                         "default_branch": r.get("default_branch", "main"),
                         "description": r.get("description") or "",
+                        "language": r.get("language") or "",
+                        "pushed_at": r.get("pushed_at") or "",
+                        "size_kb": r.get("size", 0),
+                        "open_issues_count": r.get("open_issues_count", 0),
                     })
                 page += 1
         return repos

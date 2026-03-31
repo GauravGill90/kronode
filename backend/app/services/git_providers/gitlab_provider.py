@@ -430,6 +430,9 @@ class GitLabProvider(GitProvider):
                         "repo_name": r.get("path_with_namespace", ""),
                         "default_branch": r.get("default_branch", "main"),
                         "description": r.get("description") or "",
+                        "language": "",
+                        "pushed_at": r.get("last_activity_at") or "",
+                        "size_kb": 0,
                     })
                 page += 1
         return repos

@@ -88,13 +88,14 @@ class BitbucketProvider(GitProvider):
                     break
                 data = resp.json()
                 for r in data.get("values", []):
-                    clone_links = r.get("links", {}).get("clone", [])
-                    https_url = next((l["href"] for l in clone_links if l["name"] == "https"), "")
                     repos.append({
                         "repo_url": f"https://bitbucket.org/{r.get('full_name', '')}",
                         "repo_name": r.get("full_name", ""),
                         "default_branch": r.get("mainbranch", {}).get("name", "main"),
                         "description": r.get("description") or "",
+                        "language": r.get("language") or "",
+                        "pushed_at": r.get("updated_on") or "",
+                        "size_kb": r.get("size", 0),
                     })
                 url = data.get("next")  # pagination
         return repos

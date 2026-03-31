@@ -60,6 +60,9 @@ async def discover_repos(
     git = get_git_provider(payload.provider)
     discovered = await git.list_org_repos(payload.org_name, config.github_access_token)
 
+    # Sort by last activity (most recent first)
+    discovered.sort(key=lambda r: r.get("pushed_at", ""), reverse=True)
+
     # Upsert into repositories table
     existing = (await db.execute(
         select(Repository).where(Repository.org_id == org_id)
@@ -67,24 +70,28 @@ async def discover_repos(
     existing_urls = {r.repo_url for r in existing}
 
     new_count = 0
-    for repo in discovered:
+    for i, repo in enumerate(discovered):
         if repo["repo_url"] not in existing_urls:
+            # Auto-activate top 5 by activity, rest inactive
             db.add(Repository(
                 org_id=org_id,
                 repo_url=repo["repo_url"],
                 repo_provider=payload.provider,
                 repo_name=repo["repo_name"],
                 default_branch=repo.get("default_branch", "main"),
-                active=True,
+                active=i < 5,
             ))
             new_count += 1
 
     await db.commit()
 
-    # Return full list
+    # Return full list with metadata from discovery
     all_repos = (await db.execute(
         select(Repository).where(Repository.org_id == org_id).order_by(Repository.repo_name)
     )).scalars().all()
+
+    # Build metadata lookup from discovered repos
+    meta_by_url = {r["repo_url"]: r for r in discovered}
 
     return {
         "discovered": len(discovered),
@@ -99,6 +106,9 @@ async def discover_repos(
                 "default_branch": r.default_branch,
                 "active": r.active,
                 "last_ingested_at": r.last_ingested_at.isoformat() if r.last_ingested_at else None,
+                "language": meta_by_url.get(r.repo_url, {}).get("language", ""),
+                "pushed_at": meta_by_url.get(r.repo_url, {}).get("pushed_at", ""),
+                "description": meta_by_url.get(r.repo_url, {}).get("description", ""),
             }
             for r in all_repos
         ],
