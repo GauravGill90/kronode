@@ -4,8 +4,8 @@ import ClerkTokenSync from "@/components/ClerkTokenSync";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Kronode",
-  description: "Your autonomous AI developer",
+  title: "Kronode — Organizational Memory",
+  description: "Team conventions, docs, and reviewer patterns served to any AI coding tool via MCP",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
