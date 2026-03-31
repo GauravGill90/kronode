@@ -101,7 +101,7 @@ export default function WelcomePage() {
           {[
             { icon: <Brain className="w-5 h-5" />, title: "Learns from PRs", desc: "Extracts conventions automatically" },
             { icon: <Plug className="w-5 h-5" />, title: "Works everywhere", desc: "Any MCP-compatible AI tool" },
-            { icon: <Shield className="w-5 h-5" />, title: "Your data, yours", desc: "Encrypted, org-isolated" },
+            { icon: <Shield className="w-5 h-5" />, title: "Your data, yours", desc: "Local embeddings, no code stored" },
           ].map(({ icon, title, desc }) => (
             <div
               key={title}

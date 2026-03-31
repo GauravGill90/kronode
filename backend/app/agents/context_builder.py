@@ -420,43 +420,33 @@ _CATEGORY_FILE_HINTS = {
 
 
 async def _get_category_relevance(description: str) -> dict[str, float]:
-    """Ask cheap LLM which convention categories are most relevant for this task.
+    """Determine which convention categories are relevant using keyword matching.
 
-    Returns a dict of category -> boost multiplier (1.0 = neutral, 2.0 = very relevant).
-    Falls back to uniform weights if LLM fails.
+    No LLM call — instant, free, no data sent externally.
+    Returns a dict of category -> boost multiplier (0.5 = low, 1.0 = neutral, 2.0 = high).
     """
-    try:
-        from app.core.llm import cheap
-        raw = await cheap(
-            system=(
-                'Given a task description, rate how relevant each convention category is on a scale of 1-3. '
-                'Categories: architecture, style, naming, error_handling, testing, logging. '
-                'Respond with JSON only: {"architecture": 2, "style": 1, ...}'
-            ),
-            user_message=f"Task: {description}",
-            max_tokens=64,
-        )
-        raw = re.sub(r"^```[a-z]*\n?", "", raw.strip())
-        raw = re.sub(r"\n?```$", "", raw)
-        # Try direct parse, then extract first JSON object
-        try:
-            parsed = json.loads(raw)
-        except json.JSONDecodeError:
-            match = re.search(r"\{[^}]+\}", raw)
-            parsed = json.loads(match.group()) if match else {}
-        # Normalise to multipliers: 1->0.5, 2->1.0, 3->2.0
-        weights = {
-            "architecture": 1.0, "style": 1.0, "naming": 1.0,
-            "error_handling": 1.0, "testing": 1.0, "logging": 1.0,
-        }
-        for cat, val in parsed.items():
-            if cat in weights and isinstance(val, (int, float)):
-                weights[cat] = {1: 0.5, 2: 1.0, 3: 2.0}.get(int(val), 1.0)
-        logger.info(f"[ContextBuilder] Category relevance: {weights}")
-        return weights
-    except Exception as exc:
-        logger.warning(f"[ContextBuilder] Category relevance LLM failed: {exc} — using uniform weights")
-        return {}
+    desc_lower = description.lower()
+
+    _KEYWORDS: dict[str, list[str]] = {
+        "architecture": ["architect", "refactor", "migrate", "restructure", "module", "service", "api", "endpoint", "route", "middleware", "pattern", "design"],
+        "style": ["style", "css", "tailwind", "styled", "theme", "ui", "component", "layout", "tamagui", "stylesheet", "color", "font"],
+        "naming": ["rename", "name", "naming", "convention", "prefix", "suffix", "case", "camel", "snake"],
+        "error_handling": ["error", "exception", "catch", "try", "throw", "handle", "fallback", "retry", "timeout", "crash", "fail"],
+        "testing": ["test", "spec", "jest", "vitest", "pytest", "coverage", "mock", "stub", "assert", "expect", "unit test", "integration"],
+        "logging": ["log", "logger", "debug", "trace", "console", "print", "monitor", "metric", "telemetry", "sentry"],
+    }
+
+    weights: dict[str, float] = {}
+    for cat, keywords in _KEYWORDS.items():
+        hits = sum(1 for kw in keywords if kw in desc_lower)
+        if hits >= 3:
+            weights[cat] = 2.0
+        elif hits >= 1:
+            weights[cat] = 1.0
+        else:
+            weights[cat] = 0.5
+
+    return weights
 
 
 async def _rank_conventions(

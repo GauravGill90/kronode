@@ -124,6 +124,20 @@ function DashboardInner() {
           </div>
         </div>
 
+        {/* Data Privacy */}
+        <div className="rounded-xl border border-surface-border bg-surface-raised p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <svg className="w-4 h-4 text-status-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <h3 className="text-sm font-semibold text-text-secondary uppercase tracking-wider">Data Privacy</h3>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="text-xs px-2 py-1 rounded bg-status-success/10 text-status-success border border-status-success/20">Local embeddings (no OpenAI)</span>
+            <span className="text-xs px-2 py-1 rounded bg-status-success/10 text-status-success border border-status-success/20">No code stored</span>
+            <span className="text-xs px-2 py-1 rounded bg-status-success/10 text-status-success border border-status-success/20">Derived data only</span>
+            <span className="text-xs px-2 py-1 rounded bg-status-success/10 text-status-success border border-status-success/20">Encrypted at rest</span>
+          </div>
+        </div>
+
         <MCPTools tools={data.mcp_tools || []} />
         <RecentActivity activity={data.recent_activity || []} />
         <TopConventions conventions={data.top_conventions || []} total={data.convention_count} />
