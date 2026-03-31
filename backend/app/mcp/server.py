@@ -264,13 +264,15 @@ async def get_context(task_description: str, files_touched: list[str] | None = N
     description=(
         "Get the full content of a documentation page when get_context returned a "
         "truncated snippet (full_available=true). Search by title or keyword. "
-        "Returns the complete page text with source URL."
+        "Returns the complete page text with source URL. "
+        "If the page hasn't been ingested yet, it will be fetched on demand."
     ),
 )
 async def get_doc(query: str) -> dict:
     """Search for and return full documentation content matching the query."""
     from app.core.database import AsyncSessionLocal
     from app.models.doc_chunk import DocChunk
+    from app.models.doc_index import DocIndex
     from app.core.embeddings import get_embedding, cosine_similarity
     from sqlalchemy import select
 
@@ -282,7 +284,11 @@ async def get_doc(query: str) -> dict:
             select(DocChunk).where(DocChunk.org_id == _org_id)
         )).scalars().all()
 
+        # If no chunks exist, check doc index for lazy fetch
         if not rows:
+            result = await _lazy_fetch_from_index(db, query)
+            if result:
+                return result
             return {"results": [], "message": "No documentation ingested for this org."}
 
         query_emb = await get_embedding(query)
@@ -304,6 +310,10 @@ async def get_doc(query: str) -> dict:
         matches.sort(key=lambda x: -x[0])
 
         if not matches:
+            # Try lazy fetch from doc index
+            result = await _lazy_fetch_from_index(db, query)
+            if result:
+                return result
             return {"results": [], "message": f"No docs matched '{query}'."}
 
         top_source_ref = matches[0][1].source_ref
@@ -337,3 +347,130 @@ async def get_doc(query: str) -> dict:
             "similarity": round(matches[0][0], 2),
             "other_matches": other_pages,
         }
+
+
+async def _lazy_fetch_from_index(db, query: str) -> dict | None:
+    """Search the doc index by title, fetch + chunk + embed on demand."""
+    from app.models.doc_index import DocIndex
+    from app.models.doc_chunk import DocChunk
+    from app.models.org import OnboardingConfig
+    from app.core.embeddings import get_embedding, get_embeddings_batch
+    from sqlalchemy import select
+
+    # Search index by title keyword match
+    query_lower = query.lower()
+    index_rows = (await db.execute(
+        select(DocIndex).where(DocIndex.org_id == _org_id)
+    )).scalars().all()
+
+    if not index_rows:
+        return None
+
+    # Score by title match
+    scored = []
+    for entry in index_rows:
+        title_lower = entry.title.lower()
+        score = 0.0
+        # Exact substring match
+        if query_lower in title_lower:
+            score += 1.0
+        # Word overlap
+        query_words = set(query_lower.split())
+        title_words = set(title_lower.split())
+        overlap = query_words & title_words
+        score += len(overlap) * 0.3
+        if score > 0:
+            scored.append((score, entry))
+
+    if not scored:
+        return None
+
+    scored.sort(key=lambda x: -x[0])
+    best = scored[0][1]
+
+    # If already ingested, the caller should have found it in doc_chunks
+    # But check anyway — maybe it was ingested after the chunks were loaded
+    if best.ingested:
+        # Re-query chunks for this source_ref
+        chunks = (await db.execute(
+            select(DocChunk).where(
+                DocChunk.org_id == _org_id,
+                DocChunk.source_ref == best.source_ref,
+            ).order_by(DocChunk.id)
+        )).scalars().all()
+        if chunks:
+            full_content = "\n\n".join(c.content for c in chunks)
+            return {
+                "title": best.title,
+                "source_url": best.source_url or "",
+                "content": full_content,
+                "chunks_in_page": len(chunks),
+                "fetched_on_demand": False,
+            }
+
+    # Lazy fetch: get the page content, chunk it, embed it, store it
+    config = (await db.execute(
+        select(OnboardingConfig).where(OnboardingConfig.org_id == _org_id)
+    )).scalar_one_or_none()
+
+    if not config or not config.github_access_token:
+        return None
+
+    # Determine provider and fetch the page
+    from app.services.doc_providers import get_provider
+    try:
+        provider = get_provider(best.source_type)
+        token = config.github_access_token  # reused for all providers for now
+        if best.source_type == "confluence":
+            # Confluence needs the space URL
+            repo_url = config.docs_scope or config.repo_url or ""
+            raw_doc = await provider.fetch_page(best.source_ref, token, repo_url)
+        else:
+            raw_doc = await provider.fetch_page(best.source_ref, token)
+
+        if not raw_doc:
+            return None
+
+        # Chunk it
+        chunks_data = provider.chunk(raw_doc)
+        if not chunks_data:
+            return None
+
+        # Embed
+        texts = [c.content for c in chunks_data]
+        embeddings = await get_embeddings_batch(texts)
+
+        # Store chunks
+        for chunk, emb in zip(chunks_data, embeddings):
+            db.add(DocChunk(
+                org_id=_org_id,
+                source_type=best.source_type,
+                source_ref=best.source_ref,
+                source_url=best.source_url or raw_doc.source_url,
+                file_sha=raw_doc.file_sha,
+                heading=chunk.heading,
+                content=chunk.content,
+                embedding=emb,
+                extra=chunk.metadata,
+            ))
+
+        # Mark as ingested
+        best.ingested = True
+        from datetime import datetime
+        best.ingested_at = datetime.utcnow()
+        await db.commit()
+
+        full_content = "\n\n".join(c.content for c in chunks_data)
+        logger.info(f"[LazyFetch] Fetched + embedded '{best.title}' on demand ({len(chunks_data)} chunks)")
+
+        return {
+            "title": best.title,
+            "source_url": best.source_url or raw_doc.source_url,
+            "content": full_content,
+            "chunks_in_page": len(chunks_data),
+            "fetched_on_demand": True,
+        }
+
+    except Exception as e:
+        logger.warning(f"[LazyFetch] Failed to fetch '{best.title}': {e}")
+        return None

@@ -28,6 +28,30 @@ class ChunkData:
 class DocProvider(ABC):
     """Interface for document source providers."""
 
+    async def fetch_index(
+        self,
+        repo_url: str,
+        token: str,
+    ) -> list[dict]:
+        """Fetch lightweight page metadata (title, id, last_modified) without content.
+
+        Returns list of dicts with: source_ref, title, source_url, last_modified, author.
+        Default implementation returns empty (not all providers support indexing).
+        """
+        return []
+
+    async def fetch_page(
+        self,
+        page_id: str,
+        token: str,
+        repo_url: str = "",
+    ) -> "RawDoc | None":
+        """Fetch a single page by ID. Used for lazy/on-demand ingestion.
+
+        Default implementation returns None (not all providers support single-page fetch).
+        """
+        return None
+
     @abstractmethod
     async def fetch(
         self,

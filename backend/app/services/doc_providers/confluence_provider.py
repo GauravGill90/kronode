@@ -63,6 +63,83 @@ def _html_to_text(html: str) -> str:
 
 class ConfluenceDocProvider(DocProvider):
 
+    async def fetch_index(self, repo_url: str, token: str) -> list[dict]:
+        """Fetch page titles + metadata without content. Fast and free."""
+        if ":" not in token:
+            return []
+        email, api_token = token.split(":", 1)
+        base_url, space_key = _parse_confluence_url(repo_url)
+        headers = _auth_headers(email, api_token)
+        pages: list[dict] = []
+
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+            resp = await client.get(
+                f"{base_url}/api/v2/spaces",
+                headers=headers,
+                params={"keys": space_key},
+            )
+            if not resp.is_success:
+                return []
+            spaces = resp.json().get("results", [])
+            if not spaces:
+                return []
+            space_id = spaces[0]["id"]
+
+            pages_url: str | None = f"{base_url}/api/v2/spaces/{space_id}/pages"
+            while pages_url:
+                resp = await client.get(pages_url, headers=headers, params={"limit": 50})
+                if not resp.is_success:
+                    break
+                data = resp.json()
+                for p in data.get("results", []):
+                    pages.append({
+                        "source_ref": p["id"],
+                        "title": p.get("title", ""),
+                        "source_url": f"{base_url}/wiki/spaces/{space_key}/pages/{p['id']}",
+                        "last_modified": p.get("version", {}).get("createdAt", ""),
+                        "author": p.get("version", {}).get("authorId", ""),
+                    })
+                next_link = data.get("_links", {}).get("next")
+                pages_url = f"{base_url}{next_link}" if next_link else None
+
+        logger.info(f"[Confluence] Indexed {len(pages)} page titles from {space_key}")
+        return pages
+
+    async def fetch_page(self, page_id: str, token: str, repo_url: str = "") -> RawDoc | None:
+        """Fetch a single page by ID with full content."""
+        if ":" not in token:
+            return None
+        email, api_token = token.split(":", 1)
+        base_url, space_key = _parse_confluence_url(repo_url)
+        headers = _auth_headers(email, api_token)
+
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+            resp = await client.get(
+                f"{base_url}/api/v2/pages/{page_id}",
+                headers=headers,
+                params={"body-format": "storage"},
+            )
+            if not resp.is_success:
+                return None
+
+            page = resp.json()
+            title = page.get("title", "")
+            html = page.get("body", {}).get("storage", {}).get("value", "")
+            text = _html_to_text(html)
+            if len(text) < _MIN_CONTENT_LENGTH:
+                return None
+
+            version = str(page.get("version", {}).get("number", "0"))
+            content_sha = hashlib.sha256(version.encode()).hexdigest()[:16]
+
+            return RawDoc(
+                source_ref=page_id,
+                source_url=f"{base_url}/wiki/spaces/{space_key}/pages/{page_id}",
+                file_sha=content_sha,
+                content=text,
+                metadata={"title": title, "space_key": space_key},
+            )
+
     async def fetch(
         self,
         repo_url: str,  # Confluence space URL

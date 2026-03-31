@@ -186,3 +186,96 @@ async def ingest_repo(
     run_doc_ingestion.delay(org_id, doc_source)
 
     return {"ok": True, "repo_name": repo.repo_name, "queued": ["convention_extraction", "doc_ingestion"]}
+
+
+class DocIndexRequest(BaseModel):
+    provider: str  # confluence / notion / gdrive
+    source_url: str  # Confluence space URL, Notion workspace, GDrive folder
+    token: str  # email:api_token for Confluence, integration token for Notion, etc.
+
+
+@router.post("/docs/index")
+async def index_doc_source(
+    payload: DocIndexRequest,
+    user_data: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Index page titles from a doc source (Confluence, Notion, GDrive) without ingesting content.
+
+    Pages are fetched on demand when get_doc is called.
+    """
+    org_id = await _get_org_id(user_data, db)
+
+    from app.services.doc_providers import get_provider
+    from app.models.doc_index import DocIndex
+
+    provider = get_provider(payload.provider)
+    pages = await provider.fetch_index(payload.source_url, payload.token)
+
+    if not pages:
+        return {"ok": False, "error": "No pages found. Check the URL and token."}
+
+    # Upsert index entries
+    existing = (await db.execute(
+        select(DocIndex).where(DocIndex.org_id == org_id, DocIndex.source_type == payload.provider)
+    )).scalars().all()
+    existing_refs = {e.source_ref for e in existing}
+
+    new_count = 0
+    for page in pages:
+        if page["source_ref"] not in existing_refs:
+            db.add(DocIndex(
+                org_id=org_id,
+                source_type=payload.provider,
+                source_ref=page["source_ref"],
+                source_url=page.get("source_url", ""),
+                title=page["title"],
+                last_modified=page.get("last_modified", ""),
+                author=page.get("author", ""),
+            ))
+            new_count += 1
+
+    await db.commit()
+
+    return {
+        "ok": True,
+        "indexed": len(pages),
+        "new": new_count,
+        "pages": [
+            {"title": p["title"], "source_ref": p["source_ref"], "last_modified": p.get("last_modified", "")}
+            for p in pages
+        ],
+    }
+
+
+@router.get("/docs/index")
+async def list_doc_index(
+    user_data: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all indexed doc pages for the org."""
+    org_id = await _get_org_id(user_data, db)
+
+    from app.models.doc_index import DocIndex
+
+    entries = (await db.execute(
+        select(DocIndex).where(DocIndex.org_id == org_id).order_by(DocIndex.title)
+    )).scalars().all()
+
+    return {
+        "total": len(entries),
+        "ingested": sum(1 for e in entries if e.ingested),
+        "pages": [
+            {
+                "id": e.id,
+                "source_type": e.source_type,
+                "source_ref": e.source_ref,
+                "title": e.title,
+                "source_url": e.source_url,
+                "last_modified": e.last_modified,
+                "ingested": e.ingested,
+                "ingested_at": e.ingested_at.isoformat() if e.ingested_at else None,
+            }
+            for e in entries
+        ],
+    }
