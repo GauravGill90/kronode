@@ -74,22 +74,39 @@ function generateConfig(agent: string, token: string, remote: boolean): string {
   const info = AGENT_CONFIGS[agent];
   if (!info) return "";
 
+  const TOOL_APPROVALS = `
+[mcp_servers.kronode.tools.kronode_workflow]
+approval_mode = "approve"
+
+[mcp_servers.kronode.tools.get_context]
+approval_mode = "approve"
+
+[mcp_servers.kronode.tools.get_doc]
+approval_mode = "approve"
+
+[mcp_servers.kronode.tools.get_file_companions]
+approval_mode = "approve"
+
+[mcp_servers.kronode.tools.get_reviewer_guidance]
+approval_mode = "approve"
+
+[mcp_servers.kronode.tools.check_completeness]
+approval_mode = "approve"`;
+
   // Codex uses TOML
   if (agent === "codex") {
     if (remote) {
-      return `# CLI: codex mcp add kronode --transport http --url https://api.kronode.dev/mcp/sse --header 'Authorization: Bearer ${token}'
-
-[mcp_servers.kronode]
+      return `[mcp_servers.kronode]
 url = "https://api.kronode.dev/mcp/sse"
 
 [mcp_servers.kronode.headers]
-Authorization = "Bearer ${token}"`;
+Authorization = "Bearer ${token}"
+${TOOL_APPROVALS}`;
     }
-    return `# CLI: codex mcp add kronode -- python -m app.mcp.main --token ${token}
-
-[mcp_servers.kronode]
+    return `[mcp_servers.kronode]
 command = "python"
-args = ["-m", "app.mcp.main", "--token", "${token}"]`;
+args = ["-m", "app.mcp.main", "--token", "${token}"]
+${TOOL_APPROVALS}`;
   }
 
   const serverConfig = remote

@@ -140,6 +140,27 @@ def generate_config(agent: str, token: str, remote: bool, url: str) -> str:
         ]
         return "\n".join(lines)
 
+    # Codex tool approvals (auto-approve all Kronode tools)
+    TOOL_APPROVALS = """
+[mcp_servers.kronode.tools.kronode_workflow]
+approval_mode = "approve"
+
+[mcp_servers.kronode.tools.get_context]
+approval_mode = "approve"
+
+[mcp_servers.kronode.tools.get_doc]
+approval_mode = "approve"
+
+[mcp_servers.kronode.tools.get_file_companions]
+approval_mode = "approve"
+
+[mcp_servers.kronode.tools.get_reviewer_guidance]
+approval_mode = "approve"
+
+[mcp_servers.kronode.tools.check_completeness]
+approval_mode = "approve"
+""".strip()
+
     # Special case: Codex uses TOML + CLI command
     if agent == "codex":
         if remote:
@@ -147,28 +168,24 @@ def generate_config(agent: str, token: str, remote: bool, url: str) -> str:
                 f"# {info['name']} — {info['file']}",
                 f"# {info['notes']}",
                 "",
-                "# Option 1: CLI command",
-                f"codex mcp add kronode --transport http --url {url}/mcp/sse --header 'Authorization: Bearer {token}'",
-                "",
-                "# Option 2: ~/.codex/config.toml",
                 "[mcp_servers.kronode]",
                 f'url = "{url}/mcp/sse"',
                 "",
                 "[mcp_servers.kronode.headers]",
                 f'Authorization = "Bearer {token}"',
+                "",
+                TOOL_APPROVALS,
             ]
         else:
             lines = [
                 f"# {info['name']} — {info['file']}",
                 f"# {info['notes']}",
                 "",
-                "# Option 1: CLI command",
-                f"codex mcp add kronode -- python -m app.mcp.main --token {token}",
-                "",
-                "# Option 2: ~/.codex/config.toml",
                 "[mcp_servers.kronode]",
                 'command = "python"',
                 f'args = ["-m", "app.mcp.main", "--token", "{token}"]',
+                "",
+                TOOL_APPROVALS,
             ]
         return "\n".join(lines)
 
