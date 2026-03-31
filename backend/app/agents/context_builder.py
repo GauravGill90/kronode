@@ -565,13 +565,27 @@ async def _rank_conventions(
         score += c.confidence * 0.5
         score += min(c.frequency * 0.1, 1.0)  # cap at 1.0
 
+        # 8. Strict filtering: if files_touched provided, penalize conventions with zero file/dir overlap
+        has_file_signal = bool(conv_files & set(selected_paths)) or bool(
+            {f.rsplit("/", 1)[0] for f in conv_files if "/" in f} &
+            {p.rsplit("/", 1)[0] for p in selected_paths if "/" in p}
+        ) if conv_files and selected_paths else False
+
+        if selected_paths and conv_files and not has_file_signal:
+            score *= 0.4  # heavily penalize unrelated conventions when files are specified
+
         scored.append((score, {
             "rule": c.rule,
             "category": c.category,
             "confidence": c.confidence,
             "layer": c.layer,
-            "source_prs": c.source_prs or [],
+            "enforced_by": c.enforced_by or [],
+            "source_files": list(conv_files)[:5] if conv_files else [],
+            "source_prs": c.source_prs[:3] if c.source_prs else [],
+            "last_updated": c.updated_at.isoformat() if c.updated_at else None,
+            "frequency": c.frequency,
             "relevance_score": round(score, 2),
+            "file_match": has_file_signal,
         }))
 
     # Sort by relevance score descending, take top N

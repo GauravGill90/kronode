@@ -19,9 +19,14 @@ mcp = FastMCP(
     name="kronode",
     instructions=(
         "Kronode provides organizational memory for your engineering team. "
-        "Call get_context at the start of any task to get team conventions, "
-        "known pitfalls, and reviewer preferences. Call check_completeness "
-        "before committing to catch missed files."
+        "ALWAYS call get_context at the START of any coding task — pass the task description "
+        "AND the list of files you plan to touch. The response includes file-specific conventions "
+        "(rules extracted from PRs that modified those exact files), reviewer preferences for "
+        "likely reviewers, past failures on similar tasks, and relevant documentation. "
+        "Conventions with file_match=true are the most important — they come from the exact "
+        "files you're editing. Before committing, call check_completeness with your changed "
+        "files to catch missed companion files (translations, tests, types). "
+        "Use get_doc to read full documentation when a doc chunk is truncated."
     ),
 )
 
@@ -38,10 +43,14 @@ def configure(org_id: int, repo_url: str = "", github_token: str = ""):
 @mcp.tool(
     name="get_context",
     description=(
-        "Get organizational context for a coding task. Returns team conventions "
-        "ranked by relevance, known pitfalls for the files being touched, "
-        "reviewer preferences, past failure patterns, and relevant documentation. "
-        "Call this at the START of any task before writing code."
+        "Get organizational context for a coding task. ALWAYS call this before writing code. "
+        "Pass the task description AND files_touched (list of file paths you'll modify). "
+        "Returns: (1) conventions ranked by file-level relevance — those with file_match=true "
+        "were extracted from PRs that modified the exact files you're touching, (2) pitfalls — "
+        "past issues on these files, (3) reviewer preferences for likely reviewers, "
+        "(4) past failures on similar tasks, (5) relevant documentation with source URLs. "
+        "Each convention includes source_files, enforced_by (reviewers), source_prs, and "
+        "last_updated date so you can judge recency and reliability."
     ),
 )
 async def get_context(task_description: str, files_touched: list[str] | None = None) -> dict:
@@ -166,6 +175,8 @@ async def get_context(task_description: str, files_touched: list[str] | None = N
                     "heading": c.get("heading", ""),
                     "content": c.get("content", "")[:1000],
                     "full_available": len(c.get("content", "")) > 1000,
+                    "similarity": round(c.get("similarity", 0), 2),
+                    "source_url": c.get("source_url", ""),
                 }
                 for c in raw_chunks
             ]
