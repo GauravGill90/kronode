@@ -62,11 +62,35 @@ const AGENT_CONFIGS: Record<string, {
     file: ".tabnine/mcp_servers.json",
     rootKey: "mcpServers",
   },
+  codex: {
+    name: "OpenAI Codex",
+    file: "~/.codex/config.toml",
+    rootKey: "mcpServers",
+    note: "Or run: codex mcp add kronode -- python -m app.mcp.main --token TOKEN",
+  },
 };
 
 function generateConfig(agent: string, token: string, remote: boolean): string {
   const info = AGENT_CONFIGS[agent];
   if (!info) return "";
+
+  // Codex uses TOML
+  if (agent === "codex") {
+    if (remote) {
+      return `# CLI: codex mcp add kronode --transport http --url https://api.kronode.dev/mcp/sse --header 'Authorization: Bearer ${token}'
+
+[mcp_servers.kronode]
+url = "https://api.kronode.dev/mcp/sse"
+
+[mcp_servers.kronode.headers]
+Authorization = "Bearer ${token}"`;
+    }
+    return `# CLI: codex mcp add kronode -- python -m app.mcp.main --token ${token}
+
+[mcp_servers.kronode]
+command = "python"
+args = ["-m", "app.mcp.main", "--token", "${token}"]`;
+  }
 
   const serverConfig = remote
     ? { url: "https://api.kronode.dev/mcp/sse", headers: { Authorization: `Bearer ${token}` } }

@@ -106,6 +106,13 @@ AGENTS = {
         "transports": ["stdio", "http"],
         "notes": "Supports OAuth Dynamic Client Registration",
     },
+    "codex": {
+        "name": "OpenAI Codex",
+        "file": "~/.codex/config.toml or .codex/config.toml",
+        "root_key": "mcpServers",
+        "transports": ["stdio", "http"],
+        "notes": "Use 'codex mcp add' CLI command. Supports TOML config.",
+    },
 }
 
 
@@ -131,6 +138,38 @@ def generate_config(agent: str, token: str, remote: bool, url: str) -> str:
             "# Option 2: .mcp.json",
             json.dumps({root_key: {"kronode": server_config}}, indent=2),
         ]
+        return "\n".join(lines)
+
+    # Special case: Codex uses TOML + CLI command
+    if agent == "codex":
+        if remote:
+            lines = [
+                f"# {info['name']} — {info['file']}",
+                f"# {info['notes']}",
+                "",
+                "# Option 1: CLI command",
+                f"codex mcp add kronode --transport http --url {url}/mcp/sse --header 'Authorization: Bearer {token}'",
+                "",
+                "# Option 2: ~/.codex/config.toml",
+                "[mcp_servers.kronode]",
+                f'url = "{url}/mcp/sse"',
+                "",
+                "[mcp_servers.kronode.headers]",
+                f'Authorization = "Bearer {token}"',
+            ]
+        else:
+            lines = [
+                f"# {info['name']} — {info['file']}",
+                f"# {info['notes']}",
+                "",
+                "# Option 1: CLI command",
+                f"codex mcp add kronode -- python -m app.mcp.main --token {token}",
+                "",
+                "# Option 2: ~/.codex/config.toml",
+                "[mcp_servers.kronode]",
+                'command = "python"',
+                f'args = ["-m", "app.mcp.main", "--token", "{token}"]',
+            ]
         return "\n".join(lines)
 
     # Special case: Zed uses different structure
