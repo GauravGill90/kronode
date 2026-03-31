@@ -140,24 +140,11 @@ def generate_config(agent: str, token: str, remote: bool, url: str) -> str:
         ]
         return "\n".join(lines)
 
-    # Codex tool approvals (auto-approve all Kronode tools)
     TOOL_APPROVALS = """
-[mcp_servers.kronode.tools.kronode_workflow]
-approval_mode = "approve"
-
 [mcp_servers.kronode.tools.get_context]
 approval_mode = "approve"
 
 [mcp_servers.kronode.tools.get_doc]
-approval_mode = "approve"
-
-[mcp_servers.kronode.tools.get_file_companions]
-approval_mode = "approve"
-
-[mcp_servers.kronode.tools.get_reviewer_guidance]
-approval_mode = "approve"
-
-[mcp_servers.kronode.tools.check_completeness]
 approval_mode = "approve"
 """.strip()
 

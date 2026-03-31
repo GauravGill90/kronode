@@ -97,11 +97,11 @@ async def get_companions(
     payload: CompanionsRequest,
     org_id: int = Depends(get_org_from_api_key),
 ):
-    """Find files that typically change together (equivalent to MCP get_file_companions)."""
-    from app.mcp.server import get_file_companions as mcp_get_companions, configure
+    """Find files that typically change together."""
+    from app.mcp.server import get_context as mcp_get_context, configure
     configure(org_id=org_id)
-    result = await mcp_get_companions(payload.file_path)
-    return result
+    result = await mcp_get_context("", [payload.file_path])
+    return {"file": payload.file_path, "companions": result.get("file_companions", [])}
 
 
 @router.post("/context/completeness")
@@ -109,11 +109,11 @@ async def check_completeness(
     payload: CompletenessRequest,
     org_id: int = Depends(get_org_from_api_key),
 ):
-    """Check if you missed any companion files (equivalent to MCP check_completeness)."""
-    from app.mcp.server import check_completeness as mcp_check, configure
+    """Check if you missed any companion files."""
+    from app.mcp.server import get_context as mcp_get_context, configure
     configure(org_id=org_id)
-    result = await mcp_check(payload.task_description, payload.files_changed)
-    return result
+    result = await mcp_get_context(payload.task_description, payload.files_changed)
+    return result.get("completeness", {"complete": True, "missing": []})
 
 
 @router.post("/context/reviewer")
@@ -121,8 +121,8 @@ async def get_reviewer_guidance(
     payload: ReviewerRequest,
     org_id: int = Depends(get_org_from_api_key),
 ):
-    """Get reviewer-specific preferences (equivalent to MCP get_reviewer_guidance)."""
-    from app.mcp.server import get_reviewer_guidance as mcp_reviewer, configure
+    """Get reviewer-specific preferences."""
+    from app.mcp.server import get_context as mcp_get_context, configure
     configure(org_id=org_id)
-    result = await mcp_reviewer(payload.files_changed)
-    return result
+    result = await mcp_get_context("", payload.files_changed)
+    return {"files": payload.files_changed, "guidance": result.get("reviewer_guidance", [])}

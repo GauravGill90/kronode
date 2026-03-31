@@ -75,22 +75,10 @@ function generateConfig(agent: string, token: string, remote: boolean): string {
   if (!info) return "";
 
   const TOOL_APPROVALS = `
-[mcp_servers.kronode.tools.kronode_workflow]
-approval_mode = "approve"
-
 [mcp_servers.kronode.tools.get_context]
 approval_mode = "approve"
 
 [mcp_servers.kronode.tools.get_doc]
-approval_mode = "approve"
-
-[mcp_servers.kronode.tools.get_file_companions]
-approval_mode = "approve"
-
-[mcp_servers.kronode.tools.get_reviewer_guidance]
-approval_mode = "approve"
-
-[mcp_servers.kronode.tools.check_completeness]
 approval_mode = "approve"`;
 
   // Codex uses TOML

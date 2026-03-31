@@ -1,7 +1,10 @@
 """Kronode MCP Server — organizational memory for AI coding tools.
 
-Exposes team conventions, pitfalls, reviewer patterns, and file companion
-data as MCP tools that any AI coding agent can call mid-task.
+Two tools:
+  get_context — everything an AI needs before coding (conventions, companions,
+                reviewer guidance, completeness check, docs, pitfalls, checklist)
+  get_doc     — drill into a full documentation page when get_context returns
+                a truncated snippet
 """
 import logging
 import os
@@ -10,7 +13,6 @@ from mcp.server import FastMCP
 
 logger = logging.getLogger(__name__)
 
-# Org ID is resolved at startup from the API token
 _org_id: int | None = None
 _repo_url: str | None = None
 _github_token: str | None = None
@@ -19,14 +21,12 @@ mcp = FastMCP(
     name="kronode",
     instructions=(
         "Kronode provides organizational memory for your engineering team. "
-        "For the best results, call kronode_workflow at the START of any coding task — it runs "
-        "all tools in one call and returns conventions, pitfalls, reviewer guidance, file companions, "
-        "completeness check, and a PR-ready checklist. Alternatively, call individual tools: "
-        "get_context for conventions/docs, get_file_companions for co-changing files, "
-        "get_reviewer_guidance for reviewer preferences, check_completeness before committing, "
-        "and get_doc for full documentation pages. "
-        "Conventions with file_match=true are the most important — they come from PRs that "
-        "modified the exact files you're editing."
+        "ALWAYS call get_context at the START of any coding task. Pass the task description "
+        "and the files you plan to touch. It returns everything in one call: file-specific "
+        "conventions, reviewer preferences, file companions, completeness check, past failures, "
+        "documentation, and a PR-ready checklist. Conventions with file_match=true are the most "
+        "important — they were extracted from PRs that modified the exact files you're editing. "
+        "Use get_doc only when you need the full text of a documentation page that was truncated."
     ),
 )
 
@@ -43,28 +43,35 @@ def configure(org_id: int, repo_url: str = "", github_token: str = ""):
 @mcp.tool(
     name="get_context",
     description=(
-        "Get organizational context for a coding task. ALWAYS call this before writing code. "
-        "Pass the task description AND files_touched (list of file paths you'll modify). "
-        "Returns: (1) conventions ranked by file-level relevance — those with file_match=true "
-        "were extracted from PRs that modified the exact files you're touching, (2) pitfalls — "
-        "past issues on these files, (3) reviewer preferences for likely reviewers, "
-        "(4) past failures on similar tasks, (5) relevant documentation with source URLs. "
-        "Each convention includes source_files, enforced_by (reviewers), source_prs, and "
-        "last_updated date so you can judge recency and reliability."
+        "Get everything you need before writing code — call this at the START of any task. "
+        "Pass the task description AND files_touched (file paths you'll modify). "
+        "Returns in one call: "
+        "(1) conventions ranked by file-level relevance (file_match=true = from exact files), "
+        "(2) file companions (files that usually change together — tests, i18n, types), "
+        "(3) reviewer guidance (what each likely reviewer will check), "
+        "(4) completeness check (did you miss any companion files), "
+        "(5) pitfalls (past issues on these files), "
+        "(6) past failures (mistakes to avoid), "
+        "(7) relevant documentation with source URLs, "
+        "(8) PR-ready checklist summarizing what to watch for. "
+        "Each convention includes source_files, enforced_by, source_prs, and last_updated."
     ),
 )
 async def get_context(task_description: str, files_touched: list[str] | None = None) -> dict:
-    """Fetch ranked organizational context for a specific task."""
+    """Full organizational context for a coding task — one call, everything returned."""
     from app.core.database import AsyncSessionLocal
     from app.models.convention import Convention
     from app.models.memory import MemoryRecord
+    from app.services.companion_analysis import get_companions
     from sqlalchemy import select
 
     if not _org_id:
         return {"error": "MCP server not configured — missing org_id"}
 
+    files_touched = files_touched or []
+
     async with AsyncSessionLocal() as db:
-        # 1. Load conventions
+        # ── 1. Conventions (ranked by file relevance) ────────────────────────
         conv_rows = (await db.execute(
             select(Convention).where(
                 Convention.org_id == _org_id,
@@ -72,18 +79,17 @@ async def get_context(task_description: str, files_touched: list[str] | None = N
             )
         )).scalars().all()
 
-        # 2. Rank by relevance to this task
         from app.agents.context_builder import _rank_conventions, _get_category_relevance
         category_boost = await _get_category_relevance(task_description)
         conventions = await _rank_conventions(
             conv_rows,
             description=task_description,
-            selected_paths=files_touched or [],
+            selected_paths=files_touched,
             category_boost=category_boost,
             max_conventions=20,
         )
 
-        # 3. Load pitfalls (file-scoped)
+        # ── 2. Pitfalls (file-scoped) ────────────────────────────────────────
         pitfalls = []
         if files_touched:
             pitfall_rows = (await db.execute(
@@ -94,11 +100,10 @@ async def get_context(task_description: str, files_touched: list[str] | None = N
             )).scalars().all()
 
             touched_set = set(files_touched)
+            touched_dirs = {f.rsplit("/", 1)[0] for f in touched_set if "/" in f}
             for r in pitfall_rows:
                 content = r.content or {}
                 pitfall_files = set(content.get("files_changed", []))
-                # Include if any touched file overlaps or shares a directory
-                touched_dirs = {f.rsplit("/", 1)[0] for f in touched_set if "/" in f}
                 pitfall_dirs = {f.rsplit("/", 1)[0] for f in pitfall_files if "/" in f}
                 if (pitfall_files & touched_set) or (pitfall_dirs & touched_dirs):
                     comments = content.get("review_comments", [])
@@ -116,8 +121,31 @@ async def get_context(task_description: str, files_touched: list[str] | None = N
                         "pr_url": content.get("pr_url", ""),
                     })
 
-        # 4. Load reviewer patterns
-        reviewer_patterns = []
+        # ── 3. Reviewer guidance ─────────────────────────────────────────────
+        reviewer_guidance = []
+
+        # From enforced_by conventions (grouped by reviewer)
+        enforced = (await db.execute(
+            select(Convention).where(
+                Convention.org_id == _org_id,
+                Convention.enforced_by.isnot(None),
+                Convention.suppressed == False,  # noqa: E712
+            ).order_by(Convention.confidence.desc()).limit(20)
+        )).scalars().all()
+
+        reviewer_map: dict[str, list[str]] = {}
+        for c in enforced:
+            for reviewer in (c.enforced_by or []):
+                reviewer_map.setdefault(reviewer, []).append(c.rule[:150])
+
+        for reviewer, prefs in reviewer_map.items():
+            reviewer_guidance.append({
+                "reviewer": reviewer,
+                "preferences": prefs[:5],
+                "enforcement_count": len(prefs),
+            })
+
+        # From memory records (direct reviewer feedback)
         pattern_rows = (await db.execute(
             select(MemoryRecord).where(
                 MemoryRecord.org_id == _org_id,
@@ -127,29 +155,20 @@ async def get_context(task_description: str, files_touched: list[str] | None = N
         for r in pattern_rows:
             content = r.content or {}
             changes = content.get("changes_requested", [])
-            if changes:
-                reviewer_patterns.append({
-                    "reviewer": content.get("reviewer", ""),
-                    "preference": changes[0][:200],
-                })
+            reviewer = content.get("reviewer", "")
+            if changes and reviewer:
+                # Merge into existing reviewer entry if exists
+                existing = next((g for g in reviewer_guidance if g["reviewer"] == reviewer), None)
+                if existing:
+                    existing["preferences"].extend(changes[:2])
+                else:
+                    reviewer_guidance.append({
+                        "reviewer": reviewer,
+                        "preferences": changes[:3],
+                        "enforcement_count": 0,
+                    })
 
-        # Also load enforced_by conventions
-        enforced = (await db.execute(
-            select(Convention).where(
-                Convention.org_id == _org_id,
-                Convention.enforced_by.isnot(None),
-                Convention.suppressed == False,  # noqa: E712
-            ).order_by(Convention.confidence.desc()).limit(10)
-        )).scalars().all()
-        for c in enforced:
-            enforcers = c.enforced_by or []
-            if enforcers:
-                reviewer_patterns.append({
-                    "reviewer": ", ".join(enforcers[:3]),
-                    "preference": c.rule[:200],
-                })
-
-        # 5. Load past failures
+        # ── 4. Past failures ─────────────────────────────────────────────────
         past_failures = []
         failure_rows = (await db.execute(
             select(MemoryRecord).where(
@@ -165,7 +184,7 @@ async def get_context(task_description: str, files_touched: list[str] | None = N
                 "category": content.get("failure_category", ""),
             })
 
-        # 6. Load doc chunks
+        # ── 5. Documentation ─────────────────────────────────────────────────
         doc_chunks = []
         try:
             from app.services.doc_ingestion import query_relevant_chunks
@@ -183,135 +202,69 @@ async def get_context(task_description: str, files_touched: list[str] | None = N
         except Exception:
             pass
 
+    # ── 6. File companions ───────────────────────────────────────────────
+    file_companions: list[dict] = []
+    seen_paths: set[str] = set()
+    for file_path in files_touched[:5]:
+        try:
+            companions = await get_companions(_org_id, file_path)
+            for comp in companions:
+                if comp.get("path") not in seen_paths:
+                    seen_paths.add(comp["path"])
+                    file_companions.append({**comp, "companion_of": file_path})
+        except Exception:
+            pass
+
+    # ── 7. Completeness check ────────────────────────────────────────────
+    changed_set = set(files_touched)
+    missing_files = []
+    for comp in file_companions:
+        if comp.get("path") not in changed_set:
+            missing_files.append({
+                "file": comp["path"],
+                "reason": f"Usually changes with {comp.get('companion_of', '?')} ({comp.get('co_change_pct', '?')}% of the time)",
+            })
+
+    # ── 8. PR-ready checklist ────────────────────────────────────────────
+    checklist: list[str] = []
+
+    file_matched = [c for c in conventions if c.get("file_match")]
+    if file_matched:
+        checklist.append(f"Follow {len(file_matched)} file-specific conventions (file_match=true)")
+
+    for g in reviewer_guidance[:3]:
+        prefs = g.get("preferences", [])
+        if prefs:
+            checklist.append(f"{g['reviewer']} will check: {prefs[0][:100]}")
+
+    if missing_files:
+        checklist.append(f"Don't forget: {', '.join(m['file'] for m in missing_files[:5])}")
+
+    if past_failures:
+        checklist.append(f"Avoid past mistake: {past_failures[0].get('error', '')[:100]}")
+
     return {
         "conventions": conventions,
         "pitfalls": pitfalls,
-        "reviewer_patterns": reviewer_patterns[:10],
+        "reviewer_guidance": reviewer_guidance[:10],
         "past_failures": past_failures[:5],
         "doc_chunks": doc_chunks,
+        "file_companions": file_companions[:15],
+        "completeness": {
+            "complete": len(missing_files) == 0,
+            "missing": missing_files[:10],
+        },
+        "pr_ready_checklist": checklist,
         "org_id": _org_id,
-    }
-
-
-@mcp.tool(
-    name="get_file_companions",
-    description=(
-        "Find files that typically change together with the given file, based on "
-        "git history and past task records. Use this to discover translation files, "
-        "test files, type definitions, or any companion files you might miss."
-    ),
-)
-async def get_file_companions(file_path: str) -> dict:
-    """Find files that historically co-change with the given file."""
-    from app.services.companion_analysis import get_companions
-
-    if not _org_id:
-        return {"error": "MCP server not configured — missing org_id"}
-
-    companions = await get_companions(_org_id, file_path)
-    return {
-        "file": file_path,
-        "companions": companions,
-    }
-
-
-@mcp.tool(
-    name="get_reviewer_guidance",
-    description=(
-        "Get specific guidance for the likely reviewers of files you're changing. "
-        "Returns what each reviewer typically cares about so you can address their "
-        "concerns proactively and avoid review rounds."
-    ),
-)
-async def get_reviewer_guidance(files_changed: list[str]) -> dict:
-    """Get reviewer-specific preferences for the given files."""
-    from app.core.database import AsyncSessionLocal
-    from app.models.convention import Convention
-    from app.models.memory import MemoryRecord
-    from sqlalchemy import select
-
-    if not _org_id:
-        return {"error": "MCP server not configured — missing org_id"}
-
-    guidance = []
-    async with AsyncSessionLocal() as db:
-        # Conventions enforced by specific reviewers
-        enforced = (await db.execute(
-            select(Convention).where(
-                Convention.org_id == _org_id,
-                Convention.enforced_by.isnot(None),
-                Convention.suppressed == False,  # noqa: E712
-            ).order_by(Convention.confidence.desc()).limit(20)
-        )).scalars().all()
-
-        # Group by reviewer
-        reviewer_map: dict[str, list[str]] = {}
-        for c in enforced:
-            for reviewer in (c.enforced_by or []):
-                reviewer_map.setdefault(reviewer, []).append(c.rule[:150])
-
-        for reviewer, prefs in reviewer_map.items():
-            guidance.append({
-                "reviewer": reviewer,
-                "preferences": prefs[:5],
-                "enforcement_count": len(prefs),
-            })
-
-    return {
-        "files": files_changed,
-        "guidance": guidance,
-    }
-
-
-@mcp.tool(
-    name="check_completeness",
-    description=(
-        "Before committing, check if you missed any files that typically change "
-        "together with the ones you modified. Catches missed translation files, "
-        "test files, type definitions, schemas, etc."
-    ),
-)
-async def check_completeness(task_description: str, files_changed: list[str]) -> dict:
-    """Verify all companion files have been updated."""
-    from app.services.companion_analysis import get_companions
-
-    if not _org_id:
-        return {"error": "MCP server not configured — missing org_id"}
-
-    changed_set = set(files_changed)
-    missing = []
-
-    for file_path in files_changed:
-        companions = await get_companions(_org_id, file_path)
-        for comp in companions:
-            comp_path = comp["path"]
-            if comp_path not in changed_set:
-                missing.append({
-                    "file": comp_path,
-                    "reason": f"Usually changes with {file_path} ({comp['co_change_pct']}% of the time)",
-                })
-
-    # Dedupe by file path
-    seen = set()
-    unique_missing = []
-    for m in missing:
-        if m["file"] not in seen:
-            unique_missing.append(m)
-            seen.add(m["file"])
-
-    return {
-        "complete": len(unique_missing) == 0,
-        "files_checked": len(files_changed),
-        "missing": unique_missing,
     }
 
 
 @mcp.tool(
     name="get_doc",
     description=(
-        "Get the full content of a documentation page by searching for it by title or heading. "
-        "Use this when get_context returns a truncated doc chunk and you need the complete content. "
-        "Returns the full page text, not just a snippet."
+        "Get the full content of a documentation page when get_context returned a "
+        "truncated snippet (full_available=true). Search by title or keyword. "
+        "Returns the complete page text with source URL."
     ),
 )
 async def get_doc(query: str) -> dict:
@@ -325,7 +278,6 @@ async def get_doc(query: str) -> dict:
         return {"error": "MCP server not configured — missing org_id"}
 
     async with AsyncSessionLocal() as db:
-        # Load all doc chunks for this org
         rows = (await db.execute(
             select(DocChunk).where(DocChunk.org_id == _org_id)
         )).scalars().all()
@@ -333,45 +285,37 @@ async def get_doc(query: str) -> dict:
         if not rows:
             return {"results": [], "message": "No documentation ingested for this org."}
 
-        # Try semantic search first
         query_emb = await get_embedding(query)
         matches = []
 
         for chunk in rows:
             score = 0.0
-            # Semantic match
             if query_emb and chunk.embedding:
                 score = cosine_similarity(query_emb, chunk.embedding)
 
-            # Also boost exact keyword matches in heading
             heading_lower = (chunk.heading or "").lower()
             query_lower = query.lower()
             if query_lower in heading_lower:
-                score += 0.3  # strong heading match
+                score += 0.3
 
             if score >= 0.25:
                 matches.append((score, chunk))
 
-        # Sort by score, group by source_ref (page) to return full pages
         matches.sort(key=lambda x: -x[0])
 
         if not matches:
             return {"results": [], "message": f"No docs matched '{query}'."}
 
-        # Get the top matching page's source_ref, then return ALL chunks from that page
         top_source_ref = matches[0][1].source_ref
-        page_chunks = [
-            chunk for chunk in rows
-            if chunk.source_ref == top_source_ref
-        ]
-        # Sort page chunks by ID (insertion order ≈ document order)
-        page_chunks.sort(key=lambda c: c.id)
+        page_chunks = sorted(
+            [c for c in rows if c.source_ref == top_source_ref],
+            key=lambda c: c.id,
+        )
 
         full_content = "\n\n".join(c.content for c in page_chunks)
         page_title = page_chunks[0].heading.split(" > ")[0] if page_chunks else query
         source_url = page_chunks[0].source_url or ""
 
-        # Also return other matching pages as suggestions
         seen_refs = {top_source_ref}
         other_pages = []
         for score, chunk in matches:
@@ -393,85 +337,3 @@ async def get_doc(query: str) -> dict:
             "similarity": round(matches[0][0], 2),
             "other_matches": other_pages,
         }
-
-
-@mcp.tool(
-    name="kronode_workflow",
-    description=(
-        "Run the full Kronode workflow in a single call. Returns everything you need: "
-        "conventions, pitfalls, reviewer guidance, file companions, completeness check, "
-        "and relevant documentation — all at once. Use this instead of calling individual "
-        "tools separately. Pass the task description, the files you plan to touch, and "
-        "optionally the files you've already changed (for completeness check)."
-    ),
-)
-async def kronode_workflow(
-    task_description: str,
-    files_touched: list[str],
-    files_changed: list[str] | None = None,
-) -> dict:
-    """Run all Kronode tools in one call — full context for a coding task."""
-    if not _org_id:
-        return {"error": "MCP server not configured — missing org_id"}
-
-    # 1. Get full context (conventions, pitfalls, past failures, docs)
-    context = await get_context(task_description, files_touched)
-
-    # 2. File companions for each touched file (top 3 files to keep it fast)
-    all_companions: list[dict] = []
-    seen_companion_paths: set[str] = set()
-    for file_path in files_touched[:5]:
-        try:
-            result = await get_file_companions(file_path)
-            for comp in result.get("companions", []):
-                if comp.get("path") not in seen_companion_paths:
-                    seen_companion_paths.add(comp["path"])
-                    all_companions.append({**comp, "companion_of": file_path})
-        except Exception:
-            pass
-
-    # 3. Reviewer guidance
-    reviewer = await get_reviewer_guidance(files_touched)
-
-    # 4. Completeness check
-    check_files = files_changed or files_touched
-    completeness = await check_completeness(task_description, check_files)
-
-    # 5. Build PR-ready checklist
-    checklist: list[str] = []
-
-    # File-matched conventions
-    file_matched = [c for c in context.get("conventions", []) if c.get("file_match")]
-    if file_matched:
-        checklist.append(f"Follow {len(file_matched)} file-specific conventions (see conventions with file_match=true)")
-
-    # Reviewer preferences
-    guidance = reviewer.get("guidance", [])
-    for g in guidance[:3]:
-        reviewer_name = g.get("reviewer", "")
-        prefs = g.get("preferences", [])
-        if prefs:
-            checklist.append(f"{reviewer_name} will check: {prefs[0][:100]}")
-
-    # Missing companions
-    missing = completeness.get("missing", [])
-    if missing:
-        checklist.append(f"Don't forget: {', '.join(m['file'] for m in missing[:5])}")
-
-    # Past failures
-    failures = context.get("past_failures", [])
-    if failures:
-        checklist.append(f"Avoid past mistake: {failures[0].get('error', '')[:100]}")
-
-    return {
-        "conventions": context.get("conventions", []),
-        "pitfalls": context.get("pitfalls", []),
-        "past_failures": context.get("past_failures", []),
-        "doc_chunks": context.get("doc_chunks", []),
-        "reviewer_patterns": context.get("reviewer_patterns", []),
-        "file_companions": all_companions[:15],
-        "reviewer_guidance": guidance,
-        "completeness": completeness,
-        "pr_ready_checklist": checklist,
-        "org_id": _org_id,
-    }
