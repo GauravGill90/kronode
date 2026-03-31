@@ -162,7 +162,11 @@ async def get_context(task_description: str, files_touched: list[str] | None = N
             from app.services.doc_ingestion import query_relevant_chunks
             raw_chunks = await query_relevant_chunks(_org_id, task_description, max_chunks=5)
             doc_chunks = [
-                {"heading": c.get("heading", ""), "content": c.get("content", "")[:500]}
+                {
+                    "heading": c.get("heading", ""),
+                    "content": c.get("content", "")[:1000],
+                    "full_available": len(c.get("content", "")) > 1000,
+                }
                 for c in raw_chunks
             ]
         except Exception:
@@ -289,3 +293,92 @@ async def check_completeness(task_description: str, files_changed: list[str]) ->
         "files_checked": len(files_changed),
         "missing": unique_missing,
     }
+
+
+@mcp.tool(
+    name="get_doc",
+    description=(
+        "Get the full content of a documentation page by searching for it by title or heading. "
+        "Use this when get_context returns a truncated doc chunk and you need the complete content. "
+        "Returns the full page text, not just a snippet."
+    ),
+)
+async def get_doc(query: str) -> dict:
+    """Search for and return full documentation content matching the query."""
+    from app.core.database import AsyncSessionLocal
+    from app.models.doc_chunk import DocChunk
+    from app.core.embeddings import get_embedding, cosine_similarity
+    from sqlalchemy import select
+
+    if not _org_id:
+        return {"error": "MCP server not configured — missing org_id"}
+
+    async with AsyncSessionLocal() as db:
+        # Load all doc chunks for this org
+        rows = (await db.execute(
+            select(DocChunk).where(DocChunk.org_id == _org_id)
+        )).scalars().all()
+
+        if not rows:
+            return {"results": [], "message": "No documentation ingested for this org."}
+
+        # Try semantic search first
+        query_emb = await get_embedding(query)
+        matches = []
+
+        for chunk in rows:
+            score = 0.0
+            # Semantic match
+            if query_emb and chunk.embedding:
+                score = cosine_similarity(query_emb, chunk.embedding)
+
+            # Also boost exact keyword matches in heading
+            heading_lower = (chunk.heading or "").lower()
+            query_lower = query.lower()
+            if query_lower in heading_lower:
+                score += 0.3  # strong heading match
+
+            if score >= 0.25:
+                matches.append((score, chunk))
+
+        # Sort by score, group by source_ref (page) to return full pages
+        matches.sort(key=lambda x: -x[0])
+
+        if not matches:
+            return {"results": [], "message": f"No docs matched '{query}'."}
+
+        # Get the top matching page's source_ref, then return ALL chunks from that page
+        top_source_ref = matches[0][1].source_ref
+        page_chunks = [
+            chunk for chunk in rows
+            if chunk.source_ref == top_source_ref
+        ]
+        # Sort page chunks by ID (insertion order ≈ document order)
+        page_chunks.sort(key=lambda c: c.id)
+
+        full_content = "\n\n".join(c.content for c in page_chunks)
+        page_title = page_chunks[0].heading.split(" > ")[0] if page_chunks else query
+        source_url = page_chunks[0].source_url or ""
+
+        # Also return other matching pages as suggestions
+        seen_refs = {top_source_ref}
+        other_pages = []
+        for score, chunk in matches:
+            if chunk.source_ref not in seen_refs:
+                seen_refs.add(chunk.source_ref)
+                other_pages.append({
+                    "title": chunk.heading.split(" > ")[0],
+                    "source_ref": chunk.source_ref,
+                    "similarity": round(score, 2),
+                })
+            if len(other_pages) >= 4:
+                break
+
+        return {
+            "title": page_title,
+            "source_url": source_url,
+            "content": full_content,
+            "chunks_in_page": len(page_chunks),
+            "similarity": round(matches[0][0], 2),
+            "other_matches": other_pages,
+        }
