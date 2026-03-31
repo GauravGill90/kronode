@@ -5,7 +5,7 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-// Inject Clerk token on every request (set window.__clerkToken from a useAuth hook in your layout)
+// Inject Clerk token on every request
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     const token = (window as Window & { __clerkToken?: string }).__clerkToken;
@@ -15,6 +15,28 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Retry once on 401 — token may have expired, refresh and retry
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const original = error.config;
+    if (error.response?.status === 401 && !original._retry && typeof window !== "undefined") {
+      original._retry = true;
+      // Try to get a fresh token from Clerk
+      const w = window as Window & { __clerkGetToken?: () => Promise<string | null> };
+      if (w.__clerkGetToken) {
+        const freshToken = await w.__clerkGetToken();
+        if (freshToken) {
+          (window as Window & { __clerkToken?: string }).__clerkToken = freshToken;
+          original.headers.Authorization = `Bearer ${freshToken}`;
+          return api(original);
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;
 

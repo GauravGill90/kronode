@@ -9,6 +9,9 @@ export default function ClerkTokenSync() {
   useEffect(() => {
     if (!isSignedIn) return;
 
+    // Expose getToken on window so the axios interceptor can refresh on 401
+    (window as Window & { __clerkGetToken?: () => Promise<string | null> }).__clerkGetToken = getToken;
+
     async function sync() {
       const token = await getToken();
       if (token) {
