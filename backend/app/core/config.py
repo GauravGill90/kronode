@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     sentry_dsn: str = ""
     log_level: str = "INFO"
 
+    # GitHub App (for PR comments integration)
+    github_app_id: str = ""
+    github_app_private_key: str = ""  # PEM format
+    github_webhook_secret: str = ""
+
     # App
     backend_url: str = "http://localhost:8000"
     cors_origins: str = "http://localhost:3000"

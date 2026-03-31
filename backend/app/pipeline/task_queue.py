@@ -87,6 +87,12 @@ def run_pr_revision(task_id: str):
     asyncio.run(_run_pr_revision(task_id))
 
 
+@celery_app.task(name="process_webhook")
+def process_webhook(org_id: int, source: str, payload: dict, idempotency_key: str = ""):
+    from app.services.webhook_processors import process
+    asyncio.run(process(org_id, source, payload, idempotency_key))
+
+
 async def _poll_pr_outcomes():
     import logging
     from sqlalchemy import select, and_ as sa_and, text

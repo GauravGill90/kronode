@@ -79,6 +79,46 @@ if settings.sentry_dsn:
 app.include_router(api_router, prefix="/v1")
 
 
+# ── Integration webhooks ──────────────────────────────────────────────────────
+
+@app.post("/integrations/github/webhooks")
+async def github_webhook(request: Request):
+    """Receive GitHub App webhook events."""
+    from app.integrations.github_app import (
+        handle_pull_request,
+        handle_pull_request_review,
+        verify_webhook_signature,
+    )
+
+    body = await request.body()
+    signature = request.headers.get("X-Hub-Signature-256", "")
+    event = request.headers.get("X-GitHub-Event", "")
+
+    if settings.github_webhook_secret:
+        if not verify_webhook_signature(body, signature, settings.github_webhook_secret):
+            return JSONResponse(status_code=401, content={"error": "Invalid signature"})
+
+    import json
+    payload = json.loads(body)
+
+    if event == "pull_request":
+        await handle_pull_request(payload)
+    elif event == "pull_request_review":
+        await handle_pull_request_review(payload)
+
+    return {"ok": True}
+
+
+@app.post("/integrations/slack/events")
+async def slack_events(request: Request):
+    """Receive Slack events (app_mention, slash commands)."""
+    try:
+        from app.integrations.slack_bot import handler
+        return await handler.handle(request)
+    except ImportError:
+        return JSONResponse(status_code=501, content={"error": "slack-bolt not installed"})
+
+
 @app.get("/health")
 async def health():
     """Shallow health check — process is up."""

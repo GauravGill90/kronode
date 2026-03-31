@@ -65,6 +65,18 @@ export const saveContext = (data: { project_context: string; coding_standards?: 
 export const saveGithubToken = (data: { token: string }) =>
   api.post("/onboarding/github-token", data);
 
+export const testRepoToken = (data: { token: string; repo_url: string }) =>
+  api.post("/onboarding/test-repo-token", data);
+
+export const generateApiKey = (data: { name?: string } = {}) =>
+  api.post("/api-keys", data);
+
+export const listApiKeys = () =>
+  api.get("/api-keys");
+
+export const revokeApiKey = (keyId: number) =>
+  api.delete(`/api-keys/${keyId}`);
+
 export const completeOnboarding = () =>
   api.post("/onboarding/complete");
 

@@ -4,8 +4,10 @@ Usage:
     python -m app.mcp.main                          # uses KRONODE_TOKEN env var
     python -m app.mcp.main --token kron_xxxxx        # explicit token
     python -m app.mcp.main --org-id 57               # dev mode, skip auth
+    python -m app.mcp.main --transport http           # HTTP/SSE transport (for Cursor, Copilot, etc.)
 
-The server runs on stdio transport (for `claude mcp add`).
+The server runs on stdio transport by default (for `claude mcp add`).
+Use --transport http for remote/team deployment.
 """
 import argparse
 import asyncio
@@ -52,6 +54,13 @@ async def run():
     parser = argparse.ArgumentParser(description="Kronode MCP Server")
     parser.add_argument("--token", default=os.environ.get("KRONODE_TOKEN"), help="Kronode API token (kron_...)")
     parser.add_argument("--org-id", type=int, default=None, help="Direct org ID (dev mode, skips auth)")
+    parser.add_argument(
+        "--transport", default=os.environ.get("MCP_TRANSPORT", "stdio"),
+        choices=["stdio", "http"],
+        help="Transport: stdio (default, for Claude Code) or http (for Cursor, Copilot, remote)",
+    )
+    parser.add_argument("--host", default="0.0.0.0", help="HTTP host (default: 0.0.0.0)")
+    parser.add_argument("--port", type=int, default=8001, help="HTTP port (default: 8001)")
     args = parser.parse_args()
 
     try:
@@ -63,8 +72,12 @@ async def run():
     from app.mcp.server import mcp, configure
     configure(org_id=org_id, repo_url=repo_url, github_token=github_token)
 
-    logger.info(f"[KronodeMCP] Starting stdio server for org {org_id}")
-    await mcp.run_stdio_async()
+    if args.transport == "http":
+        logger.info(f"[KronodeMCP] Starting HTTP server for org {org_id} on {args.host}:{args.port}")
+        await mcp.run_async(transport="sse", host=args.host, port=args.port)
+    else:
+        logger.info(f"[KronodeMCP] Starting stdio server for org {org_id}")
+        await mcp.run_stdio_async()
 
 
 def main():

@@ -1,0 +1,234 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { generateApiKey, listApiKeys } from "@/lib/api";
+
+const AGENT_CONFIGS: Record<string, {
+  name: string;
+  file: string;
+  rootKey: string;
+  note?: string;
+}> = {
+  "claude-code": {
+    name: "Claude Code",
+    file: ".mcp.json",
+    rootKey: "mcpServers",
+    note: "Or run: claude mcp add kronode -- python -m app.mcp.main --token TOKEN",
+  },
+  cursor: {
+    name: "Cursor",
+    file: ".cursor/mcp.json",
+    rootKey: "mcpServers",
+  },
+  windsurf: {
+    name: "Windsurf",
+    file: "~/.codeium/windsurf/mcp_config.json",
+    rootKey: "mcpServers",
+  },
+  copilot: {
+    name: "GitHub Copilot (VS Code)",
+    file: ".vscode/mcp.json",
+    rootKey: "servers",
+    note: "Root key is 'servers' not 'mcpServers'",
+  },
+  cline: {
+    name: "Cline",
+    file: "cline_mcp_settings.json",
+    rootKey: "mcpServers",
+  },
+  continue: {
+    name: "Continue",
+    file: ".continue/mcpServers/kronode.json",
+    rootKey: "mcpServers",
+  },
+  "amazon-q": {
+    name: "Amazon Q",
+    file: "~/.aws/amazonq/mcp.json",
+    rootKey: "mcpServers",
+  },
+  jetbrains: {
+    name: "JetBrains AI",
+    file: "mcp.json",
+    rootKey: "mcpServers",
+  },
+  zed: {
+    name: "Zed",
+    file: "settings.json",
+    rootKey: "context_servers",
+    note: "Root key is 'context_servers' not 'mcpServers'",
+  },
+  tabnine: {
+    name: "Tabnine",
+    file: ".tabnine/mcp_servers.json",
+    rootKey: "mcpServers",
+  },
+};
+
+function generateConfig(agent: string, token: string, remote: boolean): string {
+  const info = AGENT_CONFIGS[agent];
+  if (!info) return "";
+
+  const serverConfig = remote
+    ? { url: "https://api.kronode.dev/mcp/sse", headers: { Authorization: `Bearer ${token}` } }
+    : { command: "python", args: ["-m", "app.mcp.main", "--token", token], env: {} };
+
+  const config = { [info.rootKey]: { kronode: serverConfig } };
+  return JSON.stringify(config, null, 2);
+}
+
+interface Props {
+  onDone?: () => void;
+}
+
+export default function StepMCPSetup({ onDone }: Props) {
+  const [apiKey, setApiKey] = useState("");
+  const [selectedAgent, setSelectedAgent] = useState("claude-code");
+  const [useRemote, setUseRemote] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [existingKeys, setExistingKeys] = useState<any[]>([]);
+
+  useEffect(() => {
+    loadKeys();
+  }, []);
+
+  async function loadKeys() {
+    try {
+      const resp = await listApiKeys();
+      setExistingKeys(resp.data || []);
+    } catch {}
+  }
+
+  async function handleGenerateKey() {
+    setLoading(true);
+    try {
+      const resp = await generateApiKey({ name: "mcp-setup" });
+      setApiKey(resp.data.key);
+    } catch (e: any) {
+      alert("Failed to generate API key: " + (e?.response?.data?.detail || e.message));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleCopy() {
+    const config = generateConfig(selectedAgent, apiKey, useRemote);
+    navigator.clipboard.writeText(config);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  const agentInfo = AGENT_CONFIGS[selectedAgent];
+  const config = apiKey ? generateConfig(selectedAgent, apiKey, useRemote) : "";
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold text-white mb-1">Connect Your AI Tool</h3>
+        <p className="text-sm text-zinc-400">
+          Generate an API key and add Kronode to your AI coding tool.
+        </p>
+      </div>
+
+      {/* Step 1: Generate API Key */}
+      <div className="space-y-3">
+        <label className="block text-sm font-medium text-zinc-300">1. Generate API Key</label>
+        {apiKey ? (
+          <div className="bg-zinc-900 rounded-lg p-3 border border-zinc-700">
+            <code className="text-green-400 text-sm break-all">{apiKey}</code>
+            <p className="text-xs text-zinc-500 mt-1">Save this key — it won't be shown again.</p>
+          </div>
+        ) : (
+          <div>
+            {existingKeys.length > 0 && (
+              <p className="text-xs text-zinc-500 mb-2">
+                You have {existingKeys.length} existing key(s). Generate a new one for this setup.
+              </p>
+            )}
+            <button
+              onClick={handleGenerateKey}
+              disabled={loading}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm disabled:opacity-50"
+            >
+              {loading ? "Generating..." : "Generate API Key"}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Step 2: Select AI Tool */}
+      {apiKey && (
+        <div className="space-y-3">
+          <label className="block text-sm font-medium text-zinc-300">2. Select Your AI Tool</label>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {Object.entries(AGENT_CONFIGS).map(([key, info]) => (
+              <button
+                key={key}
+                onClick={() => setSelectedAgent(key)}
+                className={`px-3 py-2 rounded-lg text-sm text-left transition ${
+                  selectedAgent === key
+                    ? "bg-indigo-600 text-white"
+                    : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+                }`}
+              >
+                {info.name}
+              </button>
+            ))}
+          </div>
+
+          {/* Transport toggle */}
+          <div className="flex items-center gap-3 mt-2">
+            <label className="text-sm text-zinc-400">Transport:</label>
+            <button
+              onClick={() => setUseRemote(false)}
+              className={`px-3 py-1 rounded text-xs ${!useRemote ? "bg-indigo-600 text-white" : "bg-zinc-800 text-zinc-400"}`}
+            >
+              Local (stdio)
+            </button>
+            <button
+              onClick={() => setUseRemote(true)}
+              className={`px-3 py-1 rounded text-xs ${useRemote ? "bg-indigo-600 text-white" : "bg-zinc-800 text-zinc-400"}`}
+            >
+              Remote (HTTP)
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Step 3: Config */}
+      {config && (
+        <div className="space-y-3">
+          <label className="block text-sm font-medium text-zinc-300">
+            3. Add to <code className="text-indigo-400">{agentInfo.file}</code>
+          </label>
+          {agentInfo.note && (
+            <p className="text-xs text-zinc-500">{agentInfo.note}</p>
+          )}
+          <div className="relative">
+            <pre className="bg-zinc-900 rounded-lg p-4 border border-zinc-700 text-sm text-zinc-300 overflow-x-auto max-h-64">
+              {config}
+            </pre>
+            <button
+              onClick={handleCopy}
+              className="absolute top-2 right-2 px-3 py-1 bg-zinc-700 hover:bg-zinc-600 text-white rounded text-xs"
+            >
+              {copied ? "Copied!" : "Copy"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Done */}
+      {apiKey && (
+        <div className="pt-4">
+          <button
+            onClick={onDone}
+            className="w-full py-3 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium"
+          >
+            Done — Start Using Kronode
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
