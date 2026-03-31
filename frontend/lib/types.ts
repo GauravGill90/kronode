@@ -31,24 +31,78 @@ export interface TaskCreated {
 
 // ── Dashboard types ─────────────────────────────────────────────────────────────
 
-export interface IntegrationStatus {
-  github: boolean;
-  jira: boolean;
-  slack: boolean;
-  docs: boolean;
+export interface IntegrationDetail {
+  connected: boolean;
+  provider: string;
+  name: string;
 }
 
-export interface AgentConfig {
-  agent_name: string;
-  agent_avatar: string;
-  capabilities: Record<string, Record<string, boolean>> | null;
-  guardrails: {
-    restricted_paths: string[];
-    max_files_per_task: number;
-    risk_level: string;
-  } | null;
+export interface IntegrationsStatus {
+  git: IntegrationDetail;
+  docs: IntegrationDetail;
+  issues: IntegrationDetail;
+  slack: IntegrationDetail;
 }
 
+export interface MCPTool {
+  name: string;
+  description: string;
+}
+
+export interface ActivityItem {
+  action: string;
+  resource: string | null;
+  details: Record<string, unknown> | null;
+  timestamp: string;
+}
+
+export interface ConventionSummary {
+  id: number;
+  rule: string;
+  category: string;
+  confidence: number;
+  enforced_by: string[] | null;
+}
+
+export interface DocSourceSummary {
+  source_type: string;
+  source_count: number;
+  chunk_count: number;
+  last_updated: string | null;
+}
+
+export interface DashboardData {
+  org_name: string;
+  user_name: string | null;
+  onboarding_complete: boolean;
+
+  // Stats
+  convention_count: number;
+  enforced_convention_count: number;
+  doc_chunk_count: number;
+  doc_source_count: number;
+  reviewer_pattern_count: number;
+  failure_count: number;
+  active_api_key_count: number;
+  mcp_calls_this_month: number;
+
+  // Integrations
+  integrations: IntegrationsStatus;
+
+  // MCP tools
+  mcp_tools: MCPTool[];
+
+  // Recent activity
+  recent_activity: ActivityItem[];
+
+  // Top conventions
+  top_conventions: ConventionSummary[];
+
+  // Doc sources
+  doc_sources: DocSourceSummary[];
+}
+
+// Legacy types (kept for backward compat with task pages)
 export interface TaskSummary {
   id: string;
   description: string;
@@ -58,26 +112,6 @@ export interface TaskSummary {
   num_turns: number | null;
   created_at: string;
   completed_at: string | null;
-}
-
-export interface PRStats {
-  total_prs: number;
-  merged: number;
-  in_review: number;
-  rejected: number;
-  failed: number;
-  acceptance_rate: number | null;
-  avg_cost_usd: number | null;
-  avg_turns: number | null;
-}
-
-export interface DashboardData {
-  user_name: string | null;
-  agent: AgentConfig | null;
-  integrations: IntegrationStatus;
-  recent_tasks: TaskSummary[];
-  pr_stats: PRStats;
-  onboarding_complete: boolean;
 }
 
 // ── Onboarding types ────────────────────────────────────────────────────────────
