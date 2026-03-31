@@ -146,8 +146,9 @@ async def _poll_pr_outcomes():
 
         # Check PR status via GitHub API
         try:
-            from app.services.github_service import get_pr_status
-            status = await get_pr_status(pr_url, cfg.github_access_token)
+            from app.services.git_providers import get_git_provider
+            git = get_git_provider(cfg.repo_provider or "github")
+            status = await git.get_pr_status(pr_url, cfg.github_access_token)
         except Exception as exc:
             logger.warning(f"[PollPR] get_pr_status failed for {pr_url}: {exc}")
             continue
@@ -463,9 +464,10 @@ async def _run_pr_revision(task_id_str: str):
 
     # Commit revised files to the existing branch — PR updates automatically
     try:
-        from app.services.github_service import add_files_to_branch
+        from app.services.git_providers import get_git_provider
+        git = get_git_provider(cfg.repo_provider or "github")
         commit_message = result.get("commit_message", "fix: address PR review comments")
-        ok = await add_files_to_branch(
+        ok = await git.add_files_to_branch(
             repo_url=write_repo,
             branch_name=branch_name,
             files=files,

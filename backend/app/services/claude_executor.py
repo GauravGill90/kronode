@@ -150,59 +150,15 @@ async def execute_task(
         pr_title = _sanitize_title(task_description, max_len=72)
         pr_description = _build_pr_description(task_description, plan, files_changed, agent_result)
 
-        import httpx
-        if repo_provider == "bitbucket":
-            from app.services.bitbucket_service import (
-                _parse_repo,
-                _auth_headers,
-                BITBUCKET_API,
-            )
-            owner, repo = _parse_repo(write_repo)
-            headers = _auth_headers(github_token)
-
-            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-                resp = await client.get(
-                    f"{BITBUCKET_API}/repositories/{owner}/{repo}",
-                    headers=headers,
-                )
-                resp.raise_for_status()
-                default_branch = resp.json()["mainbranch"]["name"]
-
-                resp = await client.post(
-                    f"{BITBUCKET_API}/repositories/{owner}/{repo}/pullrequests",
-                    headers=headers,
-                    json={
-                        "title": pr_title,
-                        "description": pr_description,
-                        "source": {"branch": {"name": branch_name}},
-                        "destination": {"branch": {"name": default_branch}},
-                    },
-                )
-                resp.raise_for_status()
-                pr_url = resp.json()["links"]["html"]["href"]
-        else:
-            from app.services.github_service import _parse_repo, _auth_headers, GITHUB_API
-            owner, repo = _parse_repo(write_repo)
-            headers = _auth_headers(github_token)
-
-            async with httpx.AsyncClient(timeout=30) as client:
-                # Get default branch
-                resp = await client.get(f"{GITHUB_API}/repos/{owner}/{repo}", headers=headers)
-                resp.raise_for_status()
-                default_branch = resp.json()["default_branch"]
-
-                resp = await client.post(
-                    f"{GITHUB_API}/repos/{owner}/{repo}/pulls",
-                    headers=headers,
-                    json={
-                        "title": pr_title,
-                        "body": pr_description,
-                        "head": branch_name,
-                        "base": default_branch,
-                    },
-                )
-                resp.raise_for_status()
-                pr_url = resp.json()["html_url"]
+        from app.services.git_providers import get_git_provider
+        git = get_git_provider(repo_provider or "github")
+        pr_url = await git.open_pull_request(
+            repo_url=write_repo,
+            branch_name=branch_name,
+            pr_title=pr_title,
+            pr_description=pr_description,
+            token=github_token,
+        )
 
         logger.info(f"[ClaudeExecutor] PR opened: {pr_url}")
 

@@ -41,11 +41,9 @@ async def run_extraction(org_id: int, pr_count: int = 200) -> int:
 
     # Step 1: Fetch merged PRs (route to correct provider)
     logger.info(f"[ConventionPipeline] Org {org_id}: fetching up to {pr_count} merged PRs (provider={config.repo_provider})")
-    if config.repo_provider == "bitbucket":
-        from app.services.bitbucket_service import fetch_merged_prs
-    else:
-        from app.services.github_service import fetch_merged_prs
-    prs = await fetch_merged_prs(
+    from app.services.git_providers import get_git_provider
+    git = get_git_provider(config.repo_provider or "github")
+    prs = await git.fetch_merged_prs(
         repo_url=config.repo_url,
         token=config.github_access_token,
         count=pr_count,

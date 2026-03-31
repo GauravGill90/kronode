@@ -321,7 +321,7 @@ async def trigger_doc_ingestion(
     if not config.repo_url or not config.github_access_token:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No repo or GitHub token configured")
     from app.pipeline.task_queue import run_doc_ingestion
-    doc_source = "bitbucket" if config.repo_provider == "bitbucket" else "git"
+    doc_source = config.repo_provider if config.repo_provider in ("bitbucket", "gitlab") else "git"
     run_doc_ingestion.delay(org.id, doc_source)
     return {"ok": True, "message": f"Doc ingestion queued for org {org.id}"}
 
@@ -342,7 +342,7 @@ async def refresh_all_ingestion(
     queued.append("self-onboarding")
     run_convention_extraction.delay(org.id, 200)
     queued.append("convention extraction (200 PRs)")
-    doc_source = "bitbucket" if config.repo_provider == "bitbucket" else "git"
+    doc_source = config.repo_provider if config.repo_provider in ("bitbucket", "gitlab") else "git"
     run_doc_ingestion.delay(org.id, doc_source)
     queued.append("doc ingestion")
 
@@ -374,6 +374,33 @@ async def get_ingestion_status(
         "reviewer_patterns": pattern_count,
         "repo_url": config.repo_url,
     }
+
+
+@router.post("/test-repo-token")
+async def test_repo_token(
+    payload: GitHubTokenTestPayload,
+    user_data: dict = Depends(get_current_user),
+):
+    """Validate any git provider token (GitHub, Bitbucket, GitLab)."""
+    from app.services.git_providers import get_git_provider
+
+    # Detect provider from URL
+    repo_url = payload.repo_url.lower()
+    if "gitlab" in repo_url:
+        provider_type = "gitlab"
+    elif "bitbucket" in repo_url:
+        provider_type = "bitbucket"
+    else:
+        provider_type = "github"
+
+    try:
+        git = get_git_provider(provider_type)
+        result = await git.validate_token(payload.token, payload.repo_url)
+        if result["valid"]:
+            return {"ok": True, "login": "", "repo": result["repo_name"], "provider": provider_type}
+        return {"ok": False, "error": result.get("error", "Token validation failed")}
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
 
 
 @router.post("/test-github-token")

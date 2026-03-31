@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     slack_client_secret: str = ""
     slack_signing_secret: str = ""
 
+    # Security
+    encryption_key: str = ""  # Fernet key for encrypting secrets at rest
+    sentry_dsn: str = ""
+    log_level: str = "INFO"
+
     # App
     backend_url: str = "http://localhost:8000"
     cors_origins: str = "http://localhost:3000"

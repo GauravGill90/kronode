@@ -122,8 +122,9 @@ class TesterAgent(AgentBase):
         github_token = context.get("github_access_token")
 
         if repo_url and github_token and branch_name:
-            from app.services.github_service import add_files_to_branch
-            committed = await add_files_to_branch(
+            from app.services.git_providers import get_git_provider
+            git = get_git_provider(context.get("repo_provider", "github"))
+            committed = await git.add_files_to_branch(
                 repo_url=repo_url,
                 branch_name=branch_name,
                 files=test_files,

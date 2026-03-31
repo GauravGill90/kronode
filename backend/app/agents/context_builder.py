@@ -53,11 +53,11 @@ class ContextBuilderAgent(AgentBase):
         cached_conventions: list[str] | None,
         context: dict,
     ) -> dict:
+        from app.services.git_providers import get_git_provider
         repo_provider = context.get("repo_provider", "github")
-        if repo_provider == "bitbucket":
-            from app.services.bitbucket_service import get_repo_tree, get_file_content
-        else:
-            from app.services.github_service import get_repo_tree, get_file_content
+        git = get_git_provider(repo_provider)
+        get_repo_tree = git.get_repo_tree
+        get_file_content = git.get_file_content
 
         # 1. Get full repo file tree
         all_paths = await get_repo_tree(repo_url, token)

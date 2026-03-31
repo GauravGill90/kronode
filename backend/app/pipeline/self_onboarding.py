@@ -82,11 +82,9 @@ async def run_onboarding(org_id: int) -> None:
 
     # Step 1: Analyse repo structure and detect stack
     try:
-        if config.repo_provider == "bitbucket":
-            from app.services.bitbucket_service import get_repo_tree, get_file_content
-        else:
-            from app.services.github_service import get_repo_tree, get_file_content
-        all_paths = await get_repo_tree(config.repo_url, config.github_access_token)
+        from app.services.git_providers import get_git_provider
+        git = get_git_provider(config.repo_provider or "github")
+        all_paths = await git.get_repo_tree(config.repo_url, config.github_access_token)
     except Exception as exc:
         logger.warning(f"[SelfOnboarding] Failed to fetch repo tree: {exc}")
         return
@@ -177,7 +175,7 @@ async def run_onboarding(org_id: int) -> None:
     # Step 5: Ingest documentation from repo (markdown files)
     try:
         from app.services.doc_ingestion import ingest_docs
-        doc_source = "bitbucket" if config.repo_provider == "bitbucket" else "git"
+        doc_source = config.repo_provider if config.repo_provider in ("bitbucket", "gitlab") else "git"
         chunk_count = await ingest_docs(org_id, source_type=doc_source)
         logger.info(f"[SelfOnboarding] Ingested {chunk_count} doc chunks for org {org_id}")
     except Exception as exc:
@@ -238,10 +236,9 @@ async def _analyse_codebase_structure(
 ) -> None:
     """Read key config files + sample source files to extract conventions from the current codebase."""
     import os
-    if repo_provider == "bitbucket":
-        from app.services.bitbucket_service import get_file_content
-    else:
-        from app.services.github_service import get_file_content
+    from app.services.git_providers import get_git_provider
+    git = get_git_provider(repo_provider)
+    get_file_content = git.get_file_content
     from app.services.convention_extractor import extract_conventions_from_pr, deduplicate_conventions, score_conventions
 
     logger.info(f"[SelfOnboarding] Analysing codebase structure for org {org_id}")

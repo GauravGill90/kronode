@@ -99,8 +99,9 @@ class CoderAgent(AgentBase):
         ]
 
         try:
-            from app.services.github_service import create_pull_request
-            pr_url = await create_pull_request(
+            from app.services.git_providers import get_git_provider
+            git = get_git_provider(context.get("repo_provider", "github"))
+            pr_url = await git.create_pull_request(
                 repo_url=repo_url,
                 branch_name=branch_name,
                 files=files,
