@@ -2,7 +2,7 @@
 
 Generate, list, and revoke API keys for MCP server authentication.
 """
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -57,7 +57,7 @@ async def create_api_key(
         org_id=org_id,
         key_hash=key_hash,
         name=payload.name,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.utcnow(),
     )
     db.add(api_key)
     await db.commit()
