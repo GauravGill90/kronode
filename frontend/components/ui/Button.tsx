@@ -12,7 +12,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const variantStyle: React.CSSProperties =
       variant === "primary"
         ? {
-            background: disabled || loading ? "rgba(99,102,241,0.2)" : "linear-gradient(135deg, #6366f1, #a78bfa)",
+            background: disabled || loading ? "rgba(212,168,83,0.2)" : "linear-gradient(135deg, #d4a853, #e4c37d)",
             color: "#fff",
             cursor: disabled || loading ? "not-allowed" : "pointer",
           }

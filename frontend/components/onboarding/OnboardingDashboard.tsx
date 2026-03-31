@@ -444,15 +444,15 @@ function IngestionForm({ onSave }: { onSave: () => void }) {
           </div>
           {stats && (
             <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="rounded-lg p-2" style={{ background: "rgba(99,102,241,0.08)" }}>
+              <div className="rounded-lg p-2" style={{ background: "rgba(212,168,83,0.08)" }}>
                 <p className="text-lg font-bold text-indigo-300">{stats.conventions}</p>
                 <p className="text-[10px] text-zinc-500">conventions</p>
               </div>
-              <div className="rounded-lg p-2" style={{ background: "rgba(99,102,241,0.08)" }}>
+              <div className="rounded-lg p-2" style={{ background: "rgba(212,168,83,0.08)" }}>
                 <p className="text-lg font-bold text-blue-300">{stats.doc_chunks}</p>
                 <p className="text-[10px] text-zinc-500">doc chunks</p>
               </div>
-              <div className="rounded-lg p-2" style={{ background: "rgba(99,102,241,0.08)" }}>
+              <div className="rounded-lg p-2" style={{ background: "rgba(212,168,83,0.08)" }}>
                 <p className="text-lg font-bold text-purple-300">{stats.reviewer_patterns}</p>
                 <p className="text-[10px] text-zinc-500">patterns</p>
               </div>

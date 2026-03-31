@@ -15,7 +15,7 @@ const VARIANT_STYLES: Record<BadgeVariant, React.CSSProperties> = {
   warning: { background: "rgba(234,179,8,0.1)",    color: "#facc15", border: "1px solid rgba(234,179,8,0.2)"   },
   error:   { background: "rgba(239,68,68,0.1)",    color: "#f87171", border: "1px solid rgba(239,68,68,0.2)"   },
   info:    { background: "rgba(59,130,246,0.1)",   color: "#60a5fa", border: "1px solid rgba(59,130,246,0.2)"  },
-  running: { background: "rgba(99,102,241,0.12)",  color: "#a5b4fc", border: "1px solid rgba(99,102,241,0.25)" },
+  running: { background: "rgba(212,168,83,0.12)",  color: "#d4a853", border: "1px solid rgba(212,168,83,0.25)" },
   waiting: { background: "rgba(234,179,8,0.1)",    color: "#fbbf24", border: "1px solid rgba(234,179,8,0.25)"  },
   review:  { background: "rgba(59,130,246,0.1)",   color: "#38bdf8", border: "1px solid rgba(59,130,246,0.25)" },
 };

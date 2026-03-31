@@ -75,7 +75,7 @@ export default function ProgressStream({ liveEvents, historicalEvents, connected
     return (
       <div
         className="rounded-2xl p-5 flex items-center gap-3 text-sm"
-        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(99,102,241,0.15)", color: "#64748b" }}
+        style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(212,168,83,0.15)", color: "#6b6560" }}
       >
         <Spinner size="sm" />
         <span>Waiting to start…</span>
@@ -88,13 +88,13 @@ export default function ProgressStream({ liveEvents, historicalEvents, connected
   return (
     <div
       className="rounded-2xl overflow-hidden"
-      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(99,102,241,0.15)" }}
+      style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(212,168,83,0.15)" }}
     >
       <div
         className="px-5 py-3 flex items-center justify-between"
         style={{ borderBottom: "1px solid rgba(255,255,255,0.05)" }}
       >
-        <span className="text-sm font-medium" style={{ color: "#94a3b8" }}>Agent activity</span>
+        <span className="text-sm font-medium" style={{ color: "#a39e96" }}>Agent activity</span>
         {connected && (
           <span className="flex items-center gap-1.5 text-xs" style={{ color: "#34d399" }}>
             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "#34d399" }}></span>
@@ -152,21 +152,21 @@ function ProgressGroup({ agent, events }: { agent: string; events: TaskEvent[] }
         <span className="text-base leading-none mt-0.5 flex-shrink-0">{icon}</span>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium capitalize" style={{ color: "#64748b" }}>
+            <span className="text-xs font-medium capitalize" style={{ color: "#6b6560" }}>
               {agent.replace(/_/g, " ")}
             </span>
             <span
               className="text-xs px-1.5 py-0.5 rounded"
               style={{
-                background: "rgba(99,102,241,0.1)",
+                background: "rgba(212,168,83,0.1)",
                 color: "#818cf8",
-                border: "1px solid rgba(99,102,241,0.2)",
+                border: "1px solid rgba(212,168,83,0.2)",
               }}
             >
               {events.length} steps
             </span>
           </div>
-          <p className="text-sm mt-0.5" style={{ color: "#94a3b8" }}>
+          <p className="text-sm mt-0.5" style={{ color: "#a39e96" }}>
             {latest.message}
           </p>
         </div>
@@ -189,7 +189,7 @@ function ProgressGroup({ agent, events }: { agent: string; events: TaskEvent[] }
           className="mx-5 mb-3 rounded-lg overflow-auto text-xs font-mono"
           style={{
             background: "rgba(0,0,0,0.25)",
-            border: "1px solid rgba(99,102,241,0.1)",
+            border: "1px solid rgba(212,168,83,0.1)",
             maxHeight: "300px",
           }}
         >
@@ -206,7 +206,7 @@ function ProgressGroup({ agent, events }: { agent: string; events: TaskEvent[] }
                   second: "2-digit",
                 })}
               </span>
-              <span style={{ color: "#94a3b8" }}>{e.message}</span>
+              <span style={{ color: "#a39e96" }}>{e.message}</span>
             </div>
           ))}
         </div>

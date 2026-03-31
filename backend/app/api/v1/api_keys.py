@@ -13,6 +13,7 @@ from app.core.auth import get_current_user
 from app.core.database import get_db
 from app.mcp.auth import generate_key
 from app.models.api_key import ApiKey
+from app.models.user import User
 
 router = APIRouter()
 
@@ -43,7 +44,10 @@ async def create_api_key(
     db: AsyncSession = Depends(get_db),
 ):
     """Generate a new API key. The plaintext key is returned ONCE."""
-    org_id = user_data.get("org_id")
+    user = (await db.execute(
+        select(User).where(User.clerk_id == user_data["user_id"])
+    )).scalar_one_or_none()
+    org_id = user.org_id if user else None
     if not org_id:
         raise HTTPException(status_code=400, detail="No organization found")
 
@@ -73,7 +77,10 @@ async def list_api_keys(
     db: AsyncSession = Depends(get_db),
 ):
     """List all API keys for the current org (masked)."""
-    org_id = user_data.get("org_id")
+    user = (await db.execute(
+        select(User).where(User.clerk_id == user_data["user_id"])
+    )).scalar_one_or_none()
+    org_id = user.org_id if user else None
     if not org_id:
         raise HTTPException(status_code=400, detail="No organization found")
 
@@ -103,7 +110,10 @@ async def revoke_api_key(
     db: AsyncSession = Depends(get_db),
 ):
     """Revoke an API key."""
-    org_id = user_data.get("org_id")
+    user = (await db.execute(
+        select(User).where(User.clerk_id == user_data["user_id"])
+    )).scalar_one_or_none()
+    org_id = user.org_id if user else None
     if not org_id:
         raise HTTPException(status_code=400, detail="No organization found")
 

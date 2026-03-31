@@ -97,13 +97,13 @@ export default function ConventionsClient() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <a href="/dashboard" className="text-sm font-medium mb-2 inline-block" style={{ color: "#6366f1" }}>
+            <a href="/dashboard" className="text-sm font-medium mb-2 inline-block" style={{ color: "#d4a853" }}>
               ← Back to dashboard
             </a>
-            <h1 className="text-2xl font-bold" style={{ color: "#e2e8f0" }}>
+            <h1 className="text-2xl font-bold" style={{ color: "#e7e0d8" }}>
               Conventions
             </h1>
-            <p className="text-sm mt-1" style={{ color: "#64748b" }}>
+            <p className="text-sm mt-1" style={{ color: "#6b6560" }}>
               {total} conventions learned from your codebase. Edit or suppress any rule.
             </p>
           </div>
@@ -111,7 +111,7 @@ export default function ConventionsClient() {
             onClick={handleExtract}
             disabled={extracting}
             className="px-3 py-1.5 rounded-lg text-xs font-medium"
-            style={{ background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.3)", color: "#a5b4fc" }}
+            style={{ background: "rgba(212,168,83,0.1)", border: "1px solid rgba(212,168,83,0.3)", color: "#d4a853" }}
           >
             {extracting ? "Running…" : "Re-extract"}
           </button>
@@ -127,8 +127,8 @@ export default function ConventionsClient() {
                 className="px-2.5 py-1 rounded-md text-xs font-medium capitalize"
                 style={
                   category === c
-                    ? { background: "rgba(99,102,241,0.2)", color: "#a5b4fc" }
-                    : { color: "#64748b" }
+                    ? { background: "rgba(212,168,83,0.2)", color: "#d4a853" }
+                    : { color: "#6b6560" }
                 }
               >
                 {c.replace("_", " ")}
@@ -143,8 +143,8 @@ export default function ConventionsClient() {
                 className="px-2.5 py-1 rounded-md text-xs font-medium capitalize"
                 style={
                   layer === l
-                    ? { background: "rgba(99,102,241,0.2)", color: "#a5b4fc" }
-                    : { color: "#64748b" }
+                    ? { background: "rgba(212,168,83,0.2)", color: "#d4a853" }
+                    : { color: "#6b6560" }
                 }
               >
                 {l}
@@ -179,8 +179,8 @@ export default function ConventionsClient() {
                           className="flex-1 rounded-lg px-3 py-1.5 text-sm"
                           style={{
                             background: "rgba(255,255,255,0.04)",
-                            border: "1px solid rgba(99,102,241,0.3)",
-                            color: "#e2e8f0",
+                            border: "1px solid rgba(212,168,83,0.3)",
+                            color: "#e7e0d8",
                             outline: "none",
                           }}
                           value={editRule}
@@ -198,19 +198,19 @@ export default function ConventionsClient() {
                         <button
                           onClick={() => setEditingId(null)}
                           className="px-2 py-1 rounded text-xs"
-                          style={{ color: "#64748b" }}
+                          style={{ color: "#6b6560" }}
                         >
                           Cancel
                         </button>
                       </div>
                     ) : (
-                      <p className="text-sm" style={{ color: "#e2e8f0" }}>{c.rule}</p>
+                      <p className="text-sm" style={{ color: "#e7e0d8" }}>{c.rule}</p>
                     )}
 
                     <div className="flex items-center gap-3 mt-2 flex-wrap">
                       <span
                         className="text-xs px-2 py-0.5 rounded-full capitalize"
-                        style={{ background: "rgba(99,102,241,0.15)", color: "#a5b4fc" }}
+                        style={{ background: "rgba(212,168,83,0.15)", color: "#d4a853" }}
                       >
                         {c.category.replace("_", " ")}
                       </span>
@@ -230,7 +230,7 @@ export default function ConventionsClient() {
                         conf: {c.confidence.toFixed(2)}
                       </span>
                       {c.enforced_by && c.enforced_by.length > 0 && (
-                        <span className="text-xs" style={{ color: "#64748b" }}>
+                        <span className="text-xs" style={{ color: "#6b6560" }}>
                           enforced by: {c.enforced_by.join(", ")}
                         </span>
                       )}
@@ -240,7 +240,7 @@ export default function ConventionsClient() {
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs"
-                          style={{ color: "#6366f1" }}
+                          style={{ color: "#d4a853" }}
                         >
                           source PR
                         </a>
@@ -253,7 +253,7 @@ export default function ConventionsClient() {
                     <button
                       onClick={() => { setEditingId(c.id); setEditRule(c.rule); }}
                       className="p-1.5 rounded-md text-xs"
-                      style={{ color: "#64748b" }}
+                      style={{ color: "#6b6560" }}
                       title="Edit"
                     >
                       Edit
@@ -280,18 +280,18 @@ export default function ConventionsClient() {
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
               className="px-3 py-1.5 rounded-lg text-xs"
-              style={{ color: page === 1 ? "#334155" : "#a5b4fc" }}
+              style={{ color: page === 1 ? "#334155" : "#d4a853" }}
             >
               ← Prev
             </button>
-            <span className="text-xs py-1.5" style={{ color: "#64748b" }}>
+            <span className="text-xs py-1.5" style={{ color: "#6b6560" }}>
               Page {page} of {Math.ceil(total / 50)}
             </span>
             <button
               onClick={() => setPage((p) => p + 1)}
               disabled={page >= Math.ceil(total / 50)}
               className="px-3 py-1.5 rounded-lg text-xs"
-              style={{ color: page >= Math.ceil(total / 50) ? "#334155" : "#a5b4fc" }}
+              style={{ color: page >= Math.ceil(total / 50) ? "#334155" : "#d4a853" }}
             >
               Next →
             </button>

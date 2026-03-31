@@ -71,9 +71,9 @@ function TaskDetail({ taskId }: { taskId: string }) {
   if (!task) {
     return (
       <AppShell>
-        <div className="min-h-[80vh] flex items-center justify-center text-sm" style={{ color: "#64748b" }}>
+        <div className="min-h-[80vh] flex items-center justify-center text-sm" style={{ color: "#6b6560" }}>
           Task not found.{" "}
-          <Link href="/dashboard" className="ml-2 underline" style={{ color: "#a5b4fc" }}>
+          <Link href="/dashboard" className="ml-2 underline" style={{ color: "#d4a853" }}>
             Back to dashboard
           </Link>
         </div>
@@ -90,7 +90,7 @@ function TaskDetail({ taskId }: { taskId: string }) {
           href="/dashboard"
           className="text-sm inline-block transition-colors"
           style={{ color: "#475569" }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = "#94a3b8"; }}
+          onMouseEnter={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = "#a39e96"; }}
           onMouseLeave={(e) => { (e.currentTarget as HTMLAnchorElement).style.color = "#475569"; }}
         >
           ← Dashboard
@@ -99,10 +99,10 @@ function TaskDetail({ taskId }: { taskId: string }) {
         {/* Task card */}
         <div
           className="rounded-2xl p-5 space-y-3"
-          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(99,102,241,0.15)" }}
+          style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(212,168,83,0.15)" }}
         >
           <div className="flex items-start justify-between gap-3">
-            <h1 className="text-base font-semibold flex-1" style={{ color: "#e2e8f0" }}>{task.description}</h1>
+            <h1 className="text-base font-semibold flex-1" style={{ color: "#e7e0d8" }}>{task.description}</h1>
             <div className="flex items-center gap-2 flex-shrink-0">
               {isActive && (
                 <button
@@ -155,12 +155,12 @@ function TaskDetail({ taskId }: { taskId: string }) {
               target="_blank"
               rel="noopener noreferrer"
               className="text-sm underline break-all"
-              style={{ color: "#a5b4fc" }}
+              style={{ color: "#d4a853" }}
             >
               {task.result.pr_url as string}
             </a>
             {task.result.slack_summary && (
-              <p className="text-sm mt-2" style={{ color: "#64748b" }}>{task.result.slack_summary as string}</p>
+              <p className="text-sm mt-2" style={{ color: "#6b6560" }}>{task.result.slack_summary as string}</p>
             )}
           </div>
         )}
@@ -169,11 +169,11 @@ function TaskDetail({ taskId }: { taskId: string }) {
         {task.result && (typeof task.result.cost_usd === "number" || task.result.num_turns) && (
           <div
             className="rounded-xl p-4 flex items-center gap-4"
-            style={{ background: "rgba(99,102,241,0.05)", border: "1px solid rgba(99,102,241,0.15)" }}
+            style={{ background: "rgba(212,168,83,0.05)", border: "1px solid rgba(212,168,83,0.15)" }}
           >
             {typeof task.result.cost_usd === "number" && (
               <div className="text-center">
-                <p className="text-lg font-semibold" style={{ color: "#a5b4fc" }}>
+                <p className="text-lg font-semibold" style={{ color: "#d4a853" }}>
                   ${(task.result.cost_usd as number).toFixed(4)}
                 </p>
                 <p className="text-xs" style={{ color: "#475569" }}>Cost</p>
@@ -181,7 +181,7 @@ function TaskDetail({ taskId }: { taskId: string }) {
             )}
             {task.result.num_turns && (
               <div className="text-center">
-                <p className="text-lg font-semibold" style={{ color: "#a5b4fc" }}>
+                <p className="text-lg font-semibold" style={{ color: "#d4a853" }}>
                   {task.result.num_turns as number}
                 </p>
                 <p className="text-xs" style={{ color: "#475569" }}>Turns</p>
@@ -189,7 +189,7 @@ function TaskDetail({ taskId }: { taskId: string }) {
             )}
             {task.result.files_changed && (
               <div className="text-center">
-                <p className="text-lg font-semibold" style={{ color: "#a5b4fc" }}>
+                <p className="text-lg font-semibold" style={{ color: "#d4a853" }}>
                   {(task.result.files_changed as string[]).length}
                 </p>
                 <p className="text-xs" style={{ color: "#475569" }}>Files</p>
@@ -205,7 +205,7 @@ function TaskDetail({ taskId }: { taskId: string }) {
             style={{ background: "rgba(239,68,68,0.07)", border: "1px solid rgba(239,68,68,0.2)" }}
           >
             <p className="text-sm font-semibold" style={{ color: "#f87171" }}>Task paused</p>
-            <p className="text-sm mt-1" style={{ color: "#94a3b8" }}>{task.error}</p>
+            <p className="text-sm mt-1" style={{ color: "#a39e96" }}>{task.error}</p>
           </div>
         )}
       </div>
