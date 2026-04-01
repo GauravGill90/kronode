@@ -192,8 +192,8 @@ async def get_context(task_description: str, files_touched: list[str] | None = N
             doc_chunks = [
                 {
                     "heading": c.get("heading", ""),
-                    "content": c.get("content", "")[:1000],
-                    "full_available": len(c.get("content", "")) > 1000,
+                    "content": c.get("content", "")[:2500],
+                    "full_available": len(c.get("content", "")) > 2500,
                     "similarity": round(c.get("similarity", 0), 2),
                     "source_url": c.get("source_url", ""),
                 }
@@ -244,17 +244,17 @@ async def get_context(task_description: str, files_touched: list[str] | None = N
         checklist.append(f"Avoid past mistake: {past_failures[0].get('error', '')[:100]}")
 
     return {
+        "pr_ready_checklist": checklist,
+        "relevant_documentation": doc_chunks,
         "conventions": conventions,
-        "pitfalls": pitfalls,
         "reviewer_guidance": reviewer_guidance[:10],
+        "pitfalls": pitfalls,
         "past_failures": past_failures[:5],
-        "doc_chunks": doc_chunks,
         "file_companions": file_companions[:15],
         "completeness": {
             "complete": len(missing_files) == 0,
             "missing": missing_files[:10],
         },
-        "pr_ready_checklist": checklist,
         "org_id": _org_id,
     }
 
