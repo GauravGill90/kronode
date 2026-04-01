@@ -565,9 +565,20 @@ async def _rank_conventions(
             selected_dir_set = {p.rsplit("/", 1)[0] for p in selected_paths if "/" in p}
             dir_overlap = conv_dirs & selected_dir_set
 
-            # Component-level matching (e.g., Libraries/Image, Libraries/Text)
-            conv_components = {"/".join(f.split("/")[:3]) for f in conv_files if len(f.split("/")) >= 3}
-            selected_components = {"/".join(p.split("/")[:3]) for p in selected_paths if len(p.split("/")) >= 3}
+            # Component-level matching — use deeper paths (4 segments) to avoid
+            # overly broad matches like "apps/web/components" matching everything
+            def _component_paths(paths: set[str], depth: int = 4) -> set[str]:
+                result = set()
+                for f in paths:
+                    parts = f.split("/")
+                    if len(parts) >= depth:
+                        result.add("/".join(parts[:depth]))
+                    elif len(parts) >= 3:
+                        result.add("/".join(parts[:3]))
+                return result
+
+            conv_components = _component_paths(conv_files)
+            selected_components = _component_paths(set(selected_paths))
             component_match = conv_components & selected_components
 
             if direct_file:
@@ -578,10 +589,10 @@ async def _rank_conventions(
                 match_reason = f"From same directory: {', '.join(list(dir_overlap)[:2])}"
             elif component_match:
                 has_file_signal = True
-                score += 3.0  # component boost
+                score += 2.0  # component boost (reduced from 3.0 — narrower match is better)
                 match_reason = f"From same component: {', '.join(list(component_match)[:2])}"
             else:
-                score *= 0.4  # penalize unrelated
+                score *= 0.3  # penalize unrelated harder
 
         if not match_reason:
             sem = semantic_scores.get(conv_rows.index(c), 0.0)
