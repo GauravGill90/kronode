@@ -109,10 +109,12 @@ async def run_onboarding(org_id: int) -> None:
 
     # Step 2: Analyse PR review patterns (who reviews what, common feedback)
     try:
-        prs = await fetch_merged_prs(
+        from app.services.git_providers import get_git_provider
+        git = get_git_provider(config.repo_provider or "github")
+        prs = await git.fetch_merged_prs(
             repo_url=config.repo_url,
             token=config.github_access_token,
-            count=50,  # quick pass for onboarding, full extraction runs separately
+            count=50,
         )
     except Exception as exc:
         logger.warning(f"[SelfOnboarding] Failed to fetch PRs: {exc}")
