@@ -202,7 +202,39 @@ async def get_context(task_description: str, files_touched: list[str] | None = N
         except Exception:
             pass
 
-    # ── 6. File companions ───────────────────────────────────────────────
+    # ── 6. Related issues ─────────────────────────────────────────────
+    related_issues = []
+    try:
+        from app.models.issue_index import IssueIndex
+        async with AsyncSessionLocal() as db2:
+            issue_rows = (await db2.execute(
+                select(IssueIndex).where(IssueIndex.org_id == _org_id).limit(500)
+            )).scalars().all()
+
+            if issue_rows:
+                desc_lower = task_description.lower()
+                desc_words = {w for w in desc_lower.split() if len(w) > 3}
+
+                for issue in issue_rows:
+                    title_lower = issue.title.lower()
+                    title_words = {w for w in title_lower.split() if len(w) > 3}
+                    overlap = desc_words & title_words
+                    if len(overlap) >= 2:
+                        related_issues.append({
+                            "title": issue.title,
+                            "state": issue.state,
+                            "labels": issue.labels or [],
+                            "url": issue.url,
+                            "body_preview": issue.body_preview[:200] if issue.body_preview else "",
+                            "relevance_words": list(overlap)[:5],
+                        })
+
+                related_issues.sort(key=lambda x: -len(x["relevance_words"]))
+                related_issues = related_issues[:5]
+    except Exception:
+        pass
+
+    # ── 8. File companions ───────────────────────────────────────────────
     file_companions: list[dict] = []
     seen_paths: set[str] = set()
     for file_path in files_touched[:5]:
@@ -243,9 +275,13 @@ async def get_context(task_description: str, files_touched: list[str] | None = N
     if past_failures:
         checklist.append(f"Avoid past mistake: {past_failures[0].get('error', '')[:100]}")
 
+    if related_issues:
+        checklist.append(f"Related issues: {', '.join(i['title'][:50] for i in related_issues[:3])}")
+
     return {
         "pr_ready_checklist": checklist,
         "relevant_documentation": doc_chunks,
+        "related_issues": related_issues,
         "conventions": conventions,
         "reviewer_guidance": reviewer_guidance[:10],
         "pitfalls": pitfalls,

@@ -279,3 +279,169 @@ async def list_doc_index(
             for e in entries
         ],
     }
+
+
+@router.post("/issues/index")
+async def index_issues(
+    user_data: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Index recent issues from the connected repo's issue tracker.
+
+    Fetches issue titles, labels, state, and body preview. No LLM calls.
+    Issues are matched by title in get_context for relevant context.
+    """
+    org_id = await _get_org_id(user_data, db)
+
+    config = (await db.execute(
+        select(OnboardingConfig).where(OnboardingConfig.org_id == org_id)
+    )).scalar_one_or_none()
+
+    if not config or not config.repo_url or not config.github_access_token:
+        raise HTTPException(status_code=400, detail="No repo configured")
+
+    import httpx
+    from app.models.issue_index import IssueIndex
+
+    # Detect provider
+    repo_url = config.repo_url
+    token = config.github_access_token
+    provider = config.repo_provider or "github"
+
+    issues_fetched = []
+
+    if provider == "github":
+        # Fetch recent issues (open + recently closed)
+        repo_url_clean = repo_url.rstrip("/")
+        if repo_url_clean.endswith(".git"):
+            repo_url_clean = repo_url_clean[:-4]
+        parts = repo_url_clean.split("/")
+        owner, repo = parts[-2], parts[-1]
+
+        headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}
+
+        async with httpx.AsyncClient(timeout=30) as client:
+            for state in ["open", "closed"]:
+                page = 1
+                while len(issues_fetched) < 500:
+                    resp = await client.get(
+                        f"https://api.github.com/repos/{owner}/{repo}/issues",
+                        headers=headers,
+                        params={
+                            "state": state,
+                            "per_page": 100,
+                            "page": page,
+                            "sort": "updated",
+                            "direction": "desc",
+                        },
+                    )
+                    if not resp.is_success:
+                        break
+                    items = resp.json()
+                    if not items:
+                        break
+                    for item in items:
+                        if "pull_request" in item:
+                            continue  # skip PRs
+                        issues_fetched.append({
+                            "issue_ref": str(item["number"]),
+                            "title": item.get("title", ""),
+                            "state": item.get("state", ""),
+                            "labels": [l["name"] for l in item.get("labels", [])],
+                            "author": item.get("user", {}).get("login", ""),
+                            "url": item.get("html_url", ""),
+                            "body_preview": (item.get("body") or "")[:500],
+                            "created_at_source": item.get("created_at", ""),
+                        })
+                    page += 1
+                    if len(items) < 100:
+                        break
+
+    elif provider == "bitbucket":
+        # Bitbucket issues
+        workspace, repo_slug = repo_url.rstrip("/").split("/")[-2:]
+        headers = {"Authorization": f"Bearer {token}"} if ":" not in token else {
+            "Authorization": f"Basic {__import__('base64').b64encode(token.encode()).decode()}"
+        }
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"https://api.bitbucket.org/2.0/repositories/{workspace}/{repo_slug}/issues",
+                headers=headers,
+                params={"pagelen": 50, "sort": "-updated_on"},
+            )
+            if resp.is_success:
+                for item in resp.json().get("values", []):
+                    issues_fetched.append({
+                        "issue_ref": str(item.get("id", "")),
+                        "title": item.get("title", ""),
+                        "state": item.get("state", ""),
+                        "labels": [],
+                        "author": item.get("reporter", {}).get("display_name", ""),
+                        "url": item.get("links", {}).get("html", {}).get("href", ""),
+                        "body_preview": (item.get("content", {}).get("raw", "") or "")[:500],
+                        "created_at_source": item.get("created_on", ""),
+                    })
+
+    if not issues_fetched:
+        return {"ok": True, "indexed": 0, "message": "No issues found"}
+
+    # Upsert into issue_index
+    existing = (await db.execute(
+        select(IssueIndex).where(IssueIndex.org_id == org_id, IssueIndex.source_type == f"{provider}_issues")
+    )).scalars().all()
+    existing_refs = {e.issue_ref for e in existing}
+
+    new_count = 0
+    for issue in issues_fetched:
+        if issue["issue_ref"] not in existing_refs:
+            db.add(IssueIndex(
+                org_id=org_id,
+                source_type=f"{provider}_issues",
+                issue_ref=issue["issue_ref"],
+                title=issue["title"],
+                state=issue["state"],
+                labels=issue["labels"],
+                author=issue["author"],
+                url=issue["url"],
+                body_preview=issue["body_preview"],
+                created_at_source=issue["created_at_source"],
+            ))
+            new_count += 1
+
+    await db.commit()
+
+    return {
+        "ok": True,
+        "indexed": len(issues_fetched),
+        "new": new_count,
+        "provider": provider,
+    }
+
+
+@router.get("/issues/index")
+async def list_issue_index(
+    user_data: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List indexed issues for the org."""
+    org_id = await _get_org_id(user_data, db)
+    from app.models.issue_index import IssueIndex
+
+    entries = (await db.execute(
+        select(IssueIndex).where(IssueIndex.org_id == org_id).order_by(IssueIndex.id.desc()).limit(100)
+    )).scalars().all()
+
+    return {
+        "total": len(entries),
+        "issues": [
+            {
+                "issue_ref": e.issue_ref,
+                "title": e.title,
+                "state": e.state,
+                "labels": e.labels,
+                "url": e.url,
+                "body_preview": e.body_preview[:100] if e.body_preview else "",
+            }
+            for e in entries
+        ],
+    }
