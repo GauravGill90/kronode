@@ -22,7 +22,7 @@ from app.services.convention_extractor import (
 logger = logging.getLogger(__name__)
 
 
-MIN_FREQUENCY = 2  # Convention must be seen in 2+ PRs to be stored
+MIN_FREQUENCY = 1  # Store all conventions — file-level matching handles relevance
 
 
 async def run_extraction(org_id: int, pr_count: int = 200) -> int:
