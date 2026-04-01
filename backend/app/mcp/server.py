@@ -263,39 +263,59 @@ async def get_context(task_description: str, files_touched: list[str] | str | No
                 "reason": f"Usually changes with {comp.get('companion_of', '?')} ({comp.get('co_change_pct', '?')}% of the time)",
             })
 
-    # ── 8. PR-ready checklist ────────────────────────────────────────────
-    checklist: list[str] = []
+    # ── Improvement #4: Drop low-score conventions ─────────────────────
+    conventions = [c for c in conventions if c.get("relevance_score", 0) >= 5.0]
 
-    file_matched = [c for c in conventions if c.get("file_match")]
-    if file_matched:
-        checklist.append(f"Follow {len(file_matched)} file-specific conventions (file_match=true)")
+    # ── Improvement #1: Top 3 conventions with reasoning ─────────────
+    top_conventions = conventions[:3]
 
-    for g in reviewer_guidance[:3]:
+    # ── Improvement #2: Split issues into tiers ──────────────────────
+    directly_related = [i for i in related_issues if i.get("similarity", 0) > 0.6]
+    loosely_related = [i for i in related_issues if 0.35 < i.get("similarity", 0) <= 0.6]
+
+    # ── Improvement #5: Surface companion files prominently ──────────
+    files_to_check = []
+    for comp in file_companions[:10]:
+        if comp.get("path") not in changed_set:
+            files_to_check.append({
+                "file": comp["path"],
+                "reason": f"Usually changes with {comp.get('companion_of', '?')} ({comp.get('co_change_pct', '?')}%)",
+            })
+
+    # ── Improvement #6: Action plan output ───────────────────────────
+    action_parts = []
+    if top_conventions:
+        c = top_conventions[0]
+        action_parts.append(f"Follow convention: {c['rule'][:100]} ({c.get('match_reason', '')}).")
+    if directly_related:
+        issue = directly_related[0]
+        action_parts.append(f"Check related issue: {issue['title'][:60]} ({issue['url']}).")
+    if reviewer_guidance:
+        g = reviewer_guidance[0]
         prefs = g.get("preferences", [])
         if prefs:
-            checklist.append(f"{g['reviewer']} will check: {prefs[0][:100]}")
-
-    if missing_files:
-        checklist.append(f"Don't forget: {', '.join(m['file'] for m in missing_files[:5])}")
-
+            action_parts.append(f"{g['reviewer']} typically checks: {prefs[0][:80]}.")
+    if files_to_check:
+        action_parts.append(f"Also update: {', '.join(f['file'] for f in files_to_check[:3])}.")
     if past_failures:
-        checklist.append(f"Avoid past mistake: {past_failures[0].get('error', '')[:100]}")
+        action_parts.append(f"Avoid: {past_failures[0].get('error', '')[:80]}.")
 
-    if related_issues:
-        checklist.append(f"Related issues: {', '.join(i['title'][:50] for i in related_issues[:3])}")
+    action_plan = " ".join(action_parts) if action_parts else "No specific guidance for this task."
 
     return {
-        "pr_ready_checklist": checklist,
+        "action_plan": action_plan,
+        "top_conventions": top_conventions,
+        "files_you_should_also_check": files_to_check,
+        "directly_related_issues": directly_related,
+        "loosely_related_issues": loosely_related,
         "relevant_documentation": doc_chunks,
-        "related_issues": related_issues,
-        "conventions": conventions,
+        "all_conventions": conventions,
         "reviewer_guidance": reviewer_guidance[:10],
         "pitfalls": pitfalls,
         "past_failures": past_failures[:5],
-        "file_companions": file_companions[:15],
         "completeness": {
-            "complete": len(missing_files) == 0,
-            "missing": missing_files[:10],
+            "complete": len(files_to_check) == 0,
+            "missing": files_to_check,
         },
         "org_id": _org_id,
     }

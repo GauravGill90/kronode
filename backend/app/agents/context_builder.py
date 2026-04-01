@@ -555,14 +555,42 @@ async def _rank_conventions(
         score += c.confidence * 0.5
         score += min(c.frequency * 0.1, 1.0)  # cap at 1.0
 
-        # 8. Strict filtering: if files_touched provided, penalize conventions with zero file/dir overlap
-        has_file_signal = bool(conv_files & set(selected_paths)) or bool(
-            {f.rsplit("/", 1)[0] for f in conv_files if "/" in f} &
-            {p.rsplit("/", 1)[0] for p in selected_paths if "/" in p}
-        ) if conv_files and selected_paths else False
+        # 8. Component-scoped matching + strict filtering
+        has_file_signal = False
+        match_reason = ""
 
-        if selected_paths and conv_files and not has_file_signal:
-            score *= 0.4  # heavily penalize unrelated conventions when files are specified
+        if conv_files and selected_paths:
+            direct_file = conv_files & set(selected_paths)
+            conv_dirs = {f.rsplit("/", 1)[0] for f in conv_files if "/" in f}
+            selected_dir_set = {p.rsplit("/", 1)[0] for p in selected_paths if "/" in p}
+            dir_overlap = conv_dirs & selected_dir_set
+
+            # Component-level matching (e.g., Libraries/Image, Libraries/Text)
+            conv_components = {"/".join(f.split("/")[:3]) for f in conv_files if len(f.split("/")) >= 3}
+            selected_components = {"/".join(p.split("/")[:3]) for p in selected_paths if len(p.split("/")) >= 3}
+            component_match = conv_components & selected_components
+
+            if direct_file:
+                has_file_signal = True
+                match_reason = f"From PRs that modified {', '.join(list(direct_file)[:2])}"
+            elif dir_overlap:
+                has_file_signal = True
+                match_reason = f"From same directory: {', '.join(list(dir_overlap)[:2])}"
+            elif component_match:
+                has_file_signal = True
+                score += 3.0  # component boost
+                match_reason = f"From same component: {', '.join(list(component_match)[:2])}"
+            else:
+                score *= 0.4  # penalize unrelated
+
+        if not match_reason:
+            sem = semantic_scores.get(conv_rows.index(c), 0.0)
+            if sem > 0.4:
+                match_reason = f"Semantically similar (score {sem:.2f})"
+            elif overlap:
+                match_reason = f"Keyword match: {', '.join(list(overlap)[:3])}"
+            else:
+                match_reason = f"Category: {c.category}"
 
         scored.append((score, {
             "rule": c.rule,
@@ -576,6 +604,7 @@ async def _rank_conventions(
             "frequency": c.frequency,
             "relevance_score": round(score, 2),
             "file_match": has_file_signal,
+            "match_reason": match_reason,
         }))
 
     # Sort by relevance score descending, take top N
