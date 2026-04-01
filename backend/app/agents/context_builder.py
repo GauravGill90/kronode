@@ -607,6 +607,6 @@ async def _rank_conventions(
             "match_reason": match_reason,
         }))
 
-    # Sort by relevance score descending, take top N
-    scored.sort(key=lambda x: -x[0])
+    # Sort: file_match=true first, then by relevance score
+    scored.sort(key=lambda x: (-int(x[1].get("file_match", False)), -x[0]))
     return [d for _, d in scored[:max_conventions]]

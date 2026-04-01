@@ -263,8 +263,8 @@ async def get_context(task_description: str, files_touched: list[str] | str | No
                 "reason": f"Usually changes with {comp.get('companion_of', '?')} ({comp.get('co_change_pct', '?')}% of the time)",
             })
 
-    # ── Improvement #4: Drop low-score conventions ─────────────────────
-    conventions = [c for c in conventions if c.get("relevance_score", 0) >= 5.0]
+    # ── Improvement #4: Drop low-score and low-confidence conventions ──
+    conventions = [c for c in conventions if c.get("relevance_score", 0) >= 5.0 and c.get("confidence", 0) >= 0.5]
 
     # ── Improvement #1: Top 3 conventions with reasoning ─────────────
     top_conventions = conventions[:3]
@@ -302,6 +302,13 @@ async def get_context(task_description: str, files_touched: list[str] | str | No
 
     action_plan = " ".join(action_parts) if action_parts else "No specific guidance for this task."
 
+    # ── Fix 3: Collapse reviewer guidance unless task mentions review ──
+    review_keywords = {"review", "pr", "pull request", "reviewer", "approve", "merge"}
+    include_reviewers = any(kw in task_description.lower() for kw in review_keywords)
+
+    # ── Fix 4: Split top 3 vs other conventions ─────────────────────
+    other_conventions = conventions[3:]  # skip top 3 (already in top_conventions)
+
     return {
         "action_plan": action_plan,
         "top_conventions": top_conventions,
@@ -309,8 +316,8 @@ async def get_context(task_description: str, files_touched: list[str] | str | No
         "directly_related_issues": directly_related,
         "loosely_related_issues": loosely_related,
         "relevant_documentation": doc_chunks,
-        "all_conventions": conventions,
-        "reviewer_guidance": reviewer_guidance[:10],
+        "other_conventions": other_conventions,
+        "reviewer_guidance": reviewer_guidance[:10] if include_reviewers else [],
         "pitfalls": pitfalls,
         "past_failures": past_failures[:5],
         "completeness": {
