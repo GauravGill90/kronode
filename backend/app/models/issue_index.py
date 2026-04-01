@@ -25,5 +25,6 @@ class IssueIndex(Base):
     author: Mapped[str | None] = mapped_column(String(255))
     url: Mapped[str | None] = mapped_column(String(500))
     body_preview: Mapped[str | None] = mapped_column(Text)  # first 500 chars of body
+    embedding: Mapped[dict | None] = mapped_column(JSONB)  # float vector for semantic search
     created_at_source: Mapped[str | None] = mapped_column(String(50))  # ISO timestamp from source
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -202,35 +202,37 @@ async def get_context(task_description: str, files_touched: list[str] | None = N
         except Exception:
             pass
 
-    # ── 6. Related issues ─────────────────────────────────────────────
+    # ── 6. Related issues (semantic matching) ──────────────────────────
     related_issues = []
     try:
         from app.models.issue_index import IssueIndex
+        from app.core.embeddings import get_embedding, cosine_similarity as cos_sim
         async with AsyncSessionLocal() as db2:
             issue_rows = (await db2.execute(
-                select(IssueIndex).where(IssueIndex.org_id == _org_id).limit(500)
+                select(IssueIndex).where(
+                    IssueIndex.org_id == _org_id,
+                    IssueIndex.embedding.isnot(None),
+                ).limit(1000)
             )).scalars().all()
 
             if issue_rows:
-                desc_lower = task_description.lower()
-                desc_words = {w for w in desc_lower.split() if len(w) > 3}
-
-                for issue in issue_rows:
-                    title_lower = issue.title.lower()
-                    title_words = {w for w in title_lower.split() if len(w) > 3}
-                    overlap = desc_words & title_words
-                    if len(overlap) >= 2:
+                task_emb = await get_embedding(task_description)
+                if task_emb:
+                    scored = []
+                    for issue in issue_rows:
+                        sim = cos_sim(task_emb, issue.embedding)
+                        if sim > 0.35:  # threshold to avoid noise
+                            scored.append((sim, issue))
+                    scored.sort(key=lambda x: -x[0])
+                    for sim, issue in scored[:5]:
                         related_issues.append({
                             "title": issue.title,
                             "state": issue.state,
                             "labels": issue.labels or [],
                             "url": issue.url,
                             "body_preview": issue.body_preview[:200] if issue.body_preview else "",
-                            "relevance_words": list(overlap)[:5],
+                            "similarity": round(sim, 2),
                         })
-
-                related_issues.sort(key=lambda x: -len(x["relevance_words"]))
-                related_issues = related_issues[:5]
     except Exception:
         pass
 
