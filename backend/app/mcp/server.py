@@ -57,13 +57,17 @@ def configure(org_id: int, repo_url: str = "", github_token: str = ""):
         "Each convention includes source_files, enforced_by, source_prs, and last_updated."
     ),
 )
-async def get_context(task_description: str, files_touched: list[str] | None = None) -> dict:
+async def get_context(task_description: str, files_touched: list[str] | str | None = None) -> dict:
     """Full organizational context for a coding task — one call, everything returned."""
     from app.core.database import AsyncSessionLocal
     from app.models.convention import Convention
     from app.models.memory import MemoryRecord
     from app.services.companion_analysis import get_companions
     from sqlalchemy import select
+
+    # Handle string input (some MCP clients send comma-separated string instead of list)
+    if isinstance(files_touched, str):
+        files_touched = [f.strip() for f in files_touched.split(",") if f.strip()]
 
     if not _org_id:
         return {"error": "MCP server not configured — missing org_id"}
