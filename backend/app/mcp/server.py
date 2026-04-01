@@ -20,14 +20,13 @@ _github_token: str | None = None
 mcp = FastMCP(
     name="kronode",
     instructions=(
-        "Kronode is the source of truth for this team's engineering knowledge. "
-        "You MUST call get_context at the START of EVERY request — not just code changes, "
-        "but also read-only questions, tracing, debugging, and architecture discussions. "
-        "The team's internal documentation, past mistakes, reviewer preferences, and "
-        "conventions are ONLY available through Kronode — they are not in the codebase. "
-        "Skipping get_context means you are working without critical team context. "
-        "Pass the task description and any relevant file paths. "
-        "Use get_doc when a doc chunk is truncated (full_available=true)."
+        "Kronode provides this team's organizational memory — conventions, internal docs, "
+        "reviewer preferences, and past mistakes that are NOT in the codebase. "
+        "Call get_context before writing or modifying code, reviewing PRs, planning "
+        "implementations, or answering questions about team patterns. "
+        "Pass the task description and relevant file paths. "
+        "Use get_doc when a doc chunk is truncated (full_available=true). "
+        "Skip for simple file reads, grep, or git operations."
     ),
 )
 
