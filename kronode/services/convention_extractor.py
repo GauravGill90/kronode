@@ -64,7 +64,7 @@ async def extract_conventions_from_pr(pr: dict) -> list[dict]:
     user_message = "\n\n".join(parts)
 
     try:
-        from app.core.llm import cheap
+        from kronode.core.llm import cheap
         raw = await cheap(system=EXTRACTION_PROMPT, user_message=user_message, max_tokens=1024)
         raw = re.sub(r"^```[a-z]*\n?", "", raw)
         raw = re.sub(r"\n?```$", "", raw)
@@ -129,7 +129,7 @@ async def deduplicate_conventions(conventions: list[dict]) -> list[dict]:
         return unique
 
     try:
-        from app.core.embeddings import get_embeddings_batch, cosine_similarity
+        from kronode.core.embeddings import get_embeddings_batch, cosine_similarity
 
         rules = [c["rule"] for c in unique]
         embeddings = await get_embeddings_batch(rules)

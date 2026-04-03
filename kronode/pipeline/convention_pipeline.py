@@ -10,10 +10,10 @@ import re
 
 from sqlalchemy import select
 
-from app.core.database import AsyncSessionLocal
-from app.models.convention import Convention
-from app.models.org import OnboardingConfig
-from app.services.convention_extractor import (
+from kronode.core.database import AsyncSessionLocal
+from kronode.models.convention import Convention
+from kronode.models.org import OnboardingConfig
+from kronode.services.convention_extractor import (
     extract_conventions_from_pr,
     deduplicate_conventions,
     score_conventions,
@@ -41,7 +41,7 @@ async def run_extraction(org_id: int, pr_count: int = 200) -> int:
 
     # Step 1: Fetch merged PRs (route to correct provider)
     logger.info(f"[ConventionPipeline] Org {org_id}: fetching up to {pr_count} merged PRs (provider={config.repo_provider})")
-    from app.services.git_providers import get_git_provider
+    from kronode.services.git_providers import get_git_provider
     git = get_git_provider(config.repo_provider or "github")
     prs = await git.fetch_merged_prs(
         repo_url=config.repo_url,
@@ -57,7 +57,7 @@ async def run_extraction(org_id: int, pr_count: int = 200) -> int:
 
     # Step 2: Extract conventions from each PR (with rate limiting)
     #         Also extract reviewer knowledge directly from comments (no LLM)
-    from app.services.convention_extractor import extract_reviewer_knowledge
+    from kronode.services.convention_extractor import extract_reviewer_knowledge
     all_conventions: list[dict] = []
     for i, pr in enumerate(prs):
         # LLM-based extraction from diffs
@@ -119,7 +119,7 @@ async def run_extraction(org_id: int, pr_count: int = 200) -> int:
         new_rules = [c["rule"] for c in scored]
 
         try:
-            from app.core.embeddings import get_embeddings_batch, cosine_similarity
+            from kronode.core.embeddings import get_embeddings_batch, cosine_similarity
             all_embeddings = await get_embeddings_batch(existing_rules + new_rules)
             existing_embs = all_embeddings[:len(existing_rules)]
             new_embs = all_embeddings[len(existing_rules):]
@@ -241,7 +241,7 @@ async def _extract_reviewer_patterns(org_id: int, prs: list[dict], db_session=No
         user_message = f"Reviewer: {reviewer}\nReview comments ({len(comments)} total, showing up to 20):\n{comment_text}"
 
         try:
-            from app.core.llm import cheap
+            from kronode.core.llm import cheap
             raw = await cheap(system=REVIEWER_PATTERN_PROMPT, user_message=user_message, max_tokens=512)
             raw = re.sub(r"^```[a-z]*\n?", "", raw)
             raw = re.sub(r"\n?```$", "", raw)
@@ -296,7 +296,7 @@ async def run_base_extraction(
     on the same stack as a starting point. Customer conventions override them.
     """
     if not github_token:
-        from app.core.config import settings
+        from kronode.core.config import settings
         # Try to use any org's GitHub token (works for public repos)
         async with AsyncSessionLocal() as db:
             result = await db.execute(
@@ -365,7 +365,7 @@ async def run_base_extraction(
         new_rules = [c["rule"] for c in scored]
 
         try:
-            from app.core.embeddings import get_embeddings_batch, cosine_similarity
+            from kronode.core.embeddings import get_embeddings_batch, cosine_similarity
             all_embeddings = await get_embeddings_batch(existing_rules + new_rules)
             existing_embs = all_embeddings[:len(existing_rules)]
             new_embs = all_embeddings[len(existing_rules):]

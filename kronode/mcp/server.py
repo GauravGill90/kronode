@@ -1,0 +1,545 @@
+"""Kronode MCP Server — organizational memory for AI coding tools.
+
+Two tools:
+  get_context — everything an AI needs before coding (conventions, companions,
+                reviewer guidance, completeness check, docs, pitfalls, checklist)
+  get_doc     — drill into a full documentation page when get_context returns
+                a truncated snippet
+"""
+import logging
+import os
+
+from mcp.server import FastMCP
+
+logger = logging.getLogger(__name__)
+
+_org_id: int | None = None
+_repo_url: str | None = None
+_github_token: str | None = None
+
+mcp = FastMCP(
+    name="kronode",
+    instructions=(
+        "Kronode provides this team's organizational memory — conventions, internal docs, "
+        "reviewer preferences, and past mistakes that are NOT in the codebase. "
+        "Call get_context before writing or modifying code, reviewing PRs, planning "
+        "implementations, or answering questions about team patterns. "
+        "Pass the task description and relevant file paths. "
+        "Use get_doc when a doc chunk is truncated (full_available=true). "
+        "Skip for simple file reads, grep, or git operations."
+    ),
+)
+
+
+def configure(org_id: int, repo_url: str = "", github_token: str = ""):
+    """Set org context for this MCP server instance."""
+    global _org_id, _repo_url, _github_token
+    _org_id = org_id
+    _repo_url = repo_url
+    _github_token = github_token
+    logger.info(f"[KronodeMCP] Configured for org {org_id}, repo {repo_url[:50]}")
+
+
+@mcp.tool(
+    name="get_context",
+    description=(
+        "Get everything you need before writing code — call this at the START of any task. "
+        "Pass the task description AND files_touched (file paths you'll modify). "
+        "Returns in one call: "
+        "(1) conventions ranked by file-level relevance (file_match=true = from exact files), "
+        "(2) file companions (files that usually change together — tests, i18n, types), "
+        "(3) reviewer guidance (what each likely reviewer will check), "
+        "(4) completeness check (did you miss any companion files), "
+        "(5) pitfalls (past issues on these files), "
+        "(6) past failures (mistakes to avoid), "
+        "(7) relevant documentation with source URLs, "
+        "(8) PR-ready checklist summarizing what to watch for. "
+        "Each convention includes source_files, enforced_by, source_prs, and last_updated."
+    ),
+)
+async def get_context(task_description: str, files_touched: list[str] | str | None = None) -> dict:
+    """Full organizational context for a coding task — one call, everything returned."""
+    from kronode.core.database import AsyncSessionLocal
+    from kronode.models.convention import Convention
+    from kronode.models.memory import MemoryRecord
+    from kronode.services.companion_analysis import get_companions
+    from sqlalchemy import select
+
+    # Handle string input (some MCP clients send comma-separated string instead of list)
+    if isinstance(files_touched, str):
+        files_touched = [f.strip() for f in files_touched.split(",") if f.strip()]
+
+    if not _org_id:
+        return {"error": "MCP server not configured — missing org_id"}
+
+    files_touched = files_touched or []
+
+    async with AsyncSessionLocal() as db:
+        # ── 1. Conventions (ranked by file relevance) ────────────────────────
+        conv_rows = (await db.execute(
+            select(Convention).where(
+                Convention.org_id == _org_id,
+                Convention.suppressed == False,  # noqa: E712
+            )
+        )).scalars().all()
+
+        from kronode.agents.context_builder import _rank_conventions, _get_category_relevance
+        category_boost = await _get_category_relevance(task_description)
+        conventions = await _rank_conventions(
+            conv_rows,
+            description=task_description,
+            selected_paths=files_touched,
+            category_boost=category_boost,
+            max_conventions=20,
+        )
+
+        # ── 2. Pitfalls (file-scoped) ────────────────────────────────────────
+        pitfalls = []
+        if files_touched:
+            pitfall_rows = (await db.execute(
+                select(MemoryRecord).where(
+                    MemoryRecord.org_id == _org_id,
+                    MemoryRecord.record_type == "pitfall",
+                ).order_by(MemoryRecord.id.desc()).limit(30)
+            )).scalars().all()
+
+            touched_set = set(files_touched)
+            touched_dirs = {f.rsplit("/", 1)[0] for f in touched_set if "/" in f}
+            for r in pitfall_rows:
+                content = r.content or {}
+                pitfall_files = set(content.get("files_changed", []))
+                pitfall_dirs = {f.rsplit("/", 1)[0] for f in pitfall_files if "/" in f}
+                if (pitfall_files & touched_set) or (pitfall_dirs & touched_dirs):
+                    comments = content.get("review_comments", [])
+                    desc_parts = []
+                    for c in comments[:3]:
+                        if isinstance(c, dict):
+                            reviewer = c.get("reviewer", "")
+                            body = c.get("body", "")
+                            desc_parts.append(f"{reviewer}: {body}" if reviewer else body)
+                        else:
+                            desc_parts.append(str(c))
+                    pitfalls.append({
+                        "description": "; ".join(desc_parts)[:300],
+                        "files": list(pitfall_files & touched_set)[:5],
+                        "pr_url": content.get("pr_url", ""),
+                    })
+
+        # ── 3. Reviewer guidance ─────────────────────────────────────────────
+        reviewer_guidance = []
+
+        # From enforced_by conventions (grouped by reviewer)
+        enforced = (await db.execute(
+            select(Convention).where(
+                Convention.org_id == _org_id,
+                Convention.enforced_by.isnot(None),
+                Convention.suppressed == False,  # noqa: E712
+            ).order_by(Convention.confidence.desc()).limit(20)
+        )).scalars().all()
+
+        reviewer_map: dict[str, list[str]] = {}
+        for c in enforced:
+            for reviewer in (c.enforced_by or []):
+                reviewer_map.setdefault(reviewer, []).append(c.rule[:150])
+
+        for reviewer, prefs in reviewer_map.items():
+            reviewer_guidance.append({
+                "reviewer": reviewer,
+                "preferences": prefs[:5],
+                "enforcement_count": len(prefs),
+            })
+
+        # From memory records (direct reviewer feedback)
+        pattern_rows = (await db.execute(
+            select(MemoryRecord).where(
+                MemoryRecord.org_id == _org_id,
+                MemoryRecord.record_type == "pattern",
+            ).order_by(MemoryRecord.id.desc()).limit(15)
+        )).scalars().all()
+        for r in pattern_rows:
+            content = r.content or {}
+            changes = content.get("changes_requested", [])
+            reviewer = content.get("reviewer", "")
+            if changes and reviewer:
+                # Merge into existing reviewer entry if exists
+                existing = next((g for g in reviewer_guidance if g["reviewer"] == reviewer), None)
+                if existing:
+                    existing["preferences"].extend(changes[:2])
+                else:
+                    reviewer_guidance.append({
+                        "reviewer": reviewer,
+                        "preferences": changes[:3],
+                        "enforcement_count": 0,
+                    })
+
+        # ── 4. Past failures ─────────────────────────────────────────────────
+        past_failures = []
+        failure_rows = (await db.execute(
+            select(MemoryRecord).where(
+                MemoryRecord.org_id == _org_id,
+                MemoryRecord.record_type == "coder_failure",
+            ).order_by(MemoryRecord.id.desc()).limit(10)
+        )).scalars().all()
+        for r in failure_rows:
+            content = r.content or {}
+            past_failures.append({
+                "task": content.get("task_description", "")[:100],
+                "error": content.get("error", content.get("review_summary", ""))[:200],
+                "category": content.get("failure_category", ""),
+            })
+
+        # ── 5. Documentation ─────────────────────────────────────────────────
+        doc_chunks = []
+        try:
+            from kronode.services.doc_ingestion import query_relevant_chunks
+            raw_chunks = await query_relevant_chunks(_org_id, task_description, max_chunks=5)
+            doc_chunks = [
+                {
+                    "heading": c.get("heading", ""),
+                    "content": c.get("content", "")[:2500],
+                    "full_available": len(c.get("content", "")) > 2500,
+                    "similarity": round(c.get("similarity", 0), 2),
+                    "source_url": c.get("source_url", ""),
+                }
+                for c in raw_chunks
+            ]
+        except Exception:
+            pass
+
+    # ── 6. Related issues (semantic matching) ──────────────────────────
+    related_issues = []
+    try:
+        from kronode.models.issue_index import IssueIndex
+        from kronode.core.embeddings import get_embedding, cosine_similarity as cos_sim
+        async with AsyncSessionLocal() as db2:
+            issue_rows = (await db2.execute(
+                select(IssueIndex).where(
+                    IssueIndex.org_id == _org_id,
+                    IssueIndex.embedding.isnot(None),
+                ).limit(1000)
+            )).scalars().all()
+
+            if issue_rows:
+                task_emb = await get_embedding(task_description)
+                if task_emb:
+                    scored = []
+                    for issue in issue_rows:
+                        sim = cos_sim(task_emb, issue.embedding)
+                        if sim > 0.35:  # threshold to avoid noise
+                            scored.append((sim, issue))
+                    scored.sort(key=lambda x: -x[0])
+                    for sim, issue in scored[:5]:
+                        related_issues.append({
+                            "title": issue.title,
+                            "state": issue.state,
+                            "labels": issue.labels or [],
+                            "url": issue.url,
+                            "body_preview": issue.body_preview[:200] if issue.body_preview else "",
+                            "similarity": round(sim, 2),
+                        })
+    except Exception:
+        pass
+
+    # ── 8. File companions ───────────────────────────────────────────────
+    file_companions: list[dict] = []
+    seen_paths: set[str] = set()
+    for file_path in files_touched[:5]:
+        try:
+            companions = await get_companions(_org_id, file_path)
+            for comp in companions:
+                if comp.get("path") not in seen_paths:
+                    seen_paths.add(comp["path"])
+                    file_companions.append({**comp, "companion_of": file_path})
+        except Exception:
+            pass
+
+    # ── 7. Completeness check ────────────────────────────────────────────
+    changed_set = set(files_touched)
+    missing_files = []
+    for comp in file_companions:
+        if comp.get("path") not in changed_set:
+            missing_files.append({
+                "file": comp["path"],
+                "reason": f"Usually changes with {comp.get('companion_of', '?')} ({comp.get('co_change_pct', '?')}% of the time)",
+            })
+
+    # ── Improvement #4: Drop low-score and low-confidence conventions ──
+    conventions = [c for c in conventions if c.get("relevance_score", 0) >= 5.0 and c.get("confidence", 0) >= 0.5]
+
+    # ── Improvement #1: Top 3 conventions with reasoning ─────────────
+    top_conventions = conventions[:3]
+
+    # ── Improvement #2: Split issues into tiers ──────────────────────
+    directly_related = [i for i in related_issues if i.get("similarity", 0) > 0.6]
+    loosely_related = [i for i in related_issues if 0.35 < i.get("similarity", 0) <= 0.6]
+
+    # ── Improvement #5: Surface companion files prominently ──────────
+    files_to_check = []
+    for comp in file_companions[:10]:
+        if comp.get("path") not in changed_set:
+            files_to_check.append({
+                "file": comp["path"],
+                "reason": f"Usually changes with {comp.get('companion_of', '?')} ({comp.get('co_change_pct', '?')}%)",
+            })
+
+    # ── Improvement #6: Action plan output ───────────────────────────
+    action_parts = []
+    if top_conventions:
+        c = top_conventions[0]
+        action_parts.append(f"Follow convention: {c['rule'][:100]} ({c.get('match_reason', '')}).")
+    if directly_related:
+        issue = directly_related[0]
+        action_parts.append(f"Check related issue: {issue['title'][:60]} ({issue['url']}).")
+    if reviewer_guidance:
+        g = reviewer_guidance[0]
+        prefs = g.get("preferences", [])
+        if prefs:
+            action_parts.append(f"{g['reviewer']} typically checks: {prefs[0][:80]}.")
+    if files_to_check:
+        action_parts.append(f"Also update: {', '.join(f['file'] for f in files_to_check[:3])}.")
+    if past_failures:
+        action_parts.append(f"Avoid: {past_failures[0].get('error', '')[:80]}.")
+
+    action_plan = " ".join(action_parts) if action_parts else "No specific guidance for this task."
+
+    # ── Fix 3: Collapse reviewer guidance unless task mentions review ──
+    review_keywords = {"review", "pr", "pull request", "reviewer", "approve", "merge"}
+    include_reviewers = any(kw in task_description.lower() for kw in review_keywords)
+
+    # ── Fix 4: Split top 3 vs other conventions ─────────────────────
+    other_conventions = conventions[3:]  # skip top 3 (already in top_conventions)
+
+    return {
+        "action_plan": action_plan,
+        "top_conventions": top_conventions,
+        "files_you_should_also_check": files_to_check,
+        "directly_related_issues": directly_related,
+        "loosely_related_issues": loosely_related,
+        "relevant_documentation": doc_chunks,
+        "other_conventions": other_conventions,
+        "reviewer_guidance": reviewer_guidance[:10] if include_reviewers else [],
+        "pitfalls": pitfalls,
+        "past_failures": past_failures[:5],
+        "completeness": {
+            "complete": len(files_to_check) == 0,
+            "missing": files_to_check,
+        },
+        "org_id": _org_id,
+    }
+
+
+@mcp.tool(
+    name="get_doc",
+    description=(
+        "Get the full content of a documentation page when get_context returned a "
+        "truncated snippet (full_available=true). Search by title or keyword. "
+        "Returns the complete page text with source URL. "
+        "If the page hasn't been ingested yet, it will be fetched on demand."
+    ),
+)
+async def get_doc(query: str) -> dict:
+    """Search for and return full documentation content matching the query."""
+    from kronode.core.database import AsyncSessionLocal
+    from kronode.models.doc_chunk import DocChunk
+    from kronode.models.doc_index import DocIndex
+    from kronode.core.embeddings import get_embedding, cosine_similarity
+    from sqlalchemy import select
+
+    if not _org_id:
+        return {"error": "MCP server not configured — missing org_id"}
+
+    async with AsyncSessionLocal() as db:
+        rows = (await db.execute(
+            select(DocChunk).where(DocChunk.org_id == _org_id)
+        )).scalars().all()
+
+        # If no chunks exist, check doc index for lazy fetch
+        if not rows:
+            result = await _lazy_fetch_from_index(db, query)
+            if result:
+                return result
+            return {"results": [], "message": "No documentation ingested for this org."}
+
+        query_emb = await get_embedding(query)
+        matches = []
+
+        for chunk in rows:
+            score = 0.0
+            if query_emb and chunk.embedding:
+                score = cosine_similarity(query_emb, chunk.embedding)
+
+            heading_lower = (chunk.heading or "").lower()
+            query_lower = query.lower()
+            if query_lower in heading_lower:
+                score += 0.3
+
+            if score >= 0.25:
+                matches.append((score, chunk))
+
+        matches.sort(key=lambda x: -x[0])
+
+        if not matches:
+            # Try lazy fetch from doc index
+            result = await _lazy_fetch_from_index(db, query)
+            if result:
+                return result
+            return {"results": [], "message": f"No docs matched '{query}'."}
+
+        top_source_ref = matches[0][1].source_ref
+        page_chunks = sorted(
+            [c for c in rows if c.source_ref == top_source_ref],
+            key=lambda c: c.id,
+        )
+
+        full_content = "\n\n".join(c.content for c in page_chunks)
+        page_title = page_chunks[0].heading.split(" > ")[0] if page_chunks else query
+        source_url = page_chunks[0].source_url or ""
+
+        seen_refs = {top_source_ref}
+        other_pages = []
+        for score, chunk in matches:
+            if chunk.source_ref not in seen_refs:
+                seen_refs.add(chunk.source_ref)
+                other_pages.append({
+                    "title": chunk.heading.split(" > ")[0],
+                    "source_ref": chunk.source_ref,
+                    "similarity": round(score, 2),
+                })
+            if len(other_pages) >= 4:
+                break
+
+        return {
+            "title": page_title,
+            "source_url": source_url,
+            "content": full_content,
+            "chunks_in_page": len(page_chunks),
+            "similarity": round(matches[0][0], 2),
+            "other_matches": other_pages,
+        }
+
+
+async def _lazy_fetch_from_index(db, query: str) -> dict | None:
+    """Search the doc index by title, fetch + chunk + embed on demand."""
+    from kronode.models.doc_index import DocIndex
+    from kronode.models.doc_chunk import DocChunk
+    from kronode.models.org import OnboardingConfig
+    from kronode.core.embeddings import get_embedding, get_embeddings_batch
+    from sqlalchemy import select
+
+    # Search index by title keyword match
+    query_lower = query.lower()
+    index_rows = (await db.execute(
+        select(DocIndex).where(DocIndex.org_id == _org_id)
+    )).scalars().all()
+
+    if not index_rows:
+        return None
+
+    # Score by title match
+    scored = []
+    for entry in index_rows:
+        title_lower = entry.title.lower()
+        score = 0.0
+        # Exact substring match
+        if query_lower in title_lower:
+            score += 1.0
+        # Word overlap
+        query_words = set(query_lower.split())
+        title_words = set(title_lower.split())
+        overlap = query_words & title_words
+        score += len(overlap) * 0.3
+        if score > 0:
+            scored.append((score, entry))
+
+    if not scored:
+        return None
+
+    scored.sort(key=lambda x: -x[0])
+    best = scored[0][1]
+
+    # If already ingested, the caller should have found it in doc_chunks
+    # But check anyway — maybe it was ingested after the chunks were loaded
+    if best.ingested:
+        # Re-query chunks for this source_ref
+        chunks = (await db.execute(
+            select(DocChunk).where(
+                DocChunk.org_id == _org_id,
+                DocChunk.source_ref == best.source_ref,
+            ).order_by(DocChunk.id)
+        )).scalars().all()
+        if chunks:
+            full_content = "\n\n".join(c.content for c in chunks)
+            return {
+                "title": best.title,
+                "source_url": best.source_url or "",
+                "content": full_content,
+                "chunks_in_page": len(chunks),
+                "fetched_on_demand": False,
+            }
+
+    # Lazy fetch: get the page content, chunk it, embed it, store it
+    config = (await db.execute(
+        select(OnboardingConfig).where(OnboardingConfig.org_id == _org_id)
+    )).scalar_one_or_none()
+
+    if not config or not config.github_access_token:
+        return None
+
+    # Determine provider and fetch the page
+    from kronode.services.doc_providers import get_provider
+    try:
+        provider = get_provider(best.source_type)
+        token = config.github_access_token  # reused for all providers for now
+        if best.source_type == "confluence":
+            # Confluence needs the space URL
+            repo_url = config.docs_scope or config.repo_url or ""
+            raw_doc = await provider.fetch_page(best.source_ref, token, repo_url)
+        else:
+            raw_doc = await provider.fetch_page(best.source_ref, token)
+
+        if not raw_doc:
+            return None
+
+        # Chunk it
+        chunks_data = provider.chunk(raw_doc)
+        if not chunks_data:
+            return None
+
+        # Embed
+        texts = [c.content for c in chunks_data]
+        embeddings = await get_embeddings_batch(texts)
+
+        # Store chunks
+        for chunk, emb in zip(chunks_data, embeddings):
+            db.add(DocChunk(
+                org_id=_org_id,
+                source_type=best.source_type,
+                source_ref=best.source_ref,
+                source_url=best.source_url or raw_doc.source_url,
+                file_sha=raw_doc.file_sha,
+                heading=chunk.heading,
+                content=chunk.content,
+                embedding=emb,
+                extra=chunk.metadata,
+            ))
+
+        # Mark as ingested
+        best.ingested = True
+        from datetime import datetime
+        best.ingested_at = datetime.utcnow()
+        await db.commit()
+
+        full_content = "\n\n".join(c.content for c in chunks_data)
+        logger.info(f"[LazyFetch] Fetched + embedded '{best.title}' on demand ({len(chunks_data)} chunks)")
+
+        return {
+            "title": best.title,
+            "source_url": best.source_url or raw_doc.source_url,
+            "content": full_content,
+            "chunks_in_page": len(chunks_data),
+            "fetched_on_demand": True,
+        }
+
+    except Exception as e:
+        logger.warning(f"[LazyFetch] Failed to fetch '{best.title}': {e}")
+        return None
