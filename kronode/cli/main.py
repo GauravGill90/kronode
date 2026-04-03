@@ -16,6 +16,7 @@ from kronode.cli.commands.query import query
 from kronode.cli.commands.setup import setup
 from kronode.cli.commands.status import status
 from kronode.cli.commands.add import add
+from kronode.cli.commands.purge import purge
 
 cli.add_command(init)
 cli.add_command(ingest)
@@ -24,3 +25,4 @@ cli.add_command(query)
 cli.add_command(setup)
 cli.add_command(status)
 cli.add_command(add)
+cli.add_command(purge)
