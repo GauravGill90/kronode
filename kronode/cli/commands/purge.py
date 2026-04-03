@@ -8,18 +8,16 @@ console = Console()
 
 
 @click.command()
-@click.option("--yes", "-y", is_flag=True, help="Skip confirmation")
 @click.option("--conventions", "only_convs", is_flag=True, help="Only delete conventions")
 @click.option("--docs", "only_docs", is_flag=True, help="Only delete doc chunks")
-def purge(yes: bool, only_convs: bool, only_docs: bool):
+def purge(only_convs: bool, only_docs: bool):
     """Delete all ingested data (conventions, docs, issues).
 
     Use --conventions or --docs to delete only specific data.
     """
-    if not yes:
-        what = "conventions" if only_convs else "docs" if only_docs else "all data"
-        if not click.confirm(f"Delete {what}? This cannot be undone"):
-            return
+    what = "conventions" if only_convs else "doc chunks" if only_docs else "ALL data (conventions, docs, issues, memory)"
+    if not click.confirm(f"Delete {what}? This cannot be undone"):
+        return
 
     asyncio.run(_purge(only_convs, only_docs))
 
