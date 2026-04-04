@@ -33,11 +33,12 @@ class Settings(BaseSettings):
     repo_provider: str = "github"  # github | gitlab | bitbucket
     repo_token: str = ""  # optional PAT for --with-prs
 
-    # LLM keys (BYOK mode)
+    # LLM key (BYOK mode) — single key, auto-detects provider
+    llm_api_key: str = ""  # set LLM_API_KEY env var or llm_api_key in config.toml
+
+    # Provider-specific keys (alternative to single LLM_API_KEY)
     openai_api_key: str = ""
     anthropic_api_key: str = ""
-
-    # Cheap LLM failover
     gemini_api_key: str = ""
     deepseek_api_key: str = ""
 
@@ -57,8 +58,7 @@ class Settings(BaseSettings):
             "repo_provider": repo.get("provider", "github"),
             "repo_token": repo.get("token", ""),
             "database_url": db.get("url", DEFAULT_DB),
-            "openai_api_key": byok.get("openai_api_key", ""),
-            "anthropic_api_key": byok.get("anthropic_api_key", ""),
+            "llm_api_key": byok.get("llm_api_key", ""),
         }
 
         # Env vars override toml
@@ -67,12 +67,29 @@ class Settings(BaseSettings):
             if not env_val:
                 kwargs.setdefault(key, default)
 
-        # Auto-detect mode
-        if not kwargs.get("mode"):
-            if os.environ.get("OPENAI_API_KEY") or defaults.get("openai_api_key"):
-                kwargs["mode"] = "byok"
+        # Auto-detect provider from single LLM_API_KEY
+        llm_key = os.environ.get("LLM_API_KEY", "") or kwargs.get("llm_api_key", "") or defaults.get("llm_api_key", "")
+        if llm_key:
+            if llm_key.startswith("sk-ant-"):
+                kwargs.setdefault("anthropic_api_key", llm_key)
+            elif llm_key.startswith("sk-"):
+                kwargs.setdefault("openai_api_key", llm_key)
+            elif llm_key.startswith("AI"):
+                kwargs.setdefault("gemini_api_key", llm_key)
             else:
-                kwargs["mode"] = "local"
+                # Default to OpenAI-compatible
+                kwargs.setdefault("openai_api_key", llm_key)
+
+        # Also check provider-specific env vars directly
+        for key in ("openai_api_key", "anthropic_api_key", "gemini_api_key", "deepseek_api_key"):
+            env_val = os.environ.get(key.upper(), "")
+            if env_val:
+                kwargs[key] = env_val
+
+        # Auto-detect mode
+        has_llm = any(kwargs.get(k) for k in ("openai_api_key", "anthropic_api_key", "gemini_api_key", "deepseek_api_key", "llm_api_key"))
+        if not kwargs.get("mode") or kwargs.get("mode") == "local":
+            kwargs["mode"] = "byok" if has_llm else "local"
 
         super().__init__(**kwargs)
 
