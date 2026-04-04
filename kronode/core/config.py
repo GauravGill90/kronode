@@ -39,6 +39,15 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     deepseek_api_key: str = ""
 
+    # Ingestion settings
+    kronode_pr_count: int = 200
+    kronode_min_confidence: float = 0.5
+    kronode_max_conventions: int = 20
+
+    # MCP server
+    kronode_transport: str = "stdio"
+    kronode_port: int = 8001
+
     # Org ID (always 1 for open-source single-tenant)
     org_id: int = 1
 
