@@ -88,14 +88,29 @@ def _extract_markdown_docs(repo_path: str) -> list[dict]:
     return docs
 
 
+def _get_gh_token() -> str | None:
+    """Try to get a token from gh CLI (if installed and authenticated)."""
+    try:
+        result = subprocess.run(
+            ["gh", "auth", "token"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            return result.stdout.strip()
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return None
+
+
 @click.command()
-@click.option("--with-prs", is_flag=True, help="Also fetch PR review comments via API (needs --token)")
-@click.option("--token", default="", help="GitHub/GitLab/Bitbucket PAT for PR API access")
+@click.option("--with-prs", is_flag=True, help="Also fetch PR review comments (uses gh CLI or --token)")
+@click.option("--token", default="", help="GitHub/GitLab/Bitbucket PAT (optional if gh CLI is authenticated)")
 def ingest(with_prs: bool, token: str):
     """Extract conventions + docs from git history.
 
     Default: reads local git log + markdown files (zero network).
     Use --with-prs to also fetch PR review comments via API.
+    If gh CLI is installed and authenticated, no --token needed.
     """
     from kronode.core.config import get_settings
     settings = get_settings()
@@ -105,9 +120,23 @@ def ingest(with_prs: bool, token: str):
         console.print("[red]No repo configured.[/red] Run `kronode init .` first.")
         raise SystemExit(1)
 
+    # Resolve token: explicit --token > config > gh CLI
+    resolved_token = token or settings.repo_token
+    if with_prs and not resolved_token:
+        gh_token = _get_gh_token()
+        if gh_token:
+            resolved_token = gh_token
+            console.print("  [dim]Using gh CLI authentication[/dim]")
+        else:
+            console.print("[yellow]No token found.[/yellow] Either:")
+            console.print("  1. Install and authenticate gh CLI: [cyan]gh auth login[/cyan]")
+            console.print("  2. Pass a PAT: [cyan]kronode ingest --with-prs --token ghp_xxx[/cyan]")
+            console.print("  Continuing without PR data...\n")
+            with_prs = False
+
     console.print(f"\n[bold]Kronode ingest[/bold] — {repo_path}\n")
 
-    asyncio.run(_ingest(repo_path, settings, with_prs, token or settings.repo_token))
+    asyncio.run(_ingest(repo_path, settings, with_prs, resolved_token))
 
 
 async def _ingest(repo_path: str, settings, with_prs: bool, token: str):

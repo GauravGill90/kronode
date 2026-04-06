@@ -20,7 +20,11 @@ def _load_toml() -> dict:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(extra="ignore")
+    model_config = SettingsConfigDict(
+        extra="ignore",
+        env_file=(".env", str(KRONODE_DIR / ".env")),
+        env_file_encoding="utf-8",
+    )
 
     # Mode
     mode: str = "local"  # "local" or "byok"
@@ -64,26 +68,26 @@ class Settings(BaseSettings):
             "repo_provider": repo.get("provider", "github"),
             "repo_token": repo.get("token", ""),
             "database_url": db.get("url", DEFAULT_DB),
-            "openai_api_key": byok.get("openai_api_key", ""),
-            "anthropic_api_key": byok.get("anthropic_api_key", ""),
-            "gemini_api_key": byok.get("gemini_api_key", ""),
-            "deepseek_api_key": byok.get("deepseek_api_key", ""),
         }
 
-        # Env vars override toml
+        # TOML overrides (only non-empty values, don't clobber .env file keys)
         for key, default in defaults.items():
-            env_val = os.environ.get(key.upper(), "")
-            if env_val:
-                kwargs[key] = env_val
-            else:
+            if default:
                 kwargs.setdefault(key, default)
 
-        # Auto-detect mode
-        has_llm = any(kwargs.get(k) for k in ("openai_api_key", "anthropic_api_key", "gemini_api_key", "deepseek_api_key"))
-        if not kwargs.get("mode") or kwargs.get("mode") == "local":
-            kwargs["mode"] = "byok" if has_llm else "local"
+        # TOML byok keys (only if explicitly set, don't override .env)
+        for key in ("openai_api_key", "anthropic_api_key", "gemini_api_key", "deepseek_api_key"):
+            val = byok.get(key, "")
+            if val:
+                kwargs.setdefault(key, val)
 
         super().__init__(**kwargs)
+
+        # Auto-detect mode after all sources (toml + env + .env file) are loaded
+        if self.mode == "local":
+            has_llm = any(getattr(self, k, "") for k in ("openai_api_key", "anthropic_api_key", "gemini_api_key", "deepseek_api_key"))
+            if has_llm:
+                object.__setattr__(self, "mode", "byok")
 
 
 @lru_cache
