@@ -1,6 +1,14 @@
-# Kronode
+<p align="center">
+  <img src="assets/banner.svg" alt="Kronode" width="600" />
+</p>
 
-**Extract team conventions from git history. Serve them to any AI coding tool via MCP.**
+<p align="center">
+  <strong>Extract team conventions from git history. Serve them to any AI coding tool via MCP.</strong>
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick Start</a> · <a href="#setup-your-ai-tool">Setup AI Tool</a> · <a href="#modes">Modes</a> · <a href="#mcp-tools">MCP Tools</a>
+</p>
 
 Three commands. Zero API keys. Works with Claude Code, Cursor, Codex, Copilot, and 10+ more.
 
